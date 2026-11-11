@@ -10,6 +10,7 @@ import Partner from "./screens/Partner";
 import Referrals from "./screens/Referrals";
 import Share from "./screens/Share";
 import Profile from "./screens/Profile";
+import NewsDetail from "./screens/NewsDetail";
 
 export default function App() {
   const [stack, setStack] = useState<Route[]>([{ name: "home" }]);
@@ -39,6 +40,7 @@ export default function App() {
   let screen;
   switch (route.name) {
     case "home": screen = <Home />; break;
+    case "news": screen = <NewsDetail item={route.item} />; break;
     case "services": screen = <Services initialTab={route.tab} />; break;
     case "service": screen = <ServiceDetail id={route.id} />; break;
     case "documents": screen = <Documents />; break;

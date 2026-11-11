@@ -91,7 +91,7 @@ def me(user: User = Depends(current_user)):
 def _news_view(n: News) -> dict:
     return {"id": n.id, "kind": n.kind, "is_banner": n.is_banner, "title": n.title, "body": n.body,
             "partner_name": n.partner_name, "image": f"/uploads/{n.image_path}" if n.image_path else None,
-            "link": n.link_url, "date": n.created_at.date().isoformat() if n.created_at else None}
+            "link": n.link_url, "cta": bool(n.cta_lead), "date": n.created_at.date().isoformat() if n.created_at else None}
 
 
 @router.get("/home")
@@ -186,6 +186,39 @@ def order(body: OrderIn, user: User = Depends(current_user), db: Session = Depen
     db.commit()
     notify_managers("🛎 Новая заявка из приложения", [
         f"Услуга: {tariff.name} ({tariff.code})",
+        f"Клиент: {user.first_name or '—'} · {tg}" + (f" · {user.phone}" if user.phone else ""),
+        "Уже есть в Kommo" if user.kommo_contact_id else "Новый клиент (в Kommo создан контакт)",
+    ], lead_id)
+    return {"ok": True}
+
+
+@router.post("/news/{news_id}/interest")
+def news_interest(news_id: int, user: User = Depends(current_user), db: Session = Depends(get_db),
+                  kommo: KommoClient = Depends(kommo_dep)):
+    """Кнопка «Узнать подробнее» в новости: сделка в Kommo (Consulting → Распределение) + сообщение менеджерам."""
+    n = db.get(News, news_id)
+    if not n or not n.published or not n.cta_lead:
+        raise HTTPException(404, "Новость не найдена")
+    code = f"news:{n.id}"
+    recent = db.scalar(select(ServiceOrder).where(ServiceOrder.user_id == user.id, ServiceOrder.service_code == code,
+                                                  ServiceOrder.created_at > utcnow() - timedelta(hours=1)))
+    if recent:
+        return {"ok": True, "duplicate": True}
+    tg = f"@{user.telegram_username}" if user.telegram_username else f"id {user.telegram_id}"
+    lead_id = None
+    try:
+        lead_id = kommo.create_lead(
+            title=f"Интерес из приложения: {n.title}", contact_name=user.first_name or "Клиент из приложения",
+            phone=user.phone, telegram=tg, contact_id=user.kommo_contact_id,
+            note=f"Клиент нажал «Узнать подробнее» в новости «{n.title}» в Telegram-приложении.",
+            tags=["Приложение", "Новость"],
+        )
+    except Exception:
+        log.exception("Kommo: не удалось создать сделку по новости")
+    db.add(ServiceOrder(user_id=user.id, service_code=code, kommo_lead_id=lead_id))
+    db.commit()
+    notify_managers("📣 Интерес к новости", [
+        f"Новость: {n.title}",
         f"Клиент: {user.first_name or '—'} · {tg}" + (f" · {user.phone}" if user.phone else ""),
         "Уже есть в Kommo" if user.kommo_contact_id else "Новый клиент (в Kommo создан контакт)",
     ], lead_id)

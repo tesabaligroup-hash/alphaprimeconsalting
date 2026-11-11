@@ -150,6 +150,20 @@ def test_client_sees_only_marked_files(client):
 
 def test_news_from_repository_content(client):
     d = client.get("/api/home", headers=DEV).json()
-    b = [n for n in d["banners"] if n["title"] == "Оформляете визу — получите подарок"]
-    assert b and b[0]["image"].endswith("content-alpha-wolf-lodge-banner.png")
+    titles = [n["title"] for n in d["banners"]]
+    assert "Оформляете визу — получите подарок" not in titles  # старая удалена флагом delete
+    b = [n for n in d["banners"] if n["title"].startswith("Специальный вход к волкам")]
+    assert b and b[0]["image"].endswith("content-wolf-lodge-vip.png") and b[0]["cta"] is True
     assert client.get(b[0]["image"]).status_code == 200
+
+
+def test_news_interest_creates_lead_and_dedupes(client):
+    from app.api import kommo_dep
+    kommo = app.dependency_overrides.get(kommo_dep, kommo_dep)()
+    before = len(kommo.created)
+    nid = next(n["id"] for n in client.get("/api/home", headers=DEV).json()["banners"] if n["cta"])
+    r = client.post(f"/api/news/{nid}/interest", headers=DEV)
+    assert r.status_code == 200 and r.json() == {"ok": True}
+    assert len(kommo.created) == before + 1 and kommo.created[-1]["title"].startswith("Интерес из приложения: Специальный вход")
+    assert client.post(f"/api/news/{nid}/interest", headers=DEV).json().get("duplicate") is True
+    assert client.post("/api/news/999999/interest", headers=DEV).status_code == 404

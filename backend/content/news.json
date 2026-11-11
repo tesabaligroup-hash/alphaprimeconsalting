@@ -1,12 +1,16 @@
 [
   {
     "key": "2026-11-alpha-wolf-lodge-coupon",
+    "delete": true
+  },
+  {
+    "key": "2026-11-alpha-wolf-lodge-vip",
     "kind": "company",
     "is_banner": true,
-    "title": "Оформляете визу — получите подарок",
-    "body": "Всем, кто оформляет визу или KITAS в Alpha Prime, дарим купон на посещение Alpha Wolf Lodge в Нуану. Подробности — у вашего менеджера.",
-    "image": "alpha-wolf-lodge-banner.png",
-    "link_url": "https://wa.me/6281519845777",
+    "cta_lead": true,
+    "title": "Специальный вход к волкам — Alpha Wolf Lodge",
+    "body": "Клиентам Alpha Prime — специальный вход в Alpha Wolf Lodge в Nuanu Creative City.\n\nОформляете визу или KITAS у нас? Приходите познакомиться со стаей: прогулка среди волков, фото со стаей и атмосфера лоджа на чёрном песке Бали.\n\nНажмите «Узнать подробнее» — менеджер напишет вам, расскажет условия и запишет на удобный день.",
+    "image": "wolf-lodge-vip.png",
     "sort_order": 0
   }
 ]

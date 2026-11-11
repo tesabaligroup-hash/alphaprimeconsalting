@@ -38,6 +38,7 @@
     </div>
   </div>
   <p><label style="display:inline-flex;gap:8px;align-items:center;color:inherit"><input type="checkbox" name="is_banner" value="true" {% if item and item.is_banner %}checked{% endif %}> Это баннер (большая карточка в карусели)</label></p>
+  <p><label style="display:inline-flex;gap:8px;align-items:center;color:inherit"><input type="checkbox" name="cta_lead" value="true" {% if item and item.cta_lead %}checked{% endif %}> Кнопка «Узнать подробнее» — заявка придёт менеджерам в Kommo и в Telegram</label></p>
   <p><label style="display:inline-flex;gap:8px;align-items:center;color:inherit"><input type="checkbox" name="published" value="true" {% if not item or item.published %}checked{% endif %}> Опубликовать</label></p>
   <div class="row" style="justify-content:space-between">
     <div style="flex:0 0 auto"><button type="submit">Сохранить</button> <a class="btn btn-line" href="/admin/news">Отмена</a></div>

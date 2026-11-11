@@ -51,7 +51,7 @@ export type Service = {
   expected_at: string | null; issued_at: string | null; valid_until: string | null;
 };
 export type ImportantDate = { date: string; title: string; person: string; lead_id: number | null; days_left: number; kind: string };
-export type NewsItem = { id: number; kind: string; is_banner: boolean; title: string; body: string | null; partner_name: string | null; image: string | null; link: string | null; date: string | null };
+export type NewsItem = { id: number; kind: string; is_banner: boolean; title: string; body: string | null; partner_name: string | null; image: string | null; link: string | null; cta: boolean; date: string | null };
 export type Me = {
   first_name: string | null; linked: boolean; has_phone: boolean; is_partner: boolean; language: string;
   notify_partner_offers: boolean; notify_company_offers: boolean;

@@ -34,7 +34,17 @@ def sync_news(db: Session) -> int:
     added = 0
     for it in items:
         key = it.get("key")
-        if not key or key in seen or db.scalar(select(News).where(News.key == key)):
+        if not key:
+            continue
+        if it.get("delete"):  # {"key": "...", "delete": true} — убрать старую новость из приложения
+            old = db.scalar(select(News).where(News.key == key))
+            if old:
+                db.delete(old)
+                log.info("content/news.json: удалена новость %s", key)
+            if key not in seen:
+                db.add(AuditLog(actor="github", action="content_news", details={"key": key}))
+            continue
+        if key in seen or db.scalar(select(News).where(News.key == key)):
             continue
         image = None
         if it.get("image") and (CONTENT / "img" / it["image"]).is_file():
@@ -42,7 +52,7 @@ def sync_news(db: Session) -> int:
             shutil.copyfile(CONTENT / "img" / it["image"], uploads / image)
         db.add(News(key=key, kind=it.get("kind", "company"), is_banner=bool(it.get("is_banner")), title=it["title"],
                     body=it.get("body"), partner_name=it.get("partner_name"), image_path=image,
-                    link_url=it.get("link_url"), sort_order=int(it.get("sort_order", 0)), published=it.get("published", True)))
+                    link_url=it.get("link_url"), cta_lead=bool(it.get("cta_lead")), sort_order=int(it.get("sort_order", 0)), published=it.get("published", True)))
         db.add(AuditLog(actor="github", action="content_news", details={"key": key}))  # чтобы удалённая в админке не вернулась
         added += 1
     db.commit()

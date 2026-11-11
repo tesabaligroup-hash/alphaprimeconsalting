@@ -158,6 +158,7 @@ class News(Base):
     partner_name: Mapped[str | None] = mapped_column(String(128))
     image_path: Mapped[str | None] = mapped_column(String(255))
     link_url: Mapped[str | None] = mapped_column(String(512))
+    cta_lead: Mapped[bool] = mapped_column(Boolean, default=False)  # кнопка «Узнать подробнее» → заявка менеджерам
     published: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

@@ -1,11 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { api, ApiError, type Me } from "./api";
+import { api, ApiError, type Me, type NewsItem } from "./api";
 import { IBack, IBag, IDoc, IHome, IPeople, IUser } from "./icons";
 
 // ---------- Навигация ----------
 export type Route =
   | { name: "home" } | { name: "services"; tab?: "mine" | "all" } | { name: "service"; id: number }
-  | { name: "documents" } | { name: "partner" } | { name: "referrals" } | { name: "share" } | { name: "profile" };
+  | { name: "news"; item: NewsItem } | { name: "documents" } | { name: "partner" } | { name: "referrals" } | { name: "share" } | { name: "profile" };
 
 type Ctx = { route: Route; go: (r: Route) => void; back: () => void; me: Me | null; reloadMe: () => void; toast: (t: string) => void };
 export const AppCtx = createContext<Ctx>(null as unknown as Ctx);
@@ -30,7 +30,7 @@ export function useLoad<T>(path: string | null, deps: unknown[] = []) {
 export function Nav() {
   const { route, go } = useApp();
   const tabs = [
-    { key: "home", label: "Главная", icon: IHome, r: { name: "home" } as Route, match: ["home"] },
+    { key: "home", label: "Главная", icon: IHome, r: { name: "home" } as Route, match: ["home", "news"] },
     { key: "services", label: "Услуги", icon: IBag, r: { name: "services" } as Route, match: ["services", "service"] },
     { key: "documents", label: "Документы", icon: IDoc, r: { name: "documents" } as Route, match: ["documents"] },
     { key: "partner", label: "Партнёрка", icon: IPeople, r: { name: "partner" } as Route, match: ["partner", "referrals", "share"] },

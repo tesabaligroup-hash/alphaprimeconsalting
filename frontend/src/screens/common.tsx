@@ -2,7 +2,7 @@ import { useState } from "react";
 import { type NewsItem, type Service } from "../api";
 import { dateNum, money } from "../format";
 import { tg, haptic, openExternal } from "../tg";
-import { useApp } from "../ui";
+import { useApp, type Route } from "../ui";
 
 export function ServiceCardView({ s }: { s: Service }) {
   const { go } = useApp();
@@ -59,6 +59,8 @@ export function LinkPhoneCard() {
   );
 }
 
-export function openNews(n: NewsItem) {
-  if (n.link) openExternal(n.link);
+/** Новость с текстом или кнопкой «Узнать подробнее» открывается отдельным экраном, иначе — сразу ссылка. */
+export function openNews(n: NewsItem, go: (r: Route) => void) {
+  if (n.cta || n.body) go({ name: "news", item: n });
+  else if (n.link) openExternal(n.link);
 }

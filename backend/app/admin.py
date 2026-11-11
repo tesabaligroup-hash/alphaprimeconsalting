@@ -137,7 +137,7 @@ def _save_image(upload: UploadFile | None) -> str | None:
 @router.post("/news/save")
 def news_save(request: Request, csrf: str = Form(""), news_id: int | None = Form(None), kind: str = Form("company"),
               is_banner: bool = Form(False), title: str = Form(...), body: str = Form(""), partner_name: str = Form(""),
-              link_url: str = Form(""), sort_order: int = Form(0), published: bool = Form(False),
+              link_url: str = Form(""), sort_order: int = Form(0), published: bool = Form(False), cta_lead: bool = Form(False),
               image: UploadFile | None = File(None), db: Session = Depends(get_db), admin: str = Depends(require_admin)):
     check_csrf(request, csrf)
     item = db.get(News, news_id) if news_id else News()
@@ -149,6 +149,7 @@ def news_save(request: Request, csrf: str = Form(""), news_id: int | None = Form
     if link and not link.startswith(("https://", "http://", "tg://")):
         link = "https://" + link
     item.link_url = link or None
+    item.cta_lead = cta_lead
     item.sort_order, item.published = sort_order, published
     img = _save_image(image)
     if img:

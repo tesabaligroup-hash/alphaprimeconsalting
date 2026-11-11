@@ -59,10 +59,10 @@ export default function Home() {
               {data.banners.map((b) => (
                 b.image ? (
                   // Баннер-картинка (1200×600): текст уже на картинке, поверх ничего не пишем
-                  <button key={b.id} className="banner" aria-label={b.title} onClick={() => openNews(b)}
+                  <button key={b.id} className="banner" aria-label={b.title} onClick={() => openNews(b, go)}
                     style={{ width: data.banners.length > 1 ? "88%" : "100%", flex: "none", minHeight: 0, aspectRatio: "2 / 1", padding: 0, backgroundImage: `url(${b.image})`, backgroundSize: "cover" }} />
                 ) : (
-                  <button key={b.id} className="banner" style={{ width: data.banners.length > 1 ? "88%" : "100%", flex: "none" }} onClick={() => openNews(b)}>
+                  <button key={b.id} className="banner" style={{ width: data.banners.length > 1 ? "88%" : "100%", flex: "none" }} onClick={() => openNews(b, go)}>
                     <span style={{ fontWeight: 800, fontSize: 18, lineHeight: 1.25 }}>{b.title}</span>
                     {b.body && <span style={{ fontSize: 13 }}>{b.body}</span>}
                   </button>
@@ -71,7 +71,7 @@ export default function Home() {
             </div>
           )}
           {data.news.map((n) => (
-            <button key={n.id} className="news-row" onClick={() => openNews(n)}>
+            <button key={n.id} className="news-row" onClick={() => openNews(n, go)}>
               <div className="thumb" style={{ backgroundImage: n.image ? `url(${n.image})` : undefined }} />
               <div className="grow"><span className="muted" style={{ fontSize: 12 }}>{dateLong(n.date)}</span><span className="b" style={{ lineHeight: 1.35 }}>{n.title}</span></div>
             </button>
@@ -84,7 +84,7 @@ export default function Home() {
             <h2 className="h2">От наших партнёров</h2>
             <div className="hscroll">
               {data.partner_news.map((n) => (
-                <button key={n.id} className="pcard" onClick={() => openNews(n)}>
+                <button key={n.id} className="pcard" onClick={() => openNews(n, go)}>
                   <div className="img" style={{ backgroundImage: n.image ? `url(${n.image})` : undefined }}>{n.image ? "" : "ПАРТНЁР ALPHA PRIME"}</div>
                   <div className="body"><span className="b">{n.partner_name}</span><span className="muted" style={{ lineHeight: 1.4 }}>{n.title}</span></div>
                 </button>
