@@ -33,7 +33,9 @@ LEADS = {
     1001: _lead(1001, "Анна — E33G", 10_900_000, 5,
                 {"Тип услуги": "E33G", "Оплатил": 7_000_000, "Долг": 3_900_000, "Дедлайн": int((NOW + timedelta(days=17)).timestamp())}, [501], 13),
     1002: _lead(1002, "Миша — Family KITAS", 13_000_000, 6,
-                {"Тип услуги": "KITAS DEPEND-1", "Оплатил": 13_000_000, "Долг": 0}, [502, 501], 300),
+                {"Тип услуги": "KITAS DEPEND-1", "Оплатил": 13_000_000, "Долг": 0,
+                 "raw:Документы клиенту": [{"file_uuid": "f-kitas-m", "file_name": "Family KITAS — Миша.pdf"},
+                                           {"file_uuid": "f-itk-m", "file_name": "ITK — Миша.pdf"}]}, [502, 501], 300),
     1003: _lead(1003, "PT PMA — бухгалтерия", 1_000_000, 3,
                 {"Тип услуги": "BUH-M, CHANGE-KBLI", "Оплатил": 1_000_000, "Дедлайн": int(datetime(2026, 12, 15).timestamp())}, [501], 40),
     1004: _lead(1004, "Анна — C1", 2_000_000, 142,
@@ -65,8 +67,10 @@ HISTORY = {
 }
 
 FILES = {
-    1004: [KommoFile("f-c1", "Виза C1 — e-Visa.pdf", datetime(2026, 6, 12))],
-    1002: [KommoFile("f-kitas-m", "Family KITAS — Миша.pdf", datetime(2026, 2, 2)), KommoFile("f-itk-m", "ITK — Миша.pdf", datetime(2026, 2, 2))],
+    1004: [KommoFile("f-c1", "КЛИЕНТУ — Виза C1 e-Visa.pdf", datetime(2026, 6, 12)),
+           KommoFile("f-chat", "photo", datetime(2026, 6, 1))],  # вложение из чата — клиенту не показывается
+    1002: [KommoFile("f-kitas-m", "Family KITAS — Миша.pdf", datetime(2026, 2, 2)), KommoFile("f-itk-m", "ITK — Миша.pdf", datetime(2026, 2, 2)),
+           KommoFile("f-other", "CV_OTHER_PERSON.pdf", datetime(2026, 2, 1))],
 }
 
 

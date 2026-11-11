@@ -21,7 +21,7 @@ from .models import News, Partner, Referral, ServiceOrder, User
 from .services import cabinet, partner as partner_svc
 from .services.linking import link_user
 from .notify import notify_managers
-from .tariffs import CATEGORY_LABELS, TARIFFS, find_tariff
+from .tariffs import BY_CODE, CATEGORY_LABELS, POPULAR_CODES, TARIFFS, find_tariff
 from .telegram_auth import InvalidInitData, validate_init_data
 from .timeutil import utcnow
 
@@ -140,7 +140,7 @@ def service_detail(lead_id: int, user: User = Depends(current_user), kommo: Komm
     if not card:
         raise HTTPException(404)
     files = [{"uuid": f.uuid, "name": f.name, "created_at": f.created_at.date().isoformat() if f.created_at else None}
-             for f in kommo.get_lead_files(lead_id)]
+             for f in cabinet.client_files(kommo, lead)]
     return {"service": card.__dict__ | {"steps": [st.__dict__ for st in card.steps]}, "files": files}
 
 
@@ -148,7 +148,10 @@ def service_detail(lead_id: int, user: User = Depends(current_user), kommo: Komm
 def catalog():
     cats = []
     for key, label in CATEGORY_LABELS.items():
-        items = [{"code": t.code, "name": t.name, "price": t.price} for t in TARIFFS if t.category == key and t.in_catalog]
+        if key == "popular":
+            items = [{"code": c, "name": BY_CODE[c].name, "price": BY_CODE[c].price} for c in POPULAR_CODES if c in BY_CODE]
+        else:
+            items = [{"code": t.code, "name": t.name, "price": t.price} for t in TARIFFS if t.category == key and t.in_catalog]
         if items:
             cats.append({"id": key, "label": label, "items": items})
     return {"categories": cats}
@@ -207,8 +210,8 @@ def _file_token(lead_id: int, uuid: str, exp: int) -> str:
 @router.post("/documents/{lead_id}/{uuid}/link")
 def download_link(lead_id: int, uuid: str, user: User = Depends(current_user), kommo: KommoClient = Depends(kommo_dep)):
     """Одноразовая ссылка на файл (10 минут): Telegram скачивает файл без заголовков авторизации."""
-    _owned_lead(user, kommo, lead_id)
-    files = {f.uuid: f for f in kommo.get_lead_files(lead_id)}
+    _, lead = _owned_lead(user, kommo, lead_id)
+    files = {f.uuid: f for f in cabinet.client_files(kommo, lead)}
     if uuid not in files:
         raise HTTPException(404)
     exp = int(time.time()) + 600

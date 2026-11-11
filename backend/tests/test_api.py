@@ -60,7 +60,8 @@ def test_cannot_open_someone_elses_deal(client):
 
 def test_catalog_hides_school_and_pension(client):
     cats = client.get("/api/catalog").json()["categories"]
-    assert cats[0]["id"] == "kitas"
+    assert cats[0]["id"] == "popular" and [i["code"] for i in cats[0]["items"]] == ["C1", "E33G", "PERSONAL-COUNT", "DRIVER"]
+    assert cats[1]["id"] == "kitas"
     codes = {i["code"] for c in cats for i in c["items"]}
     assert not codes & {"STUDY-1", "STUDY-2", "E33F"} and "E33G" in codes
 
@@ -135,3 +136,13 @@ def test_admin_login_and_pages(client):
                     files={"image": ("b.png", png, "image/png")}, follow_redirects=False)
     assert r.status_code == 303
     assert any(n["title"] == "Тест" and n["image"] for n in client.get("/api/home", headers=DEV).json()["news"])
+
+
+def test_client_sees_only_marked_files(client):
+    groups = client.get("/api/documents", headers=DEV).json()["groups"]
+    names = sorted(f["name"] for g in groups for f in g["files"])
+    assert names == ["Family KITAS — Миша.pdf", "ITK — Миша.pdf", "Виза C1 e-Visa.pdf"]
+    detail = client.get("/api/services/1002", headers=DEV).json()
+    assert {f["uuid"] for f in detail["files"]} == {"f-kitas-m", "f-itk-m"}
+    # чужой файл нельзя скачать даже по прямому запросу
+    assert client.post("/api/documents/1002/f-other/link", headers=DEV).status_code == 404

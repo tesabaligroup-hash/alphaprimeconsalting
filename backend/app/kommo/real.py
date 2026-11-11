@@ -31,6 +31,9 @@ def _fields(raw: list | None) -> dict[str, object]:
         if not values:
             continue
         name = cf.get("field_name") or str(cf.get("field_id"))
+        out[f"raw:{name}"] = values  # исходные значения (для полей-файлов: dict с file_uuid)
+        if all(isinstance(v, dict) for v in values):
+            continue
         out[name] = values[0] if len(values) == 1 else ", ".join(str(v) for v in values)
         if cf.get("field_code"):
             out[f"code:{cf['field_code']}"] = values

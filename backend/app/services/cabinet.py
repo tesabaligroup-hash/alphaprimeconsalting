@@ -6,7 +6,8 @@ from zoneinfo import ZoneInfo
 from ..config import get_settings
 
 from ..kommo.base import KommoClient, KommoContact, KommoLead
-from ..kommo.mapping import (CLIENT_PIPELINE_IDS, CLIENT_STEPS, CONTACT_FIELDS, LEAD_FIELDS, STATUS_LOST, STATUS_TO_STEP,
+from ..kommo.base import KommoFile
+from ..kommo.mapping import (CLIENT_FILE_PREFIXES, CLIENT_FILES_FIELD, CLIENT_PIPELINE_IDS, CLIENT_STEPS, CONTACT_FIELDS, LEAD_FIELDS, STATUS_LOST, STATUS_TO_STEP,
                              STATUS_WON, norm)
 from ..tariffs import find_tariff
 
@@ -257,15 +258,40 @@ def important_dates(cards: list[ServiceCard], people: list[KommoContact], today:
     return uniq[:5]
 
 
+def client_files(kommo: KommoClient, lead: KommoLead) -> list[KommoFile]:
+    """Файлы сделки, которые можно показать клиенту (см. CLIENT_FILES_FIELD / CLIENT_FILE_PREFIXES)."""
+    marked: dict[str, str] = {}
+    for v in field_value(lead.fields, f"raw:{CLIENT_FILES_FIELD}") or []:
+        if isinstance(v, dict) and v.get("file_uuid") and not v.get("is_deleted"):
+            marked[str(v["file_uuid"])] = str(v.get("file_name") or "Документ")
+    out: list[KommoFile] = []
+    seen: set[str] = set()
+    for f in kommo.get_lead_files(lead.id):
+        name = (f.name or "").strip()
+        if f.uuid in marked or name.lower().startswith(CLIENT_FILE_PREFIXES):
+            for pref in CLIENT_FILE_PREFIXES:  # «КЛИЕНТУ — KITAS.pdf» → «KITAS.pdf»
+                if name.lower().startswith(pref):
+                    name = name[len(pref):].lstrip(" _-—:") or name
+                    break
+            out.append(KommoFile(uuid=f.uuid, name=marked.get(f.uuid) or name, created_at=f.created_at))
+            seen.add(f.uuid)
+    for uuid, name in marked.items():  # файл из поля, которого нет в списке файлов сделки
+        if uuid not in seen:
+            out.append(KommoFile(uuid=uuid, name=name, created_at=None))
+    return out
+
+
 def load_documents(kommo: KommoClient, contact_id: int | list[int]) -> list[dict]:
     """Готовые файлы по всем сделкам клиента, сгруппированные по людям."""
     contact, _ = merged_contact(kommo, contact_id)
     if not contact:
         return []
     cards, _ = _cards(kommo, contact, with_history=False)
+    leads = {lead.id: lead for lead in kommo.get_leads([c.lead_id for c in cards])}
     groups: dict[str, list] = {}
     for card in cards:
-        for f in kommo.get_lead_files(card.lead_id):
+        lead = leads.get(card.lead_id)
+        for f in (client_files(kommo, lead) if lead else []):
             groups.setdefault(card.person, []).append({
                 "uuid": f.uuid, "name": f.name, "created_at": f.created_at.date().isoformat() if f.created_at else None,
                 "service": card.title, "lead_id": card.lead_id, "archived": card.archived, "valid_until": card.valid_until,

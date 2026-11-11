@@ -64,7 +64,10 @@ TARIFFS: list[Tariff] = [
 
 BY_CODE: dict[str, Tariff] = {t.code.upper(): t for t in TARIFFS}
 
-CATEGORY_LABELS = {"kitas": "KITAS", "visa": "Визы", "ext": "Продления", "co": "Компании", "buh": "Бухгалтерия", "other": "Другое"}
+# Вкладка «Популярное» — первой в каталоге (порядок важен)
+POPULAR_CODES = ["C1", "E33G", "PERSONAL-COUNT", "DRIVER"]
+
+CATEGORY_LABELS = {"popular": "Популярное", "kitas": "KITAS", "visa": "Визы", "ext": "Продления", "co": "Компании", "buh": "Бухгалтерия", "other": "Другое"}
 
 
 # Коды в поле «Тип услуги» в Kommo, которые называются иначе, чем в прайсе.
