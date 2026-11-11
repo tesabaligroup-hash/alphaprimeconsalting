@@ -16,15 +16,6 @@ export default function Profile() {
       <main className="screen">
         <LinkPhoneCard />
         <section className="section">
-          <h2 className="h2">Язык</h2>
-          <div className="choice3" role="radiogroup" aria-label="Язык интерфейса">
-            {(["ru", "en", "id"] as const).map((l) => (
-              <button key={l} role="radio" aria-checked={me.language === l} className="chip" onClick={() => set({ language: l })}>{{ ru: "Русский", en: "English", id: "Indonesia" }[l]}</button>
-            ))}
-          </div>
-          {me.language !== "ru" && <span className="small">English и Bahasa Indonesia появятся в следующей версии.</span>}
-        </section>
-        <section className="section">
           <h2 className="h2">Уведомления</h2>
           <label className="tos"><input type="checkbox" checked={me.notify_company_offers} onChange={(e) => set({ notify_company_offers: e.target.checked })} /><span>Получать спецпредложения Alpha Prime</span></label>
           <label className="tos"><input type="checkbox" checked={me.notify_partner_offers} onChange={(e) => set({ notify_partner_offers: e.target.checked })} /><span>Получать предложения наших партнёров</span></label>

@@ -30,7 +30,7 @@ def seed_dev(db: Session) -> None:
             Referral(partner_id=p.id, friend_name="Алексей Б.", channel="ig", contact="@alex_b", who_writes="self", status="rejected",
                      reject_reason="Клиент закреплён за другим партнёром"),
         ])
-    if not db.scalar(select(News)):
+    if not db.scalar(select(News).where(News.key.is_(None))):
         db.add_all([
             News(kind="company", is_banner=True, title="[Акция или важное объявление]", body="Баннер загружается из админки", sort_order=0),
             News(kind="company", title="График работы офиса в декабрьские праздники", sort_order=1),

@@ -32,6 +32,10 @@ def _startup() -> None:
         raise RuntimeError("Задайте SECRET_KEY в .env (openssl rand -hex 32)")
     init_db()
     Path(settings.uploads_dir).mkdir(parents=True, exist_ok=True)
+    from .content import sync_news
+
+    with SessionLocal() as db:
+        sync_news(db)
     if settings.dev_mode:
         from .seed import seed_dev
 

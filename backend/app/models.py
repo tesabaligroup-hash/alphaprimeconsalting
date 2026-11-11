@@ -150,6 +150,7 @@ class News(Base):
     __tablename__ = "news"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str | None] = mapped_column(String(64), unique=True)  # для новостей из backend/content/news.json
     kind: Mapped[str] = mapped_column(String(16), default="company")
     is_banner: Mapped[bool] = mapped_column(Boolean, default=False)
     title: Mapped[str] = mapped_column(String(255))

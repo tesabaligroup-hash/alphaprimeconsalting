@@ -146,3 +146,10 @@ def test_client_sees_only_marked_files(client):
     assert {f["uuid"] for f in detail["files"]} == {"f-kitas-m", "f-itk-m"}
     # чужой файл нельзя скачать даже по прямому запросу
     assert client.post("/api/documents/1002/f-other/link", headers=DEV).status_code == 404
+
+
+def test_news_from_repository_content(client):
+    d = client.get("/api/home", headers=DEV).json()
+    b = [n for n in d["banners"] if n["title"] == "Оформляете визу — получите подарок"]
+    assert b and b[0]["image"].endswith("content-alpha-wolf-lodge-banner.png")
+    assert client.get(b[0]["image"]).status_code == 200
