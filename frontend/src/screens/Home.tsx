@@ -102,7 +102,7 @@ export default function Home() {
             <div className="grid3">
               {c.telegram && <button className="btn line" style={{ minHeight: 44, borderColor: "#ECE4D2" }} onClick={() => openExternal(`https://t.me/${c.telegram}`)}>Telegram</button>}
               <button className="btn line" style={{ minHeight: 44, borderColor: "#ECE4D2" }} onClick={() => openExternal(`https://wa.me/${c.whatsapp}`)}>WhatsApp</button>
-              <button className="btn line" style={{ minHeight: 44, borderColor: "#ECE4D2" }} onClick={() => openExternal(`https://maps.google.com/?q=${encodeURIComponent(c.address)}`)}>Офис</button>
+              <button className="btn line" style={{ minHeight: 44, borderColor: "#ECE4D2" }} onClick={() => openExternal(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.maps_query || c.address)}`)}>Офис</button>
             </div>
           </section>
         )}

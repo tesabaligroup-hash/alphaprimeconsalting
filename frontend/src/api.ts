@@ -55,7 +55,7 @@ export type NewsItem = { id: number; kind: string; is_banner: boolean; title: st
 export type Me = {
   first_name: string | null; linked: boolean; has_phone: boolean; is_partner: boolean; language: string;
   notify_partner_offers: boolean; notify_company_offers: boolean;
-  company: { whatsapp: string; telegram: string; instagram: string; address: string; bot_username: string };
+  company: { whatsapp: string; telegram: string; instagram: string; address: string; maps_query: string; bot_username: string };
 };
 export type Home = { dates: ImportantDate[]; services: Service[]; banners: NewsItem[]; news: NewsItem[]; partner_news: NewsItem[] };
 export type Catalog = { categories: { id: string; label: string; items: { code: string; name: string; price: number }[] }[] };

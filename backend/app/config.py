@@ -30,10 +30,11 @@ class Settings(BaseSettings):
     admin_password: str = "change-me"
 
     # Контакты компании (показываются в приложении)
-    company_whatsapp: str = "628113979669"
+    company_whatsapp: str = "6281519845777"
     company_telegram: str = ""
-    company_instagram: str = ""
-    company_address: str = "Jl. Wisma Udayana No.164 Buruan, Blahbatuh, Gianyar, Bali"
+    company_instagram: str = "alpha_prime_id"
+    company_address: str = "Jl. Pantai Berawa No.13, Canggu, Kuta Utara, Badung, Bali 80361"
+    company_maps_query: str = "Alpha Prime Bali, Jl. Pantai Berawa No.13, Canggu"  # что ищем в Google Maps по кнопке «Офис»
 
 
 @lru_cache

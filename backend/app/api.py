@@ -84,7 +84,7 @@ def me(user: User = Depends(current_user)):
         "notify_partner_offers": user.notify_partner_offers,
         "notify_company_offers": user.notify_company_offers,
         "company": {"whatsapp": s.company_whatsapp, "telegram": s.company_telegram, "instagram": s.company_instagram,
-                    "address": s.company_address, "bot_username": s.bot_username},
+                    "address": s.company_address, "maps_query": s.company_maps_query, "bot_username": s.bot_username},
     }
 
 
