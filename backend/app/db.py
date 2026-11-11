@@ -28,3 +28,9 @@ def init_db() -> None:
     from . import models  # noqa: F401  — регистрирует таблицы
 
     Base.metadata.create_all(engine)
+    # Лёгкие миграции для уже существующей базы (новые колонки)
+    if engine.dialect.name == "postgresql":
+        from sqlalchemy import text
+
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS kommo_extra_contact_ids JSON"))

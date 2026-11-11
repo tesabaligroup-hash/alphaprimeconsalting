@@ -23,6 +23,8 @@ class User(Base):
     first_name: Mapped[str | None] = mapped_column(String(128))
     phone: Mapped[str | None] = mapped_column(String(32), index=True)
     kommo_contact_id: Mapped[int | None] = mapped_column(BigInteger, index=True)
+    # Дубли того же человека в Kommo (тот же телефон / Telegram): данные из них тоже показываем
+    kommo_extra_contact_ids: Mapped[list | None] = mapped_column(JSON)
     language: Mapped[str] = mapped_column(String(2), default="ru")
     notify_partner_offers: Mapped[bool] = mapped_column(Boolean, default=True)
     notify_company_offers: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -31,6 +33,12 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     partner: Mapped["Partner | None"] = relationship(back_populates="user", uselist=False)
+
+    @property
+    def contact_ids(self) -> list[int]:
+        if not self.kommo_contact_id:
+            return []
+        return [self.kommo_contact_id] + [int(x) for x in (self.kommo_extra_contact_ids or []) if int(x) != self.kommo_contact_id]
 
 
 class Partner(Base):

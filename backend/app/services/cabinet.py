@@ -181,17 +181,43 @@ def _cards(kommo: KommoClient, contact: KommoContact, with_history: bool) -> tup
     cards = []
     for lead in leads:
         main = people.get(lead.contact_ids[0]) if lead.contact_ids else contact
+        if main is not None and contact_person(main) == default_person:
+            main = contact  # дубль самого клиента — берём объединённые поля
         card = build_card(lead, kommo, default_person, with_history, person_contact=main or contact)
         if card:
             cards.append(card)
     return cards, people
 
 
-def load_client(kommo: KommoClient, contact_id: int, with_history: bool = True) -> dict:
-    contact = kommo.get_contact(contact_id)
+def merged_contact(kommo: KommoClient, contact_ids: list[int] | int) -> tuple[KommoContact | None, list[KommoContact]]:
+    """Основной контакт + дубли того же человека → один контакт: сделки объединяются, пустые поля дополняются."""
+    ids = [contact_ids] if isinstance(contact_ids, int) else list(contact_ids)
+    if not ids:
+        return None, []
+    found = {c.id: c for c in (kommo.get_contacts(ids) if len(ids) > 1 else [x for x in [kommo.get_contact(ids[0])] if x])}
+    originals = [found[i] for i in ids if i in found]
+    if not originals:
+        return None, []
+    main = originals[0]
+    if len(originals) == 1:
+        return main, originals
+    fields = dict(main.fields)
+    for c in originals[1:]:
+        for k, v in c.fields.items():
+            fields.setdefault(k, v)
+    lead_ids = list(dict.fromkeys(i for c in originals for i in c.lead_ids))
+    phones = list(dict.fromkeys(p for c in originals for p in c.phones))
+    return KommoContact(id=main.id, name=main.name, phones=phones, fields=fields, lead_ids=lead_ids), originals
+
+
+def load_client(kommo: KommoClient, contact_id: int | list[int], with_history: bool = True) -> dict:
+    contact, originals = merged_contact(kommo, contact_id)
     if not contact:
         return {"services": [], "archive": [], "dates": [], "contact": None}
     cards, people = _cards(kommo, contact, with_history)
+    for c in originals:
+        people.setdefault(c.id, c)
+    people[contact.id] = contact
     active = [c for c in cards if not c.archived]
     archive = [c for c in cards if c.archived]
     return {
@@ -231,9 +257,9 @@ def important_dates(cards: list[ServiceCard], people: list[KommoContact], today:
     return uniq[:5]
 
 
-def load_documents(kommo: KommoClient, contact_id: int) -> list[dict]:
+def load_documents(kommo: KommoClient, contact_id: int | list[int]) -> list[dict]:
     """Готовые файлы по всем сделкам клиента, сгруппированные по людям."""
-    contact = kommo.get_contact(contact_id)
+    contact, _ = merged_contact(kommo, contact_id)
     if not contact:
         return []
     cards, _ = _cards(kommo, contact, with_history=False)

@@ -15,37 +15,47 @@ from ..models import User
 log = logging.getLogger(__name__)
 
 
-def find_contact(kommo: KommoClient, phone: str | None, username: str | None) -> int | None:
+def find_contacts(kommo: KommoClient, phone: str | None, username: str | None) -> list[int]:
+    """Все контакты Kommo этого человека: по телефону и по нику Telegram. Первый — основной (больше сделок)."""
     ids: list[int] = []
     try:
         if phone:
-            ids = kommo.find_contact_ids_by_phone(phone)
-        if not ids and username:
-            ids = kommo.find_contact_ids_by_telegram(username)
+            ids += kommo.find_contact_ids_by_phone(phone)
+        if username:
+            ids += [i for i in kommo.find_contact_ids_by_telegram(username) if i not in ids]
     except Exception:
         log.exception("Kommo: поиск контакта")
-        return None
-    if not ids:
-        return None
-    if len(ids) == 1:
-        return ids[0]
-    contacts = kommo.get_contacts(ids)
-    best = max(contacts, key=lambda c: len(c.lead_ids), default=None)
-    return best.id if best else ids[0]
+        return []
+    if len(ids) <= 1:
+        return ids
+    contacts = {c.id: c for c in kommo.get_contacts(ids)}
+    return sorted(ids, key=lambda i: -len(contacts[i].lead_ids) if i in contacts else 0)
 
 
-def link_user(db: Session, kommo: KommoClient, user: User) -> bool:
-    if user.kommo_contact_id:
+def find_contact(kommo: KommoClient, phone: str | None, username: str | None) -> int | None:
+    ids = find_contacts(kommo, phone, username)
+    return ids[0] if ids else None
+
+
+def link_user(db: Session, kommo: KommoClient, user: User, refresh: bool = False) -> bool:
+    """Привязывает пользователя к контакту (и его дублям). refresh — пересобрать список дублей."""
+    if user.kommo_contact_id and not refresh and user.kommo_extra_contact_ids is not None:
         return True
-    cid = find_contact(kommo, user.phone, user.telegram_username)
-    if cid:
-        user.kommo_contact_id = cid
-        db.commit()
-        log.info("Пользователь %s привязан к контакту %s", user.telegram_id, cid)
-        return True
-    return False
+    ids = find_contacts(kommo, user.phone, user.telegram_username)
+    if not ids and not user.kommo_contact_id:
+        return False
+    if not user.kommo_contact_id:
+        user.kommo_contact_id = ids[0]
+        log.info("Пользователь %s привязан к контакту %s", user.telegram_id, ids[0])
+    user.kommo_extra_contact_ids = [i for i in ids if i != user.kommo_contact_id]
+    db.commit()
+    return True
 
 
 def relink_unlinked(db: Session, kommo: KommoClient, limit: int = 100) -> int:
     users = db.scalars(select(User).where(User.kommo_contact_id.is_(None)).order_by(User.created_at.desc()).limit(limit))
-    return sum(1 for u in list(users) if (u.phone or u.telegram_username) and link_user(db, kommo, u))
+    done = sum(1 for u in list(users) if (u.phone or u.telegram_username) and link_user(db, kommo, u))
+    # Уже привязанные, у которых ещё не искали дубли
+    for u in list(db.scalars(select(User).where(User.kommo_contact_id.is_not(None), User.kommo_extra_contact_ids.is_(None)).limit(limit))):
+        link_user(db, kommo, u, refresh=True)
+    return done

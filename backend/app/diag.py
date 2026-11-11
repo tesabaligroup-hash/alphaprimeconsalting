@@ -12,8 +12,8 @@ from .db import SessionLocal
 from .kommo import get_kommo
 from .kommo.mapping import CLIENT_PIPELINE_IDS, CONTACT_FIELDS, LEAD_FIELDS, STATUS_TO_STEP, STATUS_WON, norm
 from .models import User
-from .services.cabinet import as_date, contact_person, field_value, load_client
-from .services.linking import find_contact
+from .services.cabinet import as_date, field_value, load_client
+from .services.linking import find_contact, find_contacts, link_user
 
 
 def main(arg: str) -> None:
@@ -36,33 +36,34 @@ def main(arg: str) -> None:
         print("\n=== Поиск в Kommo ===")
         print(f"  по телефону {phone}: {k.find_contact_ids_by_phone(phone) if phone else '—'}")
         print(f"  по нику @{username}: {k.find_contact_ids_by_telegram(username) if username else '—'}")
-        best = find_contact(k, phone, username)
-        print(f"  выбран контакт: {best}")
+        print(f"  основной контакт: {find_contact(k, phone, username)}")
 
-        cid = (users[0].kommo_contact_id if users and users[0].kommo_contact_id else None) or best
-        if not cid:
+        ids = list(dict.fromkeys(([users[0].kommo_contact_id] if users and users[0].kommo_contact_id else []) + find_contacts(k, phone, username)))
+        if not ids:
             print("\nКонтакт в Kommo не найден.")
             return
-        c = k.get_contact(cid)
-        print(f"\n=== Контакт {cid}: {c.name} ({contact_person(c)}) ===")
-        for f in ("full_name", "visa_until", "itk_until", "passport_until", "current_visa"):
-            v = field_value(c.fields, CONTACT_FIELDS[f])
-            print(f"  {CONTACT_FIELDS[f]}: {as_date(v) if 'until' in f and v else v}")
-        print(f"  телефоны: {c.phones}")
-        print(f"\n=== Сделки контакта ({len(c.lead_ids)}) ===")
-        for lead in k.get_leads(c.lead_ids):
-            visible = lead.pipeline_id in CLIENT_PIPELINE_IDS and (lead.status_id == STATUS_WON or norm(lead.status_name) in STATUS_TO_STEP)
-            why = "показывается" if visible else ("другая воронка" if lead.pipeline_id not in CLIENT_PIPELINE_IDS else f"этап «{lead.status_name}» клиенту не показывается")
-            print(f"  #{lead.id}  этап: {lead.status_name or lead.status_id}  тип услуги: {field_value(lead.fields, LEAD_FIELDS['service_type'])}"
-                  f"  оплатил: {field_value(lead.fields, LEAD_FIELDS['paid_amount'])}  → {why}")
-        data = load_client(k, cid, with_history=False)
+        for cid in ids:
+            c = k.get_contact(cid)
+            if not c:
+                continue
+            print(f"\n=== Контакт {cid}: {c.name} ===")
+            for f in ("full_name", "visa_until", "itk_until", "passport_until", "current_visa"):
+                v = field_value(c.fields, CONTACT_FIELDS[f])
+                print(f"  {CONTACT_FIELDS[f]}: {as_date(v) if 'until' in f and v else v}")
+            print(f"  телефоны: {c.phones}")
+            print(f"  сделки ({len(c.lead_ids)}):")
+            for lead in k.get_leads(c.lead_ids):
+                visible = lead.pipeline_id in CLIENT_PIPELINE_IDS and (lead.status_id == STATUS_WON or norm(lead.status_name) in STATUS_TO_STEP)
+                why = "показывается" if visible else ("другая воронка" if lead.pipeline_id not in CLIENT_PIPELINE_IDS else f"этап «{lead.status_name}» клиенту не показывается")
+                print(f"    #{lead.id}  этап: {lead.status_name or lead.status_id}  тип услуги: {field_value(lead.fields, LEAD_FIELDS['service_type'])}"
+                      f"  оплатил: {field_value(lead.fields, LEAD_FIELDS['paid_amount'])}  → {why}")
+        if users:
+            link_user(db, k, users[0], refresh=True)
+            print(f"\n✓ Привязка обновлена: основной контакт {users[0].kommo_contact_id}, дубли {users[0].kommo_extra_contact_ids}")
+        data = load_client(k, users[0].contact_ids if users else ids, with_history=False)
         print(f"\n=== Что увидит клиент ===\n  услуг: {len(data['services'])}, в архиве: {len(data['archive'])}")
         for d in data["dates"]:
             print(f"  дата: {d['date']} — {d['title']} ({d['person']})")
-        if users and not users[0].kommo_contact_id and best:
-            users[0].kommo_contact_id = best
-            db.commit()
-            print(f"\n✓ Пользователь привязан к контакту {best}")
 
 
 if __name__ == "__main__":

@@ -54,12 +54,12 @@ def current_user(
     elif tg.get("username") and user.telegram_username != tg.get("username"):
         user.telegram_username = tg.get("username")
         db.commit()
-    if not user.kommo_contact_id and (user.phone or user.telegram_username) and not s.dev_mode:
+    if (not user.kommo_contact_id or user.kommo_extra_contact_ids is None) and (user.phone or user.telegram_username) and not s.dev_mode:
         # Клиента могли добавить в CRM позже — пробуем привязать не чаще раза в 2 минуты
         last = _LINK_TRIES.get(user.id, 0)
         if time.time() - last > 120:
             _LINK_TRIES[user.id] = time.time()
-            link_user(db, get_kommo(), user)
+            link_user(db, get_kommo(), user, refresh=bool(user.kommo_contact_id))
     if s.dev_mode and user.telegram_id == DEV_TELEGRAM_ID and not user.kommo_contact_id:
         user.kommo_contact_id = 501  # Анна из тестовых данных
         db.commit()
@@ -99,7 +99,7 @@ def home(user: User = Depends(current_user), db: Session = Depends(get_db), komm
     news = list(db.scalars(select(News).where(News.published.is_(True)).order_by(News.sort_order, News.created_at.desc()).limit(30)))
     data = {"services": [], "dates": [], "contact": None}
     if user.kommo_contact_id:
-        data = cabinet.load_client(kommo, user.kommo_contact_id, with_history=False)
+        data = cabinet.load_client(kommo, user.contact_ids, with_history=False)
     return {
         "dates": data["dates"],
         "services": data["services"],
@@ -115,14 +115,14 @@ def home(user: User = Depends(current_user), db: Session = Depends(get_db), komm
 def my_services(user: User = Depends(current_user), kommo: KommoClient = Depends(kommo_dep)):
     if not user.kommo_contact_id:
         return {"services": [], "archive": []}
-    data = cabinet.load_client(kommo, user.kommo_contact_id, with_history=False)
+    data = cabinet.load_client(kommo, user.contact_ids, with_history=False)
     return {"services": data["services"], "archive": data["archive"]}
 
 
 def _owned_lead(user: User, kommo: KommoClient, lead_id: int):
     if not user.kommo_contact_id:
         raise HTTPException(404)
-    contact = kommo.get_contact(user.kommo_contact_id)
+    contact, _ = cabinet.merged_contact(kommo, user.contact_ids)
     if not contact or lead_id not in contact.lead_ids:
         raise HTTPException(404)
     leads = kommo.get_leads([lead_id])
@@ -195,7 +195,7 @@ def order(body: OrderIn, user: User = Depends(current_user), db: Session = Depen
 def documents(user: User = Depends(current_user), kommo: KommoClient = Depends(kommo_dep)):
     if not user.kommo_contact_id:
         return {"groups": []}
-    return {"groups": cabinet.load_documents(kommo, user.kommo_contact_id)}
+    return {"groups": cabinet.load_documents(kommo, user.contact_ids)}
 
 
 def _file_token(lead_id: int, uuid: str, exp: int) -> str:
