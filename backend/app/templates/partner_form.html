@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ p.display_name }}{% endblock %}
+{% block content %}
+<p><a href="/admin/partners">← Все партнёры</a></p>
+<h1>{{ p.display_name }}</h1>
+<form class="card" method="post" action="/admin/partners/{{ p.id }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="row">
+    <div><label for="display_name">Имя</label><input id="display_name" type="text" name="display_name" value="{{ p.display_name }}"></div>
+    <div><label for="kind">Тип</label>
+      <select id="kind" name="kind">
+        <option value="private" {{ 'selected' if p.kind=='private' }}>Частный — план A (15%)</option>
+        <option value="business" {{ 'selected' if p.kind=='business' }}>Бизнес — план B (10%)</option>
+        <option value="level2" {{ 'selected' if p.kind=='level2' }}>Партнёр 2-го уровня — план B (5%)</option>
+      </select></div>
+    <div><label for="status">Статус</label>
+      <select id="status" name="status">
+        <option value="active" {{ 'selected' if p.status=='active' }}>Активен</option>
+        <option value="inactive" {{ 'selected' if p.status=='inactive' }}>Неактивен</option>
+        <option value="blocked" {{ 'selected' if p.status=='blocked' }}>Заблокирован</option>
+      </select></div>
+  </div>
+  <div class="row">
+    <div><label for="codeword">Кодовое слово (смена — только здесь)</label><input id="codeword" type="text" name="codeword" value="{{ p.codeword or '' }}"></div>
+    <div><label for="kpv">Как записан в поле «Партнёр» в Kommo</label><input id="kpv" type="text" name="kommo_partner_value" value="{{ p.kommo_partner_value or '' }}"></div>
+    <div><label for="gold">Gold до (пусто — нет)</label><input id="gold" type="date" name="gold_until" value="{{ p.gold_until.isoformat() if p.gold_until else '' }}"></div>
+  </div>
+  {% if p.kind == 'business' %}
+  <div class="row">
+    <div><label for="l2">Партнёр 2-го уровня (кто познакомил)</label>
+      <select id="l2" name="level2_partner_id"><option value="">— нет —</option>
+        {% for o in others %}<option value="{{ o.id }}" {{ 'selected' if link and link.level2_partner_id == o.id }}>{{ o.display_name }}</option>{% endfor %}
+      </select></div>
+    <div><label for="l2d">Дата договора (доля 24 месяца)</label><input id="l2d" type="date" name="level2_contract_date" value="{{ link.contract_date.isoformat() if link else '' }}"></div>
+  </div>
+  {% endif %}
+  <label>Реквизиты для выплат</label>
+  <p style="white-space:pre-line;margin:0">{{ p.payout_details or 'Не указаны' }}</p>
+  <p><button type="submit">Сохранить</button></p>
+</form>
+
+<h2>Начисления</h2>
+<div class="card table-wrap">
+<table>
+  <thead><tr><th>Клиент</th><th>Услуга</th><th>Уровень</th><th>Сумма, IDR</th><th>Статус</th><th>Сделка</th></tr></thead>
+  <tbody>
+  {% for a in accs %}
+  <tr><td>{{ a.client_display }}</td><td>{{ a.service_code }}</td><td>{{ a.level }}</td><td>{{ a.amount|money }}</td><td>{{ ACCRUAL_LABELS[a.status] }}</td><td>#{{ a.kommo_lead_id }}</td></tr>
+  {% else %}<tr><td colspan="6" class="muted">Нет начислений.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

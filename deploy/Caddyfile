@@ -1,0 +1,13 @@
+# HTTPS-сертификат Caddy получает и продлевает сам (Let's Encrypt)
+{$APP_DOMAIN} {
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+	request_body /admin/* {
+		max_size 10MB
+	}
+	reverse_proxy api:8000
+}

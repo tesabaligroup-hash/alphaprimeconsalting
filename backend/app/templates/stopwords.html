@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Стоп-слова{% endblock %}
+{% block content %}
+<h1>Стоп-слова для кодовых слов</h1>
+<p class="muted">Эти слова партнёр не сможет занять. Слово, которое начинается со стоп-слова и отличается от него не больше чем на 2 символа (например VISA12), тоже запрещено.</p>
+<form class="card" method="post" action="/admin/stopwords">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="words">Добавить слова (через запятую или с новой строки)</label>
+  <textarea id="words" name="words" placeholder="ubud, canggu, kuta"></textarea>
+  <p><button type="submit">Добавить</button></p>
+</form>
+<div class="card">
+  <h2 style="margin-top:0">Ваши слова</h2>
+  {% for w in items %}
+  <form method="post" action="/admin/stopwords/{{ w.id }}/delete" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <span class="pill">{{ w.word }} <button type="submit" aria-label="Удалить {{ w.word }}" style="min-height:0;padding:0 0 0 6px;background:none;color:inherit">×</button></span>
+  </form>
+  {% else %}<p class="muted">Пока нет.</p>{% endfor %}
+  <h2>Встроенные</h2>
+  <p class="muted">{{ base|join(', ') }}</p>
+</div>
+{% endblock %}

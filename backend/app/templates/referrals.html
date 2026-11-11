@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Рекомендации{% endblock %}
+{% block content %}
+<h1>Рекомендации</h1>
+<div class="tabs">
+  {% for key, label in [('pending','На проверке'),('attached','Закреплены'),('rejected','Отклонены'),('all','Все')] %}
+  <a href="?status={{ key }}" class="{{ 'on' if status == key }}">{{ label }}</a>
+  {% endfor %}
+</div>
+<p class="muted">Перед подтверждением проверьте в Kommo, что клиента нет в базе за последние 6 месяцев и он не закреплён за другим партнёром. После подтверждения в Kommo создаётся сделка с пометкой о партнёре.</p>
+<div class="card table-wrap">
+<table>
+  <thead><tr><th>Дата</th><th>Друг</th><th>Контакт</th><th>Кто пишет</th><th>Партнёр</th><th>Статус / действие</th></tr></thead>
+  <tbody>
+  {% for r in items %}
+  <tr>
+    <td>{{ r.created_at.strftime('%d.%m.%Y %H:%M') if r.created_at }}</td>
+    <td><b>{{ r.friend_name }}</b></td>
+    <td>{{ {'tg':'Telegram','wa':'WhatsApp','ig':'Instagram'}[r.channel] }}: {{ r.contact }}</td>
+    <td>{% if r.who_writes == 'us' %}<span class="pill warn">Написать первыми</span>{% else %}Друг напишет сам{% endif %}</td>
+    <td>{{ r.partner.display_name }}<br><span class="muted">{{ r.partner.codeword or '' }}</span></td>
+    <td>
+      {% if r.status == 'pending' %}
+      <form method="post" action="/admin/referrals/{{ r.id }}" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="attach">
+        <button type="submit" class="btn-gold">Закрепить</button>
+      </form>
+      <form method="post" action="/admin/referrals/{{ r.id }}" style="margin-top:8px">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="reject">
+        <label for="reason-{{ r.id }}" style="margin-top:0">Причина отказа</label>
+        <select id="reason-{{ r.id }}" name="reason">{% for x in reasons %}<option>{{ x }}</option>{% endfor %}</select>
+        <button type="submit" class="btn-danger" style="margin-top:6px">Отклонить</button>
+      </form>
+      {% elif r.status == 'attached' %}<span class="pill ok">Закреплён</span>{% if r.kommo_lead_id %}<br><span class="muted">сделка #{{ r.kommo_lead_id }}</span>{% endif %}
+      {% else %}<span class="pill muted">{{ r.reject_reason or r.status }}</span>{% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="muted">Нет рекомендаций.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Начисления{% endblock %}
+{% block content %}
+<div class="row" style="align-items:center;margin-bottom:12px">
+  <h1 style="margin:0">Начисления партнёрам</h1>
+  <form method="post" action="/admin/accruals/sync" style="flex:0 0 auto">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="btn-gold">Обновить из Kommo</button>
+  </form>
+</div>
+<p class="muted">Начисления создаются автоматически каждые 10 минут по сделкам, где заполнено поле «Партнёр» и указан «Тип услуги». Реестр выплат на 10 и 25 число — во второй версии.</p>
+<div class="tabs">
+  <a href="?status=all" class="{{ 'on' if status == 'all' }}">Все</a>
+  {% for key, label in ACCRUAL_LABELS.items() %}<a href="?status={{ key }}" class="{{ 'on' if status == key }}">{{ label }}</a>{% endfor %}
+</div>
+<div class="card table-wrap">
+<table>
+  <thead><tr><th>Партнёр</th><th>Клиент</th><th>Услуга</th><th>Ур.</th><th>Сумма, IDR</th><th>Статус</th><th>Удержание до</th><th>Сделка</th></tr></thead>
+  <tbody>
+  {% for a in items %}
+  <tr>
+    <td>{{ partners[a.partner_id].display_name if a.partner_id in partners }}</td>
+    <td>{{ a.client_display }}</td><td>{{ a.service_code }}</td><td>{{ a.level }}</td>
+    <td>{{ a.amount|money }}</td><td>{{ ACCRUAL_LABELS[a.status] }}</td>
+    <td>{{ a.hold_until.strftime('%d.%m.%Y') if a.hold_until else '—' }}</td><td>#{{ a.kommo_lead_id }}</td>
+  </tr>
+  {% else %}<tr><td colspan="8" class="muted">Нет начислений.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

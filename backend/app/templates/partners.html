@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Партнёры{% endblock %}
+{% block content %}
+<h1>Партнёры</h1>
+<p class="muted">Партнёры регистрируются сами в приложении (кнопка «Стать партнёром»). Здесь можно сменить тип (частный / бизнес / 2-й уровень), присвоить Gold, заблокировать и указать, как партнёр записан в поле «Партнёр» в Kommo.</p>
+<div class="card table-wrap">
+<table>
+  <thead><tr><th>Имя</th><th>Тип</th><th>Кодовое слово</th><th>В Kommo</th><th>Статус</th><th></th></tr></thead>
+  <tbody>
+  {% for p in items %}
+  <tr>
+    <td><b>{{ p.display_name }}</b>{% if p.user.telegram_username %}<br><span class="muted">@{{ p.user.telegram_username }}</span>{% endif %}</td>
+    <td>{{ {'private':'Частный (A)','business':'Бизнес (B)','level2':'2-й уровень (B)'}[p.kind] }}{% if p.gold_until %} · <span class="pill">Gold до {{ p.gold_until.strftime('%d.%m.%Y') }}</span>{% endif %}</td>
+    <td>{{ p.codeword or '—' }}</td>
+    <td>{{ p.kommo_partner_value or '—' }}</td>
+    <td>{% if p.status == 'active' %}<span class="pill ok">Активен</span>{% elif p.status == 'blocked' %}<span class="pill warn">Заблокирован</span>{% else %}<span class="pill muted">Неактивен</span>{% endif %}</td>
+    <td><a href="/admin/partners/{{ p.id }}">Открыть</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="muted">Партнёров пока нет.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

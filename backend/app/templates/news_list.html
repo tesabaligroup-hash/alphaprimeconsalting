@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Новости{% endblock %}
+{% block content %}
+<div class="row" style="align-items:center;margin-bottom:12px"><h1 style="margin:0">Новости и баннеры</h1><div style="flex:0 0 auto"><a class="btn btn-gold" href="/admin/news/new">+ Добавить</a></div></div>
+<div class="card table-wrap">
+<table>
+  <thead><tr><th>Картинка</th><th>Заголовок</th><th>Где</th><th>Порядок</th><th>Статус</th><th></th></tr></thead>
+  <tbody>
+  {% for n in items %}
+    <tr>
+      <td>{% if n.image_path %}<img class="thumb" src="/uploads/{{ n.image_path }}" alt="">{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td><b>{{ n.title }}</b>{% if n.partner_name %}<br><span class="muted">{{ n.partner_name }}</span>{% endif %}</td>
+      <td>{% if n.kind == 'partner' %}От партнёров{% else %}Alpha Prime{% endif %}{% if n.is_banner %} · <span class="pill">баннер</span>{% endif %}</td>
+      <td>{{ n.sort_order }}</td>
+      <td>{% if n.published %}<span class="pill ok">Опубликовано</span>{% else %}<span class="pill muted">Скрыто</span>{% endif %}</td>
+      <td><a href="/admin/news/{{ n.id }}">Изменить</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="muted">Пока пусто. Нажмите «Добавить».</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

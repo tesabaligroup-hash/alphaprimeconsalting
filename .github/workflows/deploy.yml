@@ -1,0 +1,41 @@
+name: Тесты и выкладка
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r backend/requirements.txt pytest
+      - run: cd backend && python -m pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: cd frontend && npm ci && npm run build
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    # Выкладываем, только когда заданы секреты сервера (Settings → Secrets and variables → Actions)
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    steps:
+      - name: Обновить сервер
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+            cd ~/alphaprime
+            git fetch --depth 1 origin main
+            git reset --hard origin/main
+            docker compose up -d --build --remove-orphans
+            docker image prune -f

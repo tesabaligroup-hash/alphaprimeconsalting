@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Добрый день, {{ admin }}</h1>
+<div class="grid">
+  <a class="card stat" href="/admin/referrals" style="text-decoration:none;color:inherit"><b>{{ stats.pending }}</b><span>рекомендаций ждут проверки</span></a>
+  <a class="card stat" href="/admin/users" style="text-decoration:none;color:inherit"><b>{{ stats.unlinked }}</b><span>клиентов без привязки к Kommo</span></a>
+  <a class="card stat" href="/admin/partners" style="text-decoration:none;color:inherit"><b>{{ stats.partners }}</b><span>партнёров</span></a>
+  <a class="card stat" href="/admin/accruals?status=to_payout" style="text-decoration:none;color:inherit"><b>{{ stats.to_payout|money }}</b><span>IDR к выплате</span></a>
+  <a class="card stat" href="/admin/news" style="text-decoration:none;color:inherit"><b>{{ stats.news }}</b><span>опубликованных новостей и баннеров</span></a>
+</div>
+{% endblock %}

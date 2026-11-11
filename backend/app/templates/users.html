@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Клиенты{% endblock %}
+{% block content %}
+<h1>Клиенты приложения</h1>
+<p class="muted">Клиент привязывается к Kommo автоматически по номеру телефона, которым поделился в боте. Если номер в CRM записан иначе — впишите ID контакта Kommo вручную (число из адреса карточки контакта).</p>
+<div class="card table-wrap">
+<table>
+  <thead><tr><th>Имя</th><th>Telegram</th><th>Телефон</th><th>Контакт Kommo</th></tr></thead>
+  <tbody>
+  {% for u in items %}
+  <tr>
+    <td>{{ u.first_name or '—' }}</td>
+    <td>{{ '@' ~ u.telegram_username if u.telegram_username else u.telegram_id }}</td>
+    <td>{{ u.phone or '—' }}</td>
+    <td>
+      <form method="post" action="/admin/users/{{ u.id }}" class="row" style="gap:6px">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <label class="muted" for="kc-{{ u.id }}" style="position:absolute;left:-9999px">ID контакта</label>
+        <input id="kc-{{ u.id }}" type="text" name="kommo_contact_id" value="{{ u.kommo_contact_id or '' }}" placeholder="ID контакта" style="max-width:160px">
+        <button type="submit" class="btn-line" style="flex:0 0 auto">Сохранить</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}<tr><td colspan="4" class="muted">Пока никто не открывал приложение.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}
