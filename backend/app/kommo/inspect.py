@@ -20,8 +20,12 @@ def main() -> None:
         names = {norm(f["name"]) for f in fields}
         print(f"\n=== Поля: {entity} ===")
         for f in fields:
-            enums = ", ".join(e["value"] for e in (f.get("enums") or [])[:15])
-            print(f"   {f['id']:>10}  {f['type']:<12} {f['name']}" + (f"  [{enums}]" if enums else ""))
+            if f["type"] == "tracking_data":
+                continue  # рекламные метки — не нужны
+            print(f"   {f['id']:>10}  {f['type']:<12} {f['name']}")
+            enums = [e["value"] for e in (f.get("enums") or [])]
+            for i in range(0, len(enums), 6):  # варианты списка — по 6 в строке, чтобы влезали в экран
+                print("                 · " + ", ".join(enums[i:i + 6]))
         print("\n   Проверка mapping.py:")
         for key, name in wanted.items():
             print(f"   {'✓' if norm(name) in names else '✗ НЕ НАЙДЕНО'}  {key} = «{name}»")

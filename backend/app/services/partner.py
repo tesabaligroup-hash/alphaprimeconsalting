@@ -6,8 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..kommo.base import KommoClient, KommoLead
-from ..kommo.mapping import (CANCEL_STATUSES, CONTACT_FIELDS, FULLY_PAID_STATUSES, LEAD_FIELDS, RESULT_ISSUED_STATUSES,
-                             STATUS_LOST, norm)
+from ..kommo.mapping import (CANCEL_STATUSES, CONTACT_FIELDS, FULLY_PAID_STATUSES, LEAD_FIELDS, NO_PARTNER_VALUES,
+                             RESULT_ISSUED_STATUSES, STATUS_LOST, norm)
 from ..models import Accrual, Level2Link, Partner, ProgramSetting, Referral, StopWord
 from ..partner_rules import (ACCRUAL_LABELS, DEFAULTS, accrual_status, calc_payouts, codeword_problems, next_payout_date,
                              normalize_codeword, payout_date_for, short_name)
@@ -42,7 +42,7 @@ def check_codeword(db: Session, word: str, partner_id: int | None = None) -> dic
 
 def find_partner_for_lead(db: Session, lead: KommoLead) -> Partner | None:
     value = field_value(lead.fields, LEAD_FIELDS["partner"])
-    if not value:
+    if not value or norm(str(value)) in NO_PARTNER_VALUES:
         return None
     v = str(value).strip()
     p = db.scalar(select(Partner).where(Partner.kommo_partner_value.ilike(v)))
@@ -74,7 +74,13 @@ def sync_lead(db: Session, kommo: KommoClient, lead: KommoLead, now: datetime | 
     sname = norm(lead.status_name)
     paid = as_int(field_value(lead.fields, LEAD_FIELDS["paid_amount"]))
     price = lead.price or tariff.price
-    fully_paid = (paid is not None and paid >= price) or (paid is None and sname in FULLY_PAID_STATUSES)
+    debt = as_int(field_value(lead.fields, LEAD_FIELDS["debt"]))
+    if debt is not None and paid:
+        fully_paid = debt <= 0
+    elif paid is not None:
+        fully_paid = paid >= price
+    else:
+        fully_paid = sname in FULLY_PAID_STATUSES
     cancelled = lead.status_id == STATUS_LOST or sname in CANCEL_STATUSES
     fully_paid_at = _first_time(kommo, lead.id, FULLY_PAID_STATUSES) if fully_paid else None
     issued_at = _first_time(kommo, lead.id, RESULT_ISSUED_STATUSES)

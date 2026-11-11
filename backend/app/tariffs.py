@@ -67,8 +67,24 @@ BY_CODE: dict[str, Tariff] = {t.code.upper(): t for t in TARIFFS}
 CATEGORY_LABELS = {"kitas": "KITAS", "visa": "Визы", "ext": "Продления", "co": "Компании", "buh": "Бухгалтерия", "other": "Другое"}
 
 
+# Коды в поле «Тип услуги» в Kommo, которые называются иначе, чем в прайсе.
+# ПРОВЕРИТЬ с руководством: KITAS DEPEND — это Family KITAS; CART BNI — персональная карта BNI.
+KOMMO_ALIASES = {
+    "KITAS DEPEND-1": "E31B/E-1",
+    "KITAS DEPEND-2": "E31B/E-2",
+    "CART BNI": "PERSONAL-COUNT",
+    "PMA": "PMA-1",
+    "C7": "C7 (АРТИСТА)",
+}
+
+
 def find_tariff(code: str | None) -> Tariff | None:
-    """Ищет тариф по коду из поля «Тип услуги» в Kommo (регистр и пробелы не важны)."""
+    """Тариф по полю «Тип услуги» в Kommo. Поле — мультисписок («E33G, BUH-M»): берём первый известный код."""
     if not code:
         return None
-    return BY_CODE.get(code.strip().upper())
+    for part in str(code).split(","):
+        key = part.strip().upper()
+        t = BY_CODE.get(key) or BY_CODE.get(KOMMO_ALIASES.get(key, ""))
+        if t:
+            return t
+    return None

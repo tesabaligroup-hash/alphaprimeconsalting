@@ -121,7 +121,8 @@ def _owned_lead(user: User, kommo: KommoClient, lead_id: int):
 def service_detail(lead_id: int, user: User = Depends(current_user), kommo: KommoClient = Depends(kommo_dep)):
     contact, lead = _owned_lead(user, kommo, lead_id)
     person = cabinet.contact_person(contact)
-    card = cabinet.build_card(lead, kommo, person, with_history=True)
+    main = kommo.get_contact(lead.contact_ids[0]) if lead.contact_ids and lead.contact_ids[0] != contact.id else contact
+    card = cabinet.build_card(lead, kommo, person, with_history=True, person_contact=main or contact)
     if not card:
         raise HTTPException(404)
     files = [{"uuid": f.uuid, "name": f.name, "created_at": f.created_at.date().isoformat() if f.created_at else None}

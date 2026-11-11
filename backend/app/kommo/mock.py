@@ -24,35 +24,33 @@ _STATUSES = {
 
 
 def _lead(i, name, price, status, fields, contacts, created_days_ago=10):
-    return KommoLead(id=i, name=name, price=price, pipeline_id=1, status_id=status, status_name=_STATUSES[status],
+    return KommoLead(id=i, name=name, price=price, pipeline_id=13724291, status_id=status, status_name=_STATUSES[status],
                      fields=fields, contact_ids=contacts, created_at=NOW - timedelta(days=created_days_ago),
                      updated_at=NOW - timedelta(days=1))
 
 
 LEADS = {
     1001: _lead(1001, "Анна — E33G", 10_900_000, 5,
-                {"Тип услуги": "E33G", "Оплачено": 7_000_000, "Дедлайн": int((NOW + timedelta(days=17)).timestamp()),
-                 "Для кого": "Анна Дикина"}, [501], 13),
+                {"Тип услуги": "E33G", "Оплатил": 7_000_000, "Долг": 3_900_000, "Дедлайн": int((NOW + timedelta(days=17)).timestamp())}, [501], 13),
     1002: _lead(1002, "Миша — Family KITAS", 13_000_000, 6,
-                {"Тип услуги": "E31B/E-1", "Оплачено": 13_000_000, "Для кого": "Миша Дикин",
-                 "Дата выдачи": int(datetime(2026, 2, 2).timestamp()), "Действует до": int(datetime(2027, 2, 2).timestamp())}, [501], 300),
+                {"Тип услуги": "KITAS DEPEND-1", "Оплатил": 13_000_000, "Долг": 0}, [502, 501], 300),
     1003: _lead(1003, "PT PMA — бухгалтерия", 1_000_000, 3,
-                {"Тип услуги": "BUH-M", "Оплачено": 1_000_000, "Дедлайн": int(datetime(2026, 12, 15).timestamp())}, [501], 40),
+                {"Тип услуги": "BUH-M, CHANGE-KBLI", "Оплатил": 1_000_000, "Дедлайн": int(datetime(2026, 12, 15).timestamp())}, [501], 40),
     1004: _lead(1004, "Анна — C1", 2_000_000, 142,
-                {"Тип услуги": "C1", "Оплачено": 2_000_000, "Дата выдачи": int(datetime(2026, 6, 12).timestamp()),
-                 "Действует до": int(datetime(2026, 8, 10).timestamp())}, [501], 160),
+                {"Тип услуги": "C1", "Оплатил": 2_000_000}, [501], 160),
     # Друзья партнёра ANNABALI
     2001: _lead(2001, "Денис — KITAS Investor", 17_575_000, 4,
-                {"Тип услуги": "E28A-2-P", "Оплачено": 17_575_000, "Партнёр": "ANNABALI"}, [601], 30),
+                {"Тип услуги": "E28A-2-P", "Оплатил": 17_575_000, "Партнёр": "ANNABALI"}, [601], 30),
     2002: _lead(2002, "Мария — E33G", 10_705_000, 3,
-                {"Тип услуги": "E33G", "Оплачено": 10_705_000, "Партнёр": "ANNABALI"}, [602], 8),
+                {"Тип услуги": "E33G", "Оплатил": 10_705_000, "Партнёр": "ANNABALI"}, [602], 8),
     2003: _lead(2003, "Ольга — PT PMA", 19_555_000, 1,
-                {"Тип услуги": "PMA-1", "Оплачено": 0, "Партнёр": "ANNABALI"}, [603], 3),
+                {"Тип услуги": "PMA-1", "Оплатил": 0, "Долг": 19_555_000, "Партнёр": "ANNABALI"}, [603], 3),
 }
 
 CONTACTS = {
     501: KommoContact(501, "Анна", ["+62 812 0000 0001"], {"Имя Фамилия": "ANNA DIKINA", "Гражданство": "RUSIA",
                                                               "Паспорт до": int(datetime(2032, 3, 18).timestamp())}, [1001, 1002, 1003, 1004]),
+    502: KommoContact(502, "Миша", [], {"Имя Фамилия": "MIKHAIL DIKIN", "ITK до": int(datetime(2027, 2, 2).timestamp())}, [1002]),
     601: KommoContact(601, "Денис Р.", ["+62 812 0000 0002"], {"Имя Фамилия": "DENIS ROMANOV"}, [2001]),
     602: KommoContact(602, "Мария К.", ["+62 812 0000 0003"], {"Имя Фамилия": "MARIA KUZNETSOVA"}, [2002]),
     603: KommoContact(603, "@olga_bali", ["+62 812 0000 0004"], {}, [2003]),

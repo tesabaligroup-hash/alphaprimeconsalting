@@ -5,8 +5,8 @@ from zoneinfo import ZoneInfo
 
 from ..config import get_settings
 
-from ..kommo.base import KommoClient, KommoLead
-from ..kommo.mapping import (CLIENT_STEPS, CONTACT_FIELDS, HIDDEN_STATUSES, LEAD_FIELDS, STATUS_LOST, STATUS_TO_STEP,
+from ..kommo.base import KommoClient, KommoContact, KommoLead
+from ..kommo.mapping import (CLIENT_PIPELINE_IDS, CLIENT_STEPS, CONTACT_FIELDS, LEAD_FIELDS, STATUS_LOST, STATUS_TO_STEP,
                              STATUS_WON, norm)
 from ..tariffs import find_tariff
 
@@ -86,25 +86,43 @@ class ServiceCard:
     valid_until: str | None = None
 
 
-def build_card(lead: KommoLead, kommo: KommoClient, default_person: str, with_history: bool = True) -> ServiceCard | None:
-    sname = norm(lead.status_name)
-    if lead.status_id == STATUS_LOST or sname in HIDDEN_STATUSES:
+def build_card(lead: KommoLead, kommo: KommoClient, default_person: str, with_history: bool = True,
+               person_contact: KommoContact | None = None) -> ServiceCard | None:
+    """Карточка услуги для клиента. None — сделку клиенту не показываем (продажи, провал, другая воронка).
+
+    person_contact — основной контакт сделки (например, ребёнок или супруг в семейной сделке):
+    из него берём имя и даты «Виза до» / «ITK до».
+    """
+    if lead.pipeline_id not in CLIENT_PIPELINE_IDS or lead.status_id == STATUS_LOST:
         return None
+    sname = norm(lead.status_name)
     archived = lead.status_id == STATUS_WON
-    step_index, state = STATUS_TO_STEP.get(sname, (3, "done") if archived else (2, "active"))
-    if archived:
-        step_index, state = 3, "done"
+    if not archived and sname not in STATUS_TO_STEP:
+        return None
+    step_index, state = (3, "done") if archived else STATUS_TO_STEP[sname]
 
     f = lead.fields
-    code = field_value(f, LEAD_FIELDS["service_type"])
-    tariff = find_tariff(str(code) if code else None)
+    raw_code = field_value(f, LEAD_FIELDS["service_type"])
+    tariff = find_tariff(str(raw_code) if raw_code else None)
     paid = as_int(field_value(f, LEAD_FIELDS["paid_amount"]))
+    debt = as_int(field_value(f, LEAD_FIELDS["debt"]))
     price = lead.price or (tariff.price if tariff else 0)
-    remaining = max(price - paid, 0) if paid is not None and price else None
-    valid_until = as_date(field_value(f, LEAD_FIELDS["valid_until"]))
-    issued = as_date(field_value(f, LEAD_FIELDS["issued_at"]))
+    if debt is not None:
+        remaining = max(debt, 0)
+    elif paid is not None and price:
+        remaining = max(price - paid, 0)
+    else:
+        remaining = None
     expected = as_date(field_value(f, LEAD_FIELDS["deadline"]))
-    person = person_title(field_value(f, LEAD_FIELDS["person_name"])) or default_person
+
+    person = default_person
+    valid_until = None
+    if person_contact:
+        person = contact_person(person_contact) or default_person
+        if tariff and tariff.category in ("kitas", "visa", "ext") and state in ("done", "renewal") and not archived:
+            key = "itk_until" if tariff.category == "kitas" or "KITAS" in tariff.name.upper() else "visa_until"
+            valid_until = as_date(field_value(person_contact.fields, CONTACT_FIELDS[key])) or \
+                as_date(field_value(person_contact.fields, CONTACT_FIELDS["visa_until"]))
 
     # Бейдж
     if archived:
@@ -112,10 +130,7 @@ def build_card(lead: KommoLead, kommo: KommoClient, default_person: str, with_hi
     elif state == "wait_payment":
         badge, tone = ("Ждём доплату", "warn") if paid else ("Ждём оплату", "warn")
     elif state in ("done", "renewal"):
-        if valid_until and valid_until >= date.today():
-            badge, tone = "Действует", "ok"
-        else:
-            badge, tone = "Готово", "ok"
+        badge, tone = ("Действует", "ok") if valid_until and valid_until >= date.today() else ("Готово", "ok")
     else:
         badge, tone = "В работе", "info"
 
@@ -143,37 +158,48 @@ def build_card(lead: KommoLead, kommo: KommoClient, default_person: str, with_hi
     # «Подача в иммиграцию» — только для виз и KITAS; у компаний и бухгалтерии этот шаг — «В работе»
     if not tariff or tariff.category not in ("kitas", "visa", "ext"):
         steps[2].title = "В работе"
-    title = tariff.name if tariff else lead.name
+    title = tariff.name if tariff else (str(raw_code) if raw_code else lead.name)
     if tariff and tariff.category == "buh":
         title = f"Бухгалтерия: {tariff.name[:1].lower()}{tariff.name[1:]}"
     return ServiceCard(
-        lead_id=lead.id, title=title, code=str(code) if code else None, person=person, badge=badge, badge_tone=tone,
+        lead_id=lead.id, title=title, code=tariff.code if tariff else (str(raw_code) if raw_code else None),
+        person=person, badge=badge, badge_tone=tone,
         archived=archived, step_index=step_index, steps=steps, price=price, paid=paid, remaining=remaining,
         started_at=lead.created_at.date().isoformat() if lead.created_at else None,
         expected_at=expected.isoformat() if expected else None,
-        issued_at=issued.isoformat() if issued else None,
+        issued_at=None,
         valid_until=valid_until.isoformat() if valid_until else None,
     )
+
+
+def _cards(kommo: KommoClient, contact: KommoContact, with_history: bool) -> tuple[list[ServiceCard], dict[int, KommoContact]]:
+    default_person = contact_person(contact)
+    leads = kommo.get_leads(contact.lead_ids)
+    ids = sorted({cid for lead in leads for cid in lead.contact_ids[:1]} | {contact.id})
+    people = {c.id: c for c in kommo.get_contacts(ids)}
+    people.setdefault(contact.id, contact)
+    cards = []
+    for lead in leads:
+        main = people.get(lead.contact_ids[0]) if lead.contact_ids else contact
+        card = build_card(lead, kommo, default_person, with_history, person_contact=main or contact)
+        if card:
+            cards.append(card)
+    return cards, people
 
 
 def load_client(kommo: KommoClient, contact_id: int, with_history: bool = True) -> dict:
     contact = kommo.get_contact(contact_id)
     if not contact:
         return {"services": [], "archive": [], "dates": [], "contact": None}
-    default_person = contact_person(contact)
-    cards = []
-    for lead in kommo.get_leads(contact.lead_ids):
-        card = build_card(lead, kommo, default_person, with_history)
-        if card:
-            cards.append(card)
+    cards, people = _cards(kommo, contact, with_history)
     active = [c for c in cards if not c.archived]
     archive = [c for c in cards if c.archived]
     return {
-        "contact": {"id": contact.id, "name": default_person,
+        "contact": {"id": contact.id, "name": contact_person(contact),
                     "passport_until": _iso(as_date(field_value(contact.fields, CONTACT_FIELDS["passport_until"])))},
         "services": [asdict(c) for c in active],
         "archive": [asdict(c) for c in archive],
-        "dates": important_dates(active, contact.fields, default_person),
+        "dates": important_dates(active, list(people.values())),
     }
 
 
@@ -181,23 +207,28 @@ def _iso(d: date | None) -> str | None:
     return d.isoformat() if d else None
 
 
-def important_dates(cards: list[ServiceCard], contact_fields: dict, person: str, today: date | None = None) -> list[dict]:
-    """Ближайшие важные даты по всем услугам и членам семьи."""
+def important_dates(cards: list[ServiceCard], people: list[KommoContact], today: date | None = None) -> list[dict]:
+    """Ближайшие важные даты по всем членам семьи: окончание визы / KITAS / паспорта, сроки отчётов."""
     today = today or date.today()
     out = []
+    for c in people:
+        name = contact_person(c)
+        for key, title, horizon in (("itk_until", "Окончание KITAS", 400), ("visa_until", "Окончание визы", 400),
+                                    ("passport_until", "Окончание паспорта", 270)):
+            d = as_date(field_value(c.fields, CONTACT_FIELDS[key]))
+            if d and 0 <= (d - today).days <= horizon:
+                out.append({"date": d.isoformat(), "title": title, "person": name, "lead_id": None, "kind": "expiry" if key != "passport_until" else "passport"})
     for c in cards:
-        if c.valid_until:
-            d = date.fromisoformat(c.valid_until)
-            if d >= today:
-                out.append({"date": c.valid_until, "title": f"Окончание: {c.title}", "person": c.person, "lead_id": c.lead_id, "kind": "expiry"})
         if c.expected_at and c.code and c.code.upper().startswith("BUH"):
             out.append({"date": c.expected_at, "title": "Срок отчёта по бухгалтерии", "person": c.person, "lead_id": c.lead_id, "kind": "report"})
-    passport = as_date(field_value(contact_fields, CONTACT_FIELDS["passport_until"]))
-    if passport and 0 <= (passport - today).days <= 270:
-        out.append({"date": passport.isoformat(), "title": "Окончание паспорта", "person": person, "lead_id": None, "kind": "passport"})
-    for x in out:
-        x["days_left"] = (date.fromisoformat(x["date"]) - today).days
-    return sorted(out, key=lambda x: x["date"])[:5]
+    seen, uniq = set(), []
+    for x in sorted(out, key=lambda x: x["date"]):
+        k = (x["date"], x["person"], x["kind"])
+        if k not in seen and not (x["date"] < today.isoformat()):
+            seen.add(k)
+            x["days_left"] = (date.fromisoformat(x["date"]) - today).days
+            uniq.append(x)
+    return uniq[:5]
 
 
 def load_documents(kommo: KommoClient, contact_id: int) -> list[dict]:
@@ -205,15 +236,12 @@ def load_documents(kommo: KommoClient, contact_id: int) -> list[dict]:
     contact = kommo.get_contact(contact_id)
     if not contact:
         return []
-    default_person = contact_person(contact)
+    cards, _ = _cards(kommo, contact, with_history=False)
     groups: dict[str, list] = {}
-    for lead in kommo.get_leads(contact.lead_ids):
-        card = build_card(lead, kommo, default_person, with_history=False)
-        if not card:
-            continue
-        for f in kommo.get_lead_files(lead.id):
+    for card in cards:
+        for f in kommo.get_lead_files(card.lead_id):
             groups.setdefault(card.person, []).append({
                 "uuid": f.uuid, "name": f.name, "created_at": f.created_at.date().isoformat() if f.created_at else None,
-                "service": card.title, "lead_id": lead.id, "archived": card.archived, "valid_until": card.valid_until,
+                "service": card.title, "lead_id": card.lead_id, "archived": card.archived, "valid_until": card.valid_until,
             })
     return [{"person": p, "files": files} for p, files in groups.items()]
