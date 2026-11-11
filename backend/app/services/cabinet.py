@@ -120,11 +120,14 @@ def build_card(lead: KommoLead, kommo: KommoClient, default_person: str, with_hi
     valid_until = None
     if person_contact:
         person = contact_person(person_contact) or default_person
-        if tariff and tariff.category in ("kitas", "visa", "ext") and state in ("done", "renewal") and not archived:
+        if tariff and tariff.category in ("kitas", "visa", "ext") and state in ("done", "renewal"):
             key = "itk_until" if tariff.category == "kitas" or "KITAS" in tariff.name.upper() else "visa_until"
             valid_until = as_date(field_value(person_contact.fields, CONTACT_FIELDS[key])) or \
                 as_date(field_value(person_contact.fields, CONTACT_FIELDS["visa_until"]))
 
+    # Завершённая сделка с ещё действующей визой/KITAS — это действующая услуга, а не архив
+    if archived and valid_until and valid_until >= date.today():
+        archived = False
     # Бейдж
     if archived:
         badge, tone = "Завершено", "muted"
@@ -173,20 +176,43 @@ def build_card(lead: KommoLead, kommo: KommoClient, default_person: str, with_hi
     )
 
 
+def _with_fields(base: KommoContact, others: list[KommoContact]) -> KommoContact:
+    """Копия контакта, у которой пустые поля дополнены из других контактов."""
+    fields = dict(base.fields)
+    for c in others:
+        for k, v in c.fields.items():
+            fields.setdefault(k, v)
+    return KommoContact(id=base.id, name=base.name, phones=base.phones, fields=fields, lead_ids=base.lead_ids)
+
+
 def _cards(kommo: KommoClient, contact: KommoContact, with_history: bool) -> tuple[list[ServiceCard], dict[int, KommoContact]]:
+    """Карточки услуг + люди, чьи даты показываем (только из видимых клиенту сделок).
+
+    В сделке может быть несколько контактов: основной (клиент или член семьи) и служебные без имени,
+    в которых менеджеры хранят паспортные данные («ITK до», «Виза до»). Безымянные контакты сделки
+    считаем тем же человеком, что и основной контакт.
+    """
     default_person = contact_person(contact)
     leads = kommo.get_leads(contact.lead_ids)
-    ids = sorted({cid for lead in leads for cid in lead.contact_ids[:1]} | {contact.id})
-    people = {c.id: c for c in kommo.get_contacts(ids)}
-    people.setdefault(contact.id, contact)
+    ids = sorted({cid for lead in leads for cid in lead.contact_ids[:6]} | {contact.id})
+    fetched = {c.id: c for c in kommo.get_contacts(ids)}
+    fetched[contact.id] = contact
+    people: dict[int, KommoContact] = {}
     cards = []
     for lead in leads:
-        main = people.get(lead.contact_ids[0]) if lead.contact_ids else contact
-        if main is not None and contact_person(main) == default_person:
-            main = contact  # дубль самого клиента — берём объединённые поля
-        card = build_card(lead, kommo, default_person, with_history, person_contact=main or contact)
+        lead_contacts = [fetched[i] for i in lead.contact_ids[:6] if i in fetched] or [contact]
+        main = lead_contacts[0]
+        name = contact_person(main)
+        same_as_client = main.id == contact.id or not name or name == default_person
+        person = contact if same_as_client else main
+        nameless = [c for c in lead_contacts if c is not main and not contact_person(c)]
+        if same_as_client and main.id != contact.id:
+            nameless.append(main)
+        pc = _with_fields(person, nameless)
+        card = build_card(lead, kommo, default_person, with_history, person_contact=pc)
         if card:
             cards.append(card)
+            people[pc.id] = _with_fields(people[pc.id], [pc]) if pc.id in people else pc
     return cards, people
 
 
@@ -216,9 +242,7 @@ def load_client(kommo: KommoClient, contact_id: int | list[int], with_history: b
     if not contact:
         return {"services": [], "archive": [], "dates": [], "contact": None}
     cards, people = _cards(kommo, contact, with_history)
-    for c in originals:
-        people.setdefault(c.id, c)
-    people[contact.id] = contact
+    people[contact.id] = _with_fields(people[contact.id], [contact]) if contact.id in people else contact
     active = [c for c in cards if not c.archived]
     archive = [c for c in cards if c.archived]
     return {
@@ -243,6 +267,9 @@ def important_dates(cards: list[ServiceCard], people: list[KommoContact], today:
         for key, title, horizon in (("itk_until", "Окончание KITAS", 3650), ("visa_until", "Окончание визы", 3650),
                                     ("passport_until", "Окончание паспорта", 270)):
             d = as_date(field_value(c.fields, CONTACT_FIELDS[key]))
+            visa_type = field_value(c.fields, CONTACT_FIELDS["current_visa"])
+            if visa_type and key != "passport_until":
+                title = f"{title} {visa_type}"
             if d and 0 <= (d - today).days <= horizon:
                 out.append({"date": d.isoformat(), "title": title, "person": name, "lead_id": None, "kind": "expiry" if key != "passport_until" else "passport"})
     for c in cards:

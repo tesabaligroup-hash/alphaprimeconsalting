@@ -57,11 +57,16 @@ export default function Home() {
           {data.banners.length > 0 && (
             <div className="hscroll">
               {data.banners.map((b) => (
-                <button key={b.id} className={`banner${b.image ? " has-img" : ""}`} style={{ width: data.banners.length > 1 ? "88%" : "100%", flex: "none", backgroundImage: b.image ? `url(${b.image})` : undefined }}
-                  onClick={() => openNews(b)}>
-                  <span style={{ fontWeight: 800, fontSize: 18, lineHeight: 1.25 }}>{b.title}</span>
-                  {b.body && <span style={{ fontSize: 13 }}>{b.body}</span>}
-                </button>
+                b.image ? (
+                  // Баннер-картинка (1200×600): текст уже на картинке, поверх ничего не пишем
+                  <button key={b.id} className="banner" aria-label={b.title} onClick={() => openNews(b)}
+                    style={{ width: data.banners.length > 1 ? "88%" : "100%", flex: "none", minHeight: 0, aspectRatio: "2 / 1", padding: 0, backgroundImage: `url(${b.image})`, backgroundSize: "cover" }} />
+                ) : (
+                  <button key={b.id} className="banner" style={{ width: data.banners.length > 1 ? "88%" : "100%", flex: "none" }} onClick={() => openNews(b)}>
+                    <span style={{ fontWeight: 800, fontSize: 18, lineHeight: 1.25 }}>{b.title}</span>
+                    {b.body && <span style={{ fontSize: 13 }}>{b.body}</span>}
+                  </button>
+                )
               ))}
             </div>
           )}
