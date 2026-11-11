@@ -334,7 +334,7 @@ def accruals(request: Request, status: str = "all", db: Session = Depends(get_db
     return render(request, "accruals.html", items=list(db.scalars(q)), status=status, partners=partners)
 
 
-@router.post("/accruals/{acc_id}")
+@router.post("/accruals/{acc_id:int}")
 def accrual_decide(acc_id: int, request: Request, csrf: str = Form(""), action: str = Form(...), code: str = Form(""),
                    db: Session = Depends(get_db), admin: str = Depends(require_admin)):
     """Решение менеджера по начислению «Проверяем»: указать услугу, подтвердить, «уже выплачено» или «не платить»."""
@@ -349,12 +349,13 @@ def accrual_decide(acc_id: int, request: Request, csrf: str = Form(""), action: 
     decision = {"approve": "approved", "paid": "paid", "reject": "rejected", "reopen": None}.get(action, "keep")
     if decision != "keep":
         if decision == "approved" and not (acc.manual_code or find_tariff(acc.service_code)):
-            raise HTTPException(400, "Сначала выберите услугу — без неё не посчитать сумму")
+            return HTMLResponse('<p style="font:16px sans-serif;padding:24px">Сначала выберите услугу в списке — без неё не посчитать сумму. '
+                                '<a href="/admin/accruals?status=review">Назад</a></p>', 400)
         for a in siblings:
             a.decision = decision
             if decision is None and a.status == "paid":
                 a.status = "review"
-    audit(db, admin, "accrual_decide", lead=acc.kommo_lead_id, action=action, code=code or None)
+    audit(db, admin, "accrual_decide", lead=acc.kommo_lead_id, button=action, code=code or None)
     db.commit()
     kommo = get_kommo()
     for lead in kommo.get_leads([acc.kommo_lead_id]):  # пересчитать сразу, не дожидаясь 10 минут

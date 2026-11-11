@@ -167,3 +167,25 @@ def test_news_interest_creates_lead_and_dedupes(client):
     assert len(kommo.created) == before + 1 and kommo.created[-1]["title"].startswith("Интерес из приложения: Специальный вход")
     assert client.post(f"/api/news/{nid}/interest", headers=DEV).json().get("duplicate") is True
     assert client.post("/api/news/999999/interest", headers=DEV).status_code == 404
+
+
+def test_admin_accrual_buttons(client):
+    import re
+
+    page = client.get("/admin/login").text
+    csrf = re.search(r'name="csrf" value="([^"]+)"', page).group(1)
+    client.post("/admin/login", data={"name": "Tesa", "password": "secret", "csrf": csrf})
+    r = client.post("/admin/accruals/sync", data={"csrf": csrf}, follow_redirects=False)
+    assert r.status_code == 303  # «Обновить из Kommo»
+    from app.db import SessionLocal
+    from app.models import Accrual
+    with SessionLocal() as db:
+        acc = db.query(Accrual).first()
+        acc.status, acc.decision = "review", None
+        db.commit()
+        aid = acc.id
+    for action in ("set", "approve", "reopen", "paid", "reopen", "reject", "reopen"):
+        r = client.post(f"/admin/accruals/{aid}", data={"csrf": csrf, "action": action, "code": "D12-EXT"},
+                        headers={"referer": "/admin/accruals"}, follow_redirects=False)
+        assert r.status_code == 303, (action, r.text)
+    assert client.get("/admin/accruals?status=review").status_code == 200
