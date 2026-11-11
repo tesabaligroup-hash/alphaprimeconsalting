@@ -59,6 +59,6 @@ def spa(path: str):
     candidate = (FRONT / path).resolve()
     if path and candidate.is_file() and FRONT.resolve() in candidate.parents:
         return FileResponse(candidate)
-    if index.exists():
-        return FileResponse(index)
+    if index.exists():  # без кэша — чтобы Telegram сразу подхватывал новую версию приложения
+        return FileResponse(index, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
     return {"ok": True, "message": "Frontend is not built yet"}

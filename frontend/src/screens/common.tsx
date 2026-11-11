@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { type NewsItem, type Service } from "../api";
+import { api, type NewsItem, type Service } from "../api";
 import { dateNum, money } from "../format";
 import { tg, haptic, openExternal } from "../tg";
 import { useApp, type Route } from "../ui";
@@ -63,4 +63,27 @@ export function LinkPhoneCard() {
 export function openNews(n: NewsItem, go: (r: Route) => void) {
   if (n.cta || n.body) go({ name: "news", item: n });
   else if (n.link) openExternal(n.link);
+}
+
+/** Кнопка «Узнать подробнее»: заявка в Kommo (Consulting → Распределение) + сообщение менеджерам. */
+export function InterestButton({ id }: { id: number }) {
+  const { toast } = useApp();
+  const [state, setState] = useState<"idle" | "busy" | "sent">("idle");
+  const send = async () => {
+    setState("busy");
+    try {
+      await api.post(`/api/news/${id}/interest`);
+      haptic();
+      setState("sent");
+      toast("Заявка отправлена — менеджер напишет вам");
+    } catch (e) {
+      setState("idle");
+      toast((e as Error).message);
+    }
+  };
+  return (
+    <button className="btn gold block" disabled={state !== "idle"} onClick={send}>
+      {state === "sent" ? "Заявка отправлена ✓" : state === "busy" ? "Отправляем…" : "Узнать подробнее"}
+    </button>
+  );
 }

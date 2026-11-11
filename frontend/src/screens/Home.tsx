@@ -3,7 +3,7 @@ import { dayMonth, dateLong, inDays } from "../format";
 import { ICal } from "../icons";
 import { openExternal } from "../tg";
 import { ErrorBox, Loading, useApp, useLoad } from "../ui";
-import { LinkPhoneCard, ServiceCardView, openNews } from "./common";
+import { InterestButton, LinkPhoneCard, ServiceCardView, openNews } from "./common";
 
 export default function Home() {
   const { me, go } = useApp();
@@ -57,24 +57,30 @@ export default function Home() {
           {data.banners.length > 0 && (
             <div className="hscroll">
               {data.banners.map((b) => (
-                b.image ? (
-                  // Баннер-картинка (1200×600): текст уже на картинке, поверх ничего не пишем
-                  <button key={b.id} className="banner" aria-label={b.title} onClick={() => openNews(b, go)}
-                    style={{ width: data.banners.length > 1 ? "88%" : "100%", flex: "none", minHeight: 0, aspectRatio: "2 / 1", padding: 0, backgroundImage: `url(${b.image})`, backgroundSize: "cover" }} />
-                ) : (
-                  <button key={b.id} className="banner" style={{ width: data.banners.length > 1 ? "88%" : "100%", flex: "none" }} onClick={() => openNews(b, go)}>
-                    <span style={{ fontWeight: 800, fontSize: 18, lineHeight: 1.25 }}>{b.title}</span>
-                    {b.body && <span style={{ fontSize: 13 }}>{b.body}</span>}
-                  </button>
-                )
+                <div key={b.id} style={{ width: data.banners.length > 1 ? "88%" : "100%", flex: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+                  {b.image ? (
+                    // Баннер-картинка (1200×600): текст уже на картинке, поверх ничего не пишем
+                    <button className="banner" aria-label={b.title} onClick={() => openNews(b, go)}
+                      style={{ width: "100%", minHeight: 0, aspectRatio: "2 / 1", padding: 0, backgroundImage: `url(${b.image})`, backgroundSize: "cover" }} />
+                  ) : (
+                    <button className="banner" style={{ width: "100%" }} onClick={() => openNews(b, go)}>
+                      <span style={{ fontWeight: 800, fontSize: 18, lineHeight: 1.25 }}>{b.title}</span>
+                      {b.body && <span style={{ fontSize: 13 }}>{b.body}</span>}
+                    </button>
+                  )}
+                  {b.cta && <InterestButton id={b.id} />}
+                </div>
               ))}
             </div>
           )}
           {data.news.map((n) => (
-            <button key={n.id} className="news-row" onClick={() => openNews(n, go)}>
-              <div className="thumb" style={{ backgroundImage: n.image ? `url(${n.image})` : undefined }} />
-              <div className="grow"><span className="muted" style={{ fontSize: 12 }}>{dateLong(n.date)}</span><span className="b" style={{ lineHeight: 1.35 }}>{n.title}</span></div>
-            </button>
+            <div key={n.id} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button className="news-row" onClick={() => openNews(n, go)}>
+                <div className="thumb" style={{ backgroundImage: n.image ? `url(${n.image})` : undefined }} />
+                <div className="grow"><span className="muted" style={{ fontSize: 12 }}>{dateLong(n.date)}</span><span className="b" style={{ lineHeight: 1.35 }}>{n.title}</span></div>
+              </button>
+              {n.cta && <InterestButton id={n.id} />}
+            </div>
           ))}
           {data.banners.length + data.news.length === 0 && <p className="muted">Скоро здесь появятся новости.</p>}
         </section>
