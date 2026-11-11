@@ -36,3 +36,5 @@ def init_db() -> None:
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS kommo_extra_contact_ids JSON"))
             conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS key VARCHAR(64) UNIQUE"))
             conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS cta_lead BOOLEAN DEFAULT FALSE"))
+            conn.execute(text("ALTER TABLE accruals ADD COLUMN IF NOT EXISTS manual_code VARCHAR(32)"))
+            conn.execute(text("ALTER TABLE accruals ADD COLUMN IF NOT EXISTS decision VARCHAR(16)"))

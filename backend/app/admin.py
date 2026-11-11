@@ -17,12 +17,14 @@ from .kommo import get_kommo
 from .models import Accrual, AuditLog, Level2Link, News, Partner, Referral, StopWord, User
 from .partner_rules import ACCRUAL_LABELS, normalize_codeword
 from .services import partner as partner_svc
+from .tariffs import TARIFFS, find_tariff
 from .timeutil import utcnow
 
 router = APIRouter(prefix="/admin", include_in_schema=False)
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 templates.env.filters["money"] = lambda v: f"{int(v or 0):,}".replace(",", " ")
 templates.env.globals["ACCRUAL_LABELS"] = ACCRUAL_LABELS
+templates.env.globals["TARIFFS"] = TARIFFS
 
 ALLOWED_IMAGE = {".jpg", ".jpeg", ".png", ".webp"}
 REJECT_REASONS = ["Клиент закреплён за другим партнёром", "Клиент уже был в базе Alpha Prime", "Не удалось связаться", "Другое"]
@@ -67,11 +69,13 @@ def login_page(request: Request):
 
 @router.post("/login")
 def login(request: Request, name: str = Form(...), password: str = Form(...), csrf: str = Form("")):
-    check_csrf(request, csrf)
+    if not hmac.compare_digest(request.session.get("csrf", ""), csrf or ""):
+        return render(request, "login.html", error="Страница устарела — введите пароль ещё раз")
     s = get_settings()
+    password = password.strip()  # при копировании из сообщения часто прилипает пробел
     if s.admin_password in ("", "change-me") and not s.dev_mode:
         return render(request, "login.html", error="Пароль админки не задан на сервере (ADMIN_PASSWORD)")
-    if not hmac.compare_digest(password, s.admin_password):
+    if not hmac.compare_digest(password.encode(), s.admin_password.strip().encode()):
         return render(request, "login.html", error="Неверный пароль")
     request.session["admin"] = name.strip()[:64] or "admin"
     return RedirectResponse("/admin", 303)
@@ -328,6 +332,35 @@ def accruals(request: Request, status: str = "all", db: Session = Depends(get_db
         q = q.where(Accrual.status == status)
     partners = {p.id: p for p in db.scalars(select(Partner))}
     return render(request, "accruals.html", items=list(db.scalars(q)), status=status, partners=partners)
+
+
+@router.post("/accruals/{acc_id}")
+def accrual_decide(acc_id: int, request: Request, csrf: str = Form(""), action: str = Form(...), code: str = Form(""),
+                   db: Session = Depends(get_db), admin: str = Depends(require_admin)):
+    """Решение менеджера по начислению «Проверяем»: указать услугу, подтвердить, «уже выплачено» или «не платить»."""
+    check_csrf(request, csrf)
+    acc = db.get(Accrual, acc_id)
+    if not acc:
+        raise HTTPException(404)
+    siblings = list(db.scalars(select(Accrual).where(Accrual.kommo_lead_id == acc.kommo_lead_id, Accrual.period == acc.period)))
+    if code and find_tariff(code):
+        for a in siblings:
+            a.manual_code = find_tariff(code).code
+    decision = {"approve": "approved", "paid": "paid", "reject": "rejected", "reopen": None}.get(action, "keep")
+    if decision != "keep":
+        if decision == "approved" and not (acc.manual_code or find_tariff(acc.service_code)):
+            raise HTTPException(400, "Сначала выберите услугу — без неё не посчитать сумму")
+        for a in siblings:
+            a.decision = decision
+            if decision is None and a.status == "paid":
+                a.status = "review"
+    audit(db, admin, "accrual_decide", lead=acc.kommo_lead_id, action=action, code=code or None)
+    db.commit()
+    kommo = get_kommo()
+    for lead in kommo.get_leads([acc.kommo_lead_id]):  # пересчитать сразу, не дожидаясь 10 минут
+        partner_svc.sync_lead(db, kommo, lead)
+    db.commit()
+    return RedirectResponse(request.headers.get("referer") or "/admin/accruals", 303)
 
 
 @router.post("/accruals/sync")

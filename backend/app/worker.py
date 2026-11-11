@@ -148,8 +148,12 @@ async def fallback(message: Message):
 async def sync_loop(bot: Bot):
     kommo = get_kommo()
     last = utcnow() - timedelta(days=400)  # первый запуск — за всё время
+    full_at = utcnow()
     while True:
         started = utcnow()
+        if started - full_at > timedelta(hours=1):
+            # раз в час — все сделки заново: новый партнёр или исправленное поле «Партнёр» подхватят и старые сделки
+            last, full_at = started - timedelta(days=400), started
         try:
             with SessionLocal() as db:
                 linked = await asyncio.to_thread(relink_unlinked, db, kommo)

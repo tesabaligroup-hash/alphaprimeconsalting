@@ -7,14 +7,15 @@
     <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" class="btn-gold">Обновить из Kommo</button>
   </form>
 </div>
-<p class="muted">Начисления создаются автоматически каждые 10 минут по сделкам, где заполнено поле «Партнёр» и указан «Тип услуги». Реестр выплат на 10 и 25 число — во второй версии.</p>
+<p class="muted">Начисления создаются автоматически каждые 10 минут по сделкам, где заполнено поле «Партнёр» (раз в час — все сделки заново).
+Статус <b>«Проверяем»</b> — нужно ваше решение: в сделке не указана услуга (например, «Другое») или клиент оплатил ещё до того, как партнёр вступил в программу — проверьте, не выплачивали ли уже вручную.</p>
 <div class="tabs">
   <a href="?status=all" class="{{ 'on' if status == 'all' }}">Все</a>
   {% for key, label in ACCRUAL_LABELS.items() %}<a href="?status={{ key }}" class="{{ 'on' if status == key }}">{{ label }}</a>{% endfor %}
 </div>
 <div class="card table-wrap">
 <table>
-  <thead><tr><th>Партнёр</th><th>Клиент</th><th>Услуга</th><th>Ур.</th><th>Сумма, IDR</th><th>Статус</th><th>Удержание до</th><th>Сделка</th></tr></thead>
+  <thead><tr><th>Партнёр</th><th>Клиент</th><th>Услуга</th><th>Ур.</th><th>Сумма, IDR</th><th>Статус</th><th>Удержание до</th><th>Сделка</th><th>Действие</th></tr></thead>
   <tbody>
   {% for a in items %}
   <tr>
@@ -22,8 +23,26 @@
     <td>{{ a.client_display }}</td><td>{{ a.service_code }}</td><td>{{ a.level }}</td>
     <td>{{ a.amount|money }}</td><td>{{ ACCRUAL_LABELS[a.status] }}</td>
     <td>{{ a.hold_until.strftime('%d.%m.%Y') if a.hold_until else '—' }}</td><td>#{{ a.kommo_lead_id }}</td>
+    <td style="min-width:220px">
+      {% if a.status == 'review' %}
+      <form method="post" action="/admin/accruals/{{ a.id }}">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <select name="code" style="margin-bottom:6px">
+          <option value="">— услуга {{ '(' ~ a.service_code ~ ')' if a.service_code }} —</option>
+          {% for t in TARIFFS %}<option value="{{ t.code }}" {% if (a.manual_code or a.service_code) == t.code %}selected{% endif %}>{{ t.code }} · {{ t.name }}</option>{% endfor %}
+        </select>
+        <button name="action" value="set" class="btn-line">Посчитать сумму</button>
+        <button name="action" value="approve" class="btn-gold">Подтвердить</button>
+        <button name="action" value="paid" class="btn-line">Уже выплачено</button>
+        <button name="action" value="reject" class="btn-line">Не платить</button>
+      </form>
+      {% elif a.decision %}
+      <form method="post" action="/admin/accruals/{{ a.id }}"><input type="hidden" name="csrf" value="{{ csrf }}">
+        <button name="action" value="reopen" class="btn-line">Вернуть на проверку</button></form>
+      {% endif %}
+    </td>
   </tr>
-  {% else %}<tr><td colspan="8" class="muted">Нет начислений.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="9" class="muted">Нет начислений.</td></tr>{% endfor %}
   </tbody>
 </table>
 </div>

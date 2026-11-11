@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from ..kommo.base import KommoClient, KommoLead
 from ..kommo.mapping import (CANCEL_STATUSES, CONTACT_FIELDS, FULLY_PAID_STATUSES, LEAD_FIELDS, NO_PARTNER_VALUES,
-                             RESULT_ISSUED_STATUSES, STATUS_LOST, norm)
-from ..models import Accrual, Level2Link, Partner, ProgramSetting, Referral, StopWord
+                             RESULT_ISSUED_STATUSES, STATUS_LOST, STATUS_WON, norm)
+from ..models import Accrual, Level2Link, Partner, ProgramSetting, Referral, StopWord, User
 from ..partner_rules import (ACCRUAL_LABELS, DEFAULTS, accrual_status, calc_payouts, codeword_problems, next_payout_date,
                              normalize_codeword, payout_date_for, short_name)
 from ..tariffs import find_tariff
@@ -41,13 +41,16 @@ def check_codeword(db: Session, word: str, partner_id: int | None = None) -> dic
 
 
 def find_partner_for_lead(db: Session, lead: KommoLead) -> Partner | None:
+    """Партнёр из поля «Партнёр» сделки: как записан в Kommo, кодовое слово или ник в Telegram."""
     value = field_value(lead.fields, LEAD_FIELDS["partner"])
     if not value or norm(str(value)) in NO_PARTNER_VALUES:
         return None
-    v = str(value).strip()
+    v = str(value).strip().lstrip("@")
     p = db.scalar(select(Partner).where(Partner.kommo_partner_value.ilike(v)))
     if not p:
         p = db.scalar(select(Partner).where(Partner.codeword == normalize_codeword(v)))
+    if not p:
+        p = db.scalar(select(Partner).join(User, Partner.user_id == User.id).where(User.telegram_username.ilike(v)))
     return p
 
 
@@ -66,26 +69,32 @@ def sync_lead(db: Session, kommo: KommoClient, lead: KommoLead, now: datetime | 
         return []
     code = field_value(lead.fields, LEAD_FIELDS["service_type"])
     tariff = find_tariff(str(code) if code else None)
-    if not tariff or tariff.code == "CONS":
-        return []  # без кода услуги считать нечего; консультации в программе не участвуют
+    if tariff and tariff.code == "CONS":
+        return []  # консультации в программе не участвуют
+    existing = list(db.scalars(select(Accrual).where(Accrual.kommo_lead_id == lead.id, Accrual.period == "")))
+    manual = next((a.manual_code for a in existing if a.manual_code), None)
+    if manual and find_tariff(manual):
+        tariff = find_tariff(manual)  # менеджер указал услугу в админке
     s = program_settings(db)
-    pay = calc_payouts(tariff, s, deal_price=lead.price or None)
+    pay = calc_payouts(tariff, s, deal_price=lead.price or None) if tariff else None
 
     sname = norm(lead.status_name)
     paid = as_int(field_value(lead.fields, LEAD_FIELDS["paid_amount"]))
-    price = lead.price or tariff.price
+    price = lead.price or (tariff.price if tariff else 0)
     debt = as_int(field_value(lead.fields, LEAD_FIELDS["debt"]))
     if debt is not None and paid:
         fully_paid = debt <= 0
-    elif paid is not None:
+    elif paid is not None and price:
         fully_paid = paid >= price
     else:
-        fully_paid = sname in FULLY_PAID_STATUSES
+        fully_paid = sname in FULLY_PAID_STATUSES or lead.status_id == STATUS_WON
     cancelled = lead.status_id == STATUS_LOST or sname in CANCEL_STATUSES
     fully_paid_at = _first_time(kommo, lead.id, FULLY_PAID_STATUSES) if fully_paid else None
     issued_at = _first_time(kommo, lead.id, RESULT_ISSUED_STATUSES)
     if fully_paid and not fully_paid_at:
         fully_paid_at = lead.updated_at or now
+    if lead.status_id == STATUS_WON and not issued_at:  # «Успешно завершено» — услуга точно выдана
+        issued_at = lead.closed_at or lead.updated_at or now
 
     contacts = kommo.get_contacts(lead.contact_ids[:1])
     raw_name = None
@@ -95,14 +104,14 @@ def sync_lead(db: Session, kommo: KommoClient, lead: KommoLead, now: datetime | 
 
     targets: list[tuple[Partner, int, int]] = []
     if partner.kind == "private":
-        targets.append((partner, 1, pay.plan_a))
+        targets.append((partner, 1, pay.plan_a if pay else 0))
     else:
-        targets.append((partner, 1, pay.plan_b_l1))
+        targets.append((partner, 1, pay.plan_b_l1 if pay else 0))
         link = db.scalar(select(Level2Link).where(Level2Link.business_partner_id == partner.id))
         if link and link.contract_date <= now.date() <= link.end_date:
             l2 = db.get(Partner, link.level2_partner_id)
             if l2 and l2.status != "blocked":
-                targets.append((l2, 2, pay.plan_b_l2))
+                targets.append((l2, 2, pay.plan_b_l2 if pay else 0))
 
     result = []
     for p, level, amount in targets:
@@ -115,17 +124,25 @@ def sync_lead(db: Session, kommo: KommoClient, lead: KommoLead, now: datetime | 
             result.append(acc)
             continue
         status, hold_until = accrual_status(cancelled=cancelled, fully_paid=fully_paid, result_issued_at=issued_at,
-                                            now=now, gold=p.is_gold(now.date()), s=s)
+                                            now=now, gold=p.is_gold(now.date()), s=s, already_paid=acc.decision == "paid")
+        # Менеджер проверяет вручную: услуга не указана («Другое») или сделка оплачена ещё до вступления партнёра
+        # (вдруг за неё уже рассчитались вне приложения). До решения — статус «Проверяем».
+        joined = p.created_at or now
+        old_deal = bool(fully_paid_at and fully_paid_at < joined)
+        if acc.decision == "rejected":
+            status, hold_until = "cancelled", None
+        elif not acc.decision and status not in ("cancelled", "paid") and (tariff is None or old_deal):
+            status, hold_until = "review", None
         if acc.status != "to_payout" and status == "to_payout":
             acc.to_payout_at = now
         old = acc.status if acc.id else None
         if old != status:
             acc.__dict__.setdefault("_events", []).append((old, status))
         acc.status = status
-        acc.cancel_reason = "Сделка отменена" if status == "cancelled" else None
+        acc.cancel_reason = ("Не участвует в программе" if acc.decision == "rejected" else "Сделка отменена") if status == "cancelled" else None
         acc.amount = amount
         acc.client_display = display
-        acc.service_code = tariff.code
+        acc.service_code = tariff.code if tariff else (str(code) if code else None)
         acc.fully_paid_at = fully_paid_at
         acc.result_issued_at = issued_at
         acc.hold_until = hold_until
@@ -151,7 +168,7 @@ def sync_all(db: Session, kommo: KommoClient, since: datetime) -> list[tuple[int
         try:
             for acc in sync_lead(db, kommo, lead):
                 for old, new in acc.__dict__.pop("_events", []):
-                    if old is None and new not in ("awaiting_payment", "in_work"):
+                    if new == "review" or (old is None and new not in ("awaiting_payment", "in_work")):
                         continue  # при первой синхронизации старых сделок не засыпаем партнёра сообщениями
                     when = payout_date_for((acc.to_payout_at or utcnow()).date()).strftime("%d.%m")
                     text = NOTIFY_TEXT[new].format(name=acc.client_display, amount=f"{acc.amount:,}".replace(",", " "),
@@ -168,7 +185,7 @@ def dashboard(db: Session, partner: Partner, today: date | None = None) -> dict:
     s = program_settings(db)
     accs = list(db.scalars(select(Accrual).where(Accrual.partner_id == partner.id).order_by(Accrual.updated_at.desc())))
     to_payout = sum(a.amount for a in accs if a.status == "to_payout")
-    expected = sum(a.amount for a in accs if a.status in ("awaiting_payment", "in_work", "confirmed"))
+    expected = sum(a.amount for a in accs if a.status in ("review", "awaiting_payment", "in_work", "confirmed"))
     paid_total = sum(a.amount for a in accs if a.status == "paid")
 
     month_start = today.replace(day=1)

@@ -18,7 +18,7 @@ def seed_dev(db: Session) -> None:
         db.flush()
     if not user.partner:
         p = Partner(user_id=user.id, kind="private", display_name="Анна", codeword="ANNABALI", kommo_partner_value="ANNABALI",
-                    accepted_terms_at=utcnow())
+                    accepted_terms_at=utcnow(), created_at=datetime(2025, 1, 1))
         db.add(p)
         db.flush()
         now = utcnow()

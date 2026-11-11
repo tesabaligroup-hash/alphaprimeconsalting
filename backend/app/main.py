@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 settings = get_settings()
 
 app = FastAPI(title="Alpha Prime", docs_url="/api/docs" if settings.dev_mode else None, redoc_url=None, openapi_url="/api/openapi.json" if settings.dev_mode else None)
-app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, session_cookie="ap_admin", same_site="strict",
+app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, session_cookie="ap_admin", same_site="lax",
                    https_only=settings.public_url.startswith("https"), max_age=12 * 3600)
 app.include_router(api.router)
 app.include_router(admin.router)

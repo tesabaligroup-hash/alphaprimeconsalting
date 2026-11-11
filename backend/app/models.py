@@ -127,6 +127,8 @@ class Accrual(Base):
     hold_until: Mapped[datetime | None] = mapped_column(DateTime)
     to_payout_at: Mapped[datetime | None] = mapped_column(DateTime)
     payout_id: Mapped[int | None] = mapped_column(ForeignKey("payouts.id"))
+    manual_code: Mapped[str | None] = mapped_column(String(32))  # услугу указал менеджер (в Kommo «Другое»/пусто)
+    decision: Mapped[str | None] = mapped_column(String(16))  # решение менеджера: approved / paid / rejected
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
 

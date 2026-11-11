@@ -137,6 +137,7 @@ def next_payout_date(today: date) -> date:
 # ---------- Статус начисления ----------
 
 ACCRUAL_LABELS = {
+    "review": "Проверяем",
     "awaiting_payment": "Ожидает оплаты",
     "in_work": "В работе",
     "confirmed": "Подтверждено",
