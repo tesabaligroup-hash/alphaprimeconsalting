@@ -83,7 +83,7 @@ function Dashboard() {
         </section>
 
         <div style={{ marginTop: -12 }}>
-          <Accordion title="Как считается баланс?" open>
+          <Accordion title="Как считается баланс?" open remember="partner-balance">
             <div className="note-warn">Вознаграждение начисляется только за друзей, которые заказали и оплатили услугу Alpha Prime. За саму рекомендацию, без заказа и оплаты, ничего не начисляется.</div>
             <div className="legend"><i style={{ background: "#B5AE9E" }} /><span><b>Ожидается</b> — друг заказал услугу, но ещё не оплатил её полностью или услуга в работе. Сумма показана заранее.</span></div>
             <div className="legend"><i style={{ background: "#3D6B2E" }} /><span><b>К выплате</b> — друг оплатил 100%, результат выдан и прошло {rules.hold_days} {plural(rules.hold_days, "день", "дня", "дней")} проверки (для Gold — {rules.hold_days_gold}).</span></div>
