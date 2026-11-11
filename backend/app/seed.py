@@ -13,7 +13,7 @@ from .timeutil import utcnow
 def seed_dev(db: Session) -> None:
     user = db.scalar(select(User).where(User.telegram_id == 1))
     if not user:
-        user = User(telegram_id=1, first_name="Анна", telegram_username="anna_demo", phone="+628120000001", kommo_contact_id=501)
+        user = User(telegram_id=1, first_name="Анна", telegram_username="anna_demo", phone="+6281200000001", kommo_contact_id=501)
         db.add(user)
         db.flush()
     if not user.partner:

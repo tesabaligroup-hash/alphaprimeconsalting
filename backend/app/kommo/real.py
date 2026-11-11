@@ -131,13 +131,30 @@ class RealKommo:
         d = digits(phone)
         if len(d) < 7:
             return []
-        # Ищем по последним 9–10 цифрам: номер в CRM может быть записан с +62, 0 или пробелами
-        tail = d[-10:]
-        data = self._get("/contacts", params={"query": tail, "limit": 50})
+        # Номер в CRM может быть записан как угодно: «+7 911 976-17-93», «8911…», «0812…».
+        # Пробуем несколько вариантов поиска и сравниваем последние 9 цифр.
+        result: list[int] = []
+        for q in dict.fromkeys([d, d[-10:], d[-7:], f"{d[-10:-7]} {d[-7:-4]}-{d[-4:-2]}-{d[-2:]}"]):
+            data = self._get("/contacts", params={"query": q, "limit": 50})
+            for c in (data.get("_embedded") or {}).get("contacts", []):
+                contact = self._contact(c)
+                if contact.id not in result and any(digits(p).endswith(d[-9:]) for p in contact.phones):
+                    result.append(contact.id)
+            if result:
+                break
+        return result
+
+    def find_contact_ids_by_telegram(self, username: str) -> list[int]:
+        """Ищет контакт по нику Telegram (поля «Логин», «Профиль», «TG» — заполняются интеграцией)."""
+        u = (username or "").lstrip("@").lower()
+        if len(u) < 4:
+            return []
+        data = self._get("/contacts", params={"query": u, "limit": 50})
         result = []
         for c in (data.get("_embedded") or {}).get("contacts", []):
             contact = self._contact(c)
-            if any(digits(p).endswith(d[-9:]) for p in contact.phones):
+            values = [str(v).lower() for k, v in contact.fields.items() if not k.startswith("code:")]
+            if any(v == u or v.rstrip("/").endswith("/" + u) for v in values):
                 result.append(contact.id)
         return result
 

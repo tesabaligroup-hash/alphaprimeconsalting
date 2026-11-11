@@ -18,6 +18,7 @@ from .kommo.base import KommoClient
 from .links import partner_links
 from .models import News, Partner, Referral, ServiceOrder, User
 from .services import cabinet, partner as partner_svc
+from .services.linking import link_user
 from .tariffs import CATEGORY_LABELS, TARIFFS, find_tariff
 from .telegram_auth import InvalidInitData, validate_init_data
 from .timeutil import utcnow
@@ -25,6 +26,7 @@ from .timeutil import utcnow
 router = APIRouter(prefix="/api")
 
 DEV_TELEGRAM_ID = 1  # тестовый пользователь в режиме разработки
+_LINK_TRIES: dict[int, float] = {}
 
 
 def current_user(
@@ -46,6 +48,15 @@ def current_user(
                     language=(tg.get("language_code") or "ru")[:2] if (tg.get("language_code") or "ru")[:2] in ("ru", "en", "id") else "ru")
         db.add(user)
         db.commit()
+    elif tg.get("username") and user.telegram_username != tg.get("username"):
+        user.telegram_username = tg.get("username")
+        db.commit()
+    if not user.kommo_contact_id and (user.phone or user.telegram_username) and not s.dev_mode:
+        # Клиента могли добавить в CRM позже — пробуем привязать не чаще раза в 2 минуты
+        last = _LINK_TRIES.get(user.id, 0)
+        if time.time() - last > 120:
+            _LINK_TRIES[user.id] = time.time()
+            link_user(db, get_kommo(), user)
     if s.dev_mode and user.telegram_id == DEV_TELEGRAM_ID and not user.kommo_contact_id:
         user.kommo_contact_id = 501  # Анна из тестовых данных
         db.commit()

@@ -18,6 +18,7 @@ from .db import SessionLocal, init_db
 from .kommo import get_kommo
 from .models import Partner, Referral, User
 from .partner_rules import DEFAULTS, normalize_codeword
+from .services.linking import find_contact, link_user, relink_unlinked
 from .services.partner import sync_all
 from .timeutil import utcnow
 
@@ -65,6 +66,8 @@ async def start(message: Message, command: CommandObject):
                                 source="link", status="pending", friend_user_id=user.id,
                                 expires_at=utcnow() + timedelta(days=DEFAULTS["referral_days"])))
         db.commit()
+        if not user.kommo_contact_id and tg.username:
+            await asyncio.to_thread(link_user, db, get_kommo(), user)
         has_phone = bool(user.phone)
     text = (f"Здравствуйте, {tg.first_name or ''}! Это Alpha Prime — визы, KITAS и компании на Бали.\n\n"
             "Здесь ваш личный кабинет: этапы оформления, оплаты, готовые документы и партнёрская программа.")
@@ -95,8 +98,8 @@ async def got_contact(message: Message):
             db.add(user)
             db.flush()
         user.phone = phone
-        if len(ids) == 1 and not user.kommo_contact_id:
-            user.kommo_contact_id = ids[0]
+        if not user.kommo_contact_id:
+            user.kommo_contact_id = await asyncio.to_thread(find_contact, kommo, phone, user.telegram_username)
         # Пришёл по ссылке партнёра: нового человека закрепляем сразу, знакомого CRM — оставляем на проверку менеджеру
         ref = db.scalar(select(Referral).where(Referral.friend_user_id == user.id, Referral.status == "pending", Referral.source == "link"))
         if ref:
@@ -137,6 +140,9 @@ async def sync_loop(bot: Bot):
         started = utcnow()
         try:
             with SessionLocal() as db:
+                linked = await asyncio.to_thread(relink_unlinked, db, kommo)
+                if linked:
+                    log.info("Привязано новых клиентов: %s", linked)
                 notes = await asyncio.to_thread(sync_all, db, kommo, last - timedelta(minutes=5))
                 partners = {p.id: p.user.telegram_id for p in db.scalars(select(Partner))}
             for partner_id, text in notes:

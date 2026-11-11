@@ -213,7 +213,7 @@ def important_dates(cards: list[ServiceCard], people: list[KommoContact], today:
     out = []
     for c in people:
         name = contact_person(c)
-        for key, title, horizon in (("itk_until", "Окончание KITAS", 400), ("visa_until", "Окончание визы", 400),
+        for key, title, horizon in (("itk_until", "Окончание KITAS", 3650), ("visa_until", "Окончание визы", 3650),
                                     ("passport_until", "Окончание паспорта", 270)):
             d = as_date(field_value(c.fields, CONTACT_FIELDS[key]))
             if d and 0 <= (d - today).days <= horizon:

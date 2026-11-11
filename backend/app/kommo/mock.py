@@ -77,6 +77,10 @@ class MockKommo:
         d = "".join(ch for ch in phone if ch.isdigit())
         return [c.id for c in CONTACTS.values() if any("".join(ch for ch in p if ch.isdigit()).endswith(d[-9:]) for p in c.phones)]
 
+    def find_contact_ids_by_telegram(self, username: str) -> list[int]:
+        u = (username or "").lstrip("@").lower()
+        return [c.id for c in CONTACTS.values() if str(c.fields.get("Логин", "")).lower() == u]
+
     def get_contact(self, contact_id: int):
         return CONTACTS.get(contact_id)
 
