@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     # Telegram
     bot_token: str = ""
     bot_username: str = "AlphaPrimeBot"
+    managers_chat_id: str = ""  # Telegram-группа менеджеров для уведомлений о заявках
 
     # Kommo
     kommo_base_url: str = ""  # https://baliprimeconsalting.kommo.com

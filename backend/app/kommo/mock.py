@@ -102,6 +102,7 @@ class MockKommo:
     def get_leads_updated_since(self, since):
         return list(LEADS.values())
 
-    def create_lead(self, *, title, contact_name, phone=None, telegram=None, note=None, tags=None):
-        self.created.append({"title": title, "contact_name": contact_name, "phone": phone, "telegram": telegram, "note": note, "tags": tags})
+    def create_lead(self, *, title, contact_name, phone=None, telegram=None, note=None, tags=None, contact_id=None, price=None):
+        self.created.append({"title": title, "contact_name": contact_name, "phone": phone, "telegram": telegram, "note": note,
+                             "tags": tags, "contact_id": contact_id, "price": price})
         return 9000 + len(self.created)

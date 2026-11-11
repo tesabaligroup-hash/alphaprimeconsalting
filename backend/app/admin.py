@@ -199,7 +199,7 @@ def referral_decide(ref_id: int, request: Request, csrf: str = Form(""), action:
                 telegram=r.contact if r.channel == "tg" else None,
                 note=f"Рекомендация от партнёра {partner.display_name} ({partner.codeword or 'без кодового слова'}).\n"
                      f"{channel}: {r.contact}\n{who}.\nВ поле «Партнёр» укажите: {partner.kommo_partner_value or partner.codeword}",
-                tags=["Партнёрка", "Приложение"])
+                tags=["Партнёрка", "Приложение"], contact_id=r.kommo_contact_id)
         except Exception as exc:  # заявку в CRM можно завести вручную — закрепление всё равно сохраняем
             r.reject_reason = None
             audit(db, admin, "kommo_error", referral=r.id, error=str(exc)[:300])

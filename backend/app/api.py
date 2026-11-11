@@ -1,5 +1,6 @@
 """API для Telegram Mini App."""
 import base64
+import logging
 import hashlib
 import hmac
 import time
@@ -19,11 +20,13 @@ from .links import partner_links
 from .models import News, Partner, Referral, ServiceOrder, User
 from .services import cabinet, partner as partner_svc
 from .services.linking import link_user
+from .notify import notify_managers
 from .tariffs import CATEGORY_LABELS, TARIFFS, find_tariff
 from .telegram_auth import InvalidInitData, validate_init_data
 from .timeutil import utcnow
 
 router = APIRouter(prefix="/api")
+log = logging.getLogger(__name__)
 
 DEV_TELEGRAM_ID = 1  # тестовый пользователь в режиме разработки
 _LINK_TRIES: dict[int, float] = {}
@@ -165,15 +168,24 @@ def order(body: OrderIn, user: User = Depends(current_user), db: Session = Depen
     if recent:
         return {"ok": True, "duplicate": True}
     tg = f"@{user.telegram_username}" if user.telegram_username else f"id {user.telegram_id}"
-    lead_id = kommo.create_lead(
-        title=f"Заявка из приложения: {tariff.name}",
-        contact_name=user.first_name or "Клиент из приложения",
-        phone=user.phone, telegram=tg,
-        note=f"Клиент нажал «Заказать» в Telegram-приложении.\nУслуга: {tariff.name} ({tariff.code})",
-        tags=["Приложение"],
-    )
+    title = f"Заявка из приложения: {tariff.name}"
+    lead_id = None
+    try:
+        lead_id = kommo.create_lead(
+            title=title, contact_name=user.first_name or "Клиент из приложения",
+            phone=user.phone, telegram=tg, contact_id=user.kommo_contact_id, price=tariff.price,
+            note=f"Клиент нажал «Заказать» в Telegram-приложении.\nУслуга: {tariff.name} ({tariff.code})",
+            tags=["Приложение"],
+        )
+    except Exception:  # заявку не теряем: менеджеры получат уведомление и заведут сделку вручную
+        log.exception("Kommo: не удалось создать сделку по заявке")
     db.add(ServiceOrder(user_id=user.id, service_code=tariff.code, kommo_lead_id=lead_id))
     db.commit()
+    notify_managers("🛎 Новая заявка из приложения", [
+        f"Услуга: {tariff.name} ({tariff.code})",
+        f"Клиент: {user.first_name or '—'} · {tg}" + (f" · {user.phone}" if user.phone else ""),
+        "Уже есть в Kommo" if user.kommo_contact_id else "Новый клиент (в Kommo создан контакт)",
+    ], lead_id)
     return {"ok": True}
 
 
@@ -316,6 +328,13 @@ def add_referral(body: ReferralIn, user: User = Depends(current_user), db: Sessi
                  expires_at=utcnow() + timedelta(days=s["referral_days"]))
     db.add(r)
     db.commit()
+    channel = {"tg": "Telegram", "wa": "WhatsApp", "ig": "Instagram"}[r.channel]
+    notify_managers("🤝 Новая рекомендация от партнёра", [
+        f"Партнёр: {p.display_name} ({p.codeword or 'без кодового слова'})",
+        f"Друг: {r.friend_name} · {channel}: {r.contact}",
+        "НАПИСАТЬ ДРУГУ ПЕРВЫМИ" if r.who_writes == "us" else "Друг напишет сам",
+        f"Проверить и закрепить: {get_settings().public_url.rstrip('/')}/admin/referrals",
+    ], lead_id=0)
     return {"ok": True, "referral": partner_svc.referral_view(r)}
 
 

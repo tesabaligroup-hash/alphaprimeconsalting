@@ -243,14 +243,34 @@ class RealKommo:
         return out
 
     def create_lead(self, *, title: str, contact_name: str, phone: str | None = None,
-                    telegram: str | None = None, note: str | None = None, tags: list[str] | None = None) -> int | None:
-        contact: dict = {"first_name": contact_name}
-        if phone:
-            contact["custom_fields_values"] = [{"field_code": "PHONE", "values": [{"value": phone, "enum_code": "MOB"}]}]
-        lead = {"name": title, "_embedded": {"contacts": [contact], "tags": [{"name": t} for t in (tags or [])]}}
+                    telegram: str | None = None, note: str | None = None, tags: list[str] | None = None,
+                    contact_id: int | None = None, price: int | None = None) -> int | None:
+        """Создаёт сделку в воронке Consulting, этап «РАСПРЕДЕЛЕНИЕ», + примечание + задачу менеджеру.
+
+        contact_id — существующий контакт клиента (чтобы не плодить дубли); иначе создаётся новый контакт.
+        """
+        from .mapping import NEW_LEAD_PIPELINE_ID, NEW_LEAD_STATUS_ID, NEW_LEAD_TASK_MINUTES
+
+        if contact_id:
+            contact: dict = {"id": int(contact_id)}
+        else:
+            contact = {"first_name": contact_name}
+            if phone:
+                contact["custom_fields_values"] = [{"field_code": "PHONE", "values": [{"value": phone, "enum_code": "MOB"}]}]
+        lead: dict = {"name": title, "pipeline_id": NEW_LEAD_PIPELINE_ID, "status_id": NEW_LEAD_STATUS_ID,
+                      "_embedded": {"contacts": [contact], "tags": [{"name": t} for t in (tags or [])]}}
+        if price:
+            lead["price"] = int(price)
         res = self._post("/leads/complex", [lead])
         lead_id = int(res[0]["id"]) if isinstance(res, list) and res else None
-        text = "\n".join(x for x in [note, f"Telegram: {telegram}" if telegram else None] if x)
-        if lead_id and text:
-            self._post("/leads/notes", [{"entity_id": lead_id, "note_type": "common", "params": {"text": text}}])
+        if not lead_id:
+            return None
+        text = "\n".join(x for x in [note, f"Telegram: {telegram}" if telegram else None, f"Телефон: {phone}" if phone else None] if x)
+        try:
+            if text:
+                self._post("/leads/notes", [{"entity_id": lead_id, "note_type": "common", "params": {"text": text}}])
+            self._post("/tasks", [{"text": f"Связаться с клиентом: {title}", "entity_id": lead_id, "entity_type": "leads",
+                                   "task_type_id": 1, "complete_till": int(time.time()) + NEW_LEAD_TASK_MINUTES * 60}])
+        except httpx.HTTPError as exc:  # сделка уже создана — примечание/задача не критичны
+            log.warning("Kommo: примечание/задача для сделки %s: %s", lead_id, exc)
         return lead_id

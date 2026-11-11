@@ -71,6 +71,8 @@ def test_order_creates_kommo_lead(client):
     before = len(MockKommo.created)
     assert client.post("/api/orders", json={"code": "C1"}, headers=DEV).json()["ok"]
     assert len(MockKommo.created) == before + 1 and "C1" in MockKommo.created[-1]["note"]
+    assert MockKommo.created[-1]["contact_id"] == 501  # существующий контакт, без дубля
+    assert MockKommo.created[-1]["price"] == 2_000_000
 
 
 def test_partner_dashboard(client):

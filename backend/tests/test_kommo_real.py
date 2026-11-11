@@ -60,5 +60,15 @@ def test_contact_and_lead_parsing():
     assert hist[0].status_name == "ОПЛАТА ПОЛУЧЕНА"
 
 
-def test_create_lead():
-    assert make().create_lead(title="Тест", contact_name="Иван", phone="+62812", note="Заметка") == 777
+SENT = []
+
+
+def test_create_lead_goes_to_consulting_distribution():
+    k = make()
+    orig = k._post
+    k._post = lambda path, payload: SENT.append((path, payload)) or orig(path, payload)
+    assert k.create_lead(title="Тест", contact_name="Иван", phone="+62812", note="Заметка", contact_id=501, price=1000) == 777
+    lead = SENT[0][1][0]
+    assert lead["pipeline_id"] == 13724291 and lead["status_id"] == 105886603
+    assert lead["_embedded"]["contacts"] == [{"id": 501}] and lead["price"] == 1000
+    assert [p for p, _ in SENT] == ["/leads/complex", "/leads/notes", "/tasks"]

@@ -8,7 +8,7 @@ import re
 from datetime import datetime, timedelta
 
 from aiogram import Bot, Dispatcher, F
-from aiogram.filters import CommandObject, CommandStart
+from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, Message, MenuButtonWebApp,
                            ReplyKeyboardMarkup, ReplyKeyboardRemove, WebAppInfo)
 from sqlalchemy import select
@@ -20,6 +20,7 @@ from .models import Partner, Referral, User
 from .partner_rules import DEFAULTS, normalize_codeword
 from .services.linking import find_contact, link_user, relink_unlinked
 from .services.partner import sync_all
+from .notify import notify_managers
 from .timeutil import utcnow
 
 log = logging.getLogger("worker")
@@ -77,6 +78,12 @@ async def start(message: Message, command: CommandObject):
     await message.answer("Личный кабинет открывается по кнопке:", reply_markup=app_keyboard())
 
 
+@dp.message(Command("chatid"))
+async def chat_id(message: Message):
+    """Напишите /chatid в группе менеджеров — бот ответит её номером для MANAGERS_CHAT_ID."""
+    await message.answer(f"ID этого чата: {message.chat.id}\nВпишите его в .env как MANAGERS_CHAT_ID и перезапустите сервер.")
+
+
 @dp.message(F.contact)
 async def got_contact(message: Message):
     c = message.contact
@@ -115,6 +122,11 @@ async def got_contact(message: Message):
                              f"В поле «Партнёр» укажите: {partner.kommo_partner_value or partner.codeword}")
                 except Exception:
                     log.exception("Kommo: создание сделки по рекомендации")
+                await asyncio.to_thread(notify_managers, "🤝 Клиент пришёл по ссылке партнёра", [
+                    f"Партнёр: {partner.display_name} ({partner.codeword})",
+                    f"Клиент: {ref.friend_name} · {ref.contact}",
+                    "Закреплён автоматически — напишите клиенту",
+                ], ref.kommo_lead_id)
             else:
                 ref.reject_reason = None  # менеджер увидит её в «Рекомендации → На проверке»
         db.commit()
@@ -127,7 +139,7 @@ async def got_contact(message: Message):
     await message.answer("Личный кабинет:", reply_markup=app_keyboard())
 
 
-@dp.message()
+@dp.message(F.chat.type == "private")
 async def fallback(message: Message):
     await message.answer(f"Чтобы написать менеджеру, используйте WhatsApp: https://wa.me/{settings.company_whatsapp}\n"
                          "Личный кабинет — по кнопке ниже.", reply_markup=app_keyboard())
