@@ -51,7 +51,25 @@ def find_partner_for_lead(db: Session, lead: KommoLead) -> Partner | None:
         p = db.scalar(select(Partner).where(Partner.codeword == normalize_codeword(v)))
     if not p:
         p = db.scalar(select(Partner).join(User, Partner.user_id == User.id).where(User.telegram_username.ilike(v)))
+    if not p:  # «Кицунес» в Kommo ↔ kitsunes в Telegram / кодовом слове
+        key = loose_key(v)
+        for cand in db.scalars(select(Partner)):
+            names = [cand.kommo_partner_value, cand.codeword, cand.user.telegram_username if cand.user else None]
+            if key and any(loose_key(x) == key for x in names if x):
+                return cand
     return p
+
+
+_TR = dict(zip("абвгдеёжзийклмнопрстуфхцчшщъыьэюя",
+               ["a", "b", "v", "g", "d", "e", "e", "zh", "z", "i", "i", "k", "l", "m", "n", "o", "p", "r", "s", "t", "u",
+                "f", "h", "ts", "ch", "sh", "sch", "", "y", "", "e", "yu", "ya"]))
+
+
+def loose_key(text: str | None) -> str:
+    """Для сравнения имён «как прочитать»: латиница, без регистра, пробелов, @ и знаков; kitsunes ≈ kitsunez ≈ кицунес."""
+    t = "".join(_TR.get(ch, ch) for ch in (text or "").lower())
+    t = "".join(ch for ch in t if ch.isalnum())
+    return t.replace("z", "s").replace("ks", "x").replace("c", "k")
 
 
 def _first_time(kommo: KommoClient, lead_id: int, statuses: set[str]) -> datetime | None:

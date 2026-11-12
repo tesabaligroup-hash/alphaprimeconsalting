@@ -102,3 +102,14 @@ def test_weekly_report_lists_problem_deals():
     good.status_name = "Ждем $"
     good.contact_ids = [1]
     assert lead_problems(good) == []
+
+
+def test_partner_found_by_russian_spelling_in_kommo():
+    db = _db()
+    u = User(telegram_id=11, telegram_username="kitsunes")
+    db.add(u); db.flush()
+    p = Partner(user_id=u.id, kind="private", display_name="Kitsunes", codeword="KITSUNE8", created_at=datetime(2026, 1, 1))
+    db.add(p); db.flush()
+    from app.services.partner import find_partner_for_lead
+    assert find_partner_for_lead(db, _lead("E33G", partner="Кицунес")) == p
+    assert find_partner_for_lead(db, _lead("E33G", partner="Другой человек")) is None
