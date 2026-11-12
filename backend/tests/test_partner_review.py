@@ -113,3 +113,18 @@ def test_partner_found_by_russian_spelling_in_kommo():
     from app.services.partner import find_partner_for_lead
     assert find_partner_for_lead(db, _lead("E33G", partner="Кицунес")) == p
     assert find_partner_for_lead(db, _lead("E33G", partner="Другой человек")) is None
+
+
+def test_multi_service_deal_sums_all_services_and_early_stage_is_not_review():
+    from app.tariffs import combined_tariff
+    t = combined_tariff("VOA-EXT, BRIDGE, E33G")
+    assert t.code == "VOA-EXT+BRIDGE+E33G" and t.price == sum(x.price for x in [combined_tariff("VOA-EXT"), combined_tariff("BRIDGE"), combined_tariff("E33G")])
+    db = _db()
+    u = User(telegram_id=12, telegram_username="jeny")
+    db.add(u); db.flush()
+    db.add(Partner(user_id=u.id, kind="private", display_name="Jeny", codeword="KISSUNETS", created_at=datetime(2026, 1, 1)))
+    db.flush()
+    early = KommoLead(id=77, name="Рекомендация: Вика", price=0, pipeline_id=13724291, status_id=105886603,
+                      status_name="РАСПРЕДЕЛЕНИЕ", fields={"Партнёр": "Kissunets"}, contact_ids=[], updated_at=datetime(2026, 11, 12))
+    (acc,) = sync_lead(db, MockKommo(), early)
+    assert acc.status == "awaiting_payment"  # друг виден, но это не «Проверяем»

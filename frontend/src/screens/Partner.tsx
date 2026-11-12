@@ -147,7 +147,7 @@ export function FriendRow({ f }: { f: PartnerData["friends"][number] }) {
   return (
     <div className="list-row">
       <div className="grow"><span className="b">{f.name}{f.level === 2 ? " · 2-й уровень" : ""}</span><span style={{ fontSize: 12, color: tone ?? "#5E5849", fontWeight: tone ? 600 : 400 }}>{label}</span></div>
-      <span className="amount" style={{ color: tone, textDecoration: f.status === "cancelled" ? "line-through" : undefined }}>{money(f.amount)}</span>
+      <span className="amount" style={{ color: tone, textDecoration: f.status === "cancelled" ? "line-through" : undefined }}>{f.amount ? money(f.amount) : "—"}</span>
     </div>
   );
 }

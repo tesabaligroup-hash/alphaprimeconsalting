@@ -81,6 +81,26 @@ KOMMO_ALIASES = {
 }
 
 
+def find_tariffs(code: str | None) -> list[Tariff]:
+    """Все известные услуги из мультисписка «Тип услуги» («VOA-EXT, BRIDGE, E33G»)."""
+    out = []
+    for part in str(code or "").split(","):
+        key = part.strip().upper()
+        t = BY_CODE.get(key) or BY_CODE.get(KOMMO_ALIASES.get(key, ""))
+        if t and t not in out:
+            out.append(t)
+    return out
+
+
+def combined_tariff(code: str | None) -> Tariff | None:
+    """Несколько услуг в одной сделке → одна «сборная»: цены и себестоимости складываются, маржа — сумма маржей."""
+    ts = find_tariffs(code)
+    if len(ts) <= 1:
+        return ts[0] if ts else None
+    return Tariff("+".join(t.code for t in ts)[:32], " + ".join(t.name for t in ts), "other",
+                  sum(t.price for t in ts), sum(t.partner_cost for t in ts), in_catalog=False)
+
+
 def find_tariff(code: str | None) -> Tariff | None:
     """Тариф по полю «Тип услуги» в Kommo. Поле — мультисписок («E33G, BUH-M»): берём первый известный код."""
     if not code:

@@ -7,11 +7,11 @@ from sqlalchemy.orm import Session
 
 from ..kommo.base import KommoClient, KommoLead
 from ..kommo.mapping import (CANCEL_STATUSES, CLIENT_PIPELINE_IDS, CONTACT_FIELDS, FULLY_PAID_STATUSES, LEAD_FIELDS, NO_PARTNER_VALUES,
-                             RESULT_ISSUED_STATUSES, STATUS_LOST, STATUS_WON, norm)
+                             RESULT_ISSUED_STATUSES, STATUS_LOST, STATUS_TO_STEP, STATUS_WON, norm)
 from ..models import Accrual, Level2Link, Partner, ProgramSetting, Referral, StopWord, User
 from ..partner_rules import (ACCRUAL_LABELS, DEFAULTS, accrual_status, calc_payouts, codeword_problems, next_payout_date,
                              normalize_codeword, payout_date_for, short_name)
-from ..tariffs import find_tariff
+from ..tariffs import combined_tariff, find_tariff
 from .cabinet import as_int, field_value
 from ..timeutil import utcnow
 
@@ -86,7 +86,7 @@ def sync_lead(db: Session, kommo: KommoClient, lead: KommoLead, now: datetime | 
     if not partner or partner.status == "blocked":
         return []
     code = field_value(lead.fields, LEAD_FIELDS["service_type"])
-    tariff = find_tariff(str(code) if code else None)
+    tariff = combined_tariff(str(code) if code else None)  # несколько услуг в сделке — считаем по всем
     if tariff and tariff.code == "CONS":
         return []  # консультации в программе не участвуют
     existing = list(db.scalars(select(Accrual).where(Accrual.kommo_lead_id == lead.id, Accrual.period == "")))
@@ -107,6 +107,7 @@ def sync_lead(db: Session, kommo: KommoClient, lead: KommoLead, now: datetime | 
     else:
         fully_paid = sname in FULLY_PAID_STATUSES or lead.status_id == STATUS_WON
     cancelled = lead.status_id == STATUS_LOST or sname in CANCEL_STATUSES
+    in_payment = sname in STATUS_TO_STEP or lead.status_id == STATUS_WON  # с «Ждем $» и дальше
     fully_paid_at = _first_time(kommo, lead.id, FULLY_PAID_STATUSES) if fully_paid else None
     issued_at = _first_time(kommo, lead.id, RESULT_ISSUED_STATUSES)
     if fully_paid and not fully_paid_at:
@@ -146,10 +147,11 @@ def sync_lead(db: Session, kommo: KommoClient, lead: KommoLead, now: datetime | 
         # Менеджер проверяет вручную: услуга не указана («Другое») или сделка оплачена ещё до вступления партнёра
         # (вдруг за неё уже рассчитались вне приложения). До решения — статус «Проверяем».
         joined = p.created_at or now
-        old_deal = bool(fully_paid_at and fully_paid_at < joined)
+        done_at = min([t for t in (fully_paid_at, issued_at) if t], default=None)
+        old_deal = bool(done_at and done_at < joined)  # оплачено или выдано ещё до вступления партнёра
         if acc.decision == "rejected":
             status, hold_until = "cancelled", None
-        elif not acc.decision and status not in ("cancelled", "paid") and (tariff is None or old_deal):
+        elif not acc.decision and status not in ("cancelled", "paid") and (old_deal or (tariff is None and in_payment)):
             status, hold_until = "review", None
         if acc.status != "to_payout" and status == "to_payout":
             acc.to_payout_at = now
