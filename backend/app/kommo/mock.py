@@ -106,6 +106,11 @@ class MockKommo:
     def get_leads_updated_since(self, since):
         return list(LEADS.values())
 
+    def set_lead_partner(self, lead_id, value):
+        self.partner_set = getattr(self, "partner_set", {})
+        self.partner_set[lead_id] = value
+        return True
+
     def create_lead(self, *, title, contact_name, phone=None, telegram=None, note=None, tags=None, contact_id=None, price=None):
         self.created.append({"title": title, "contact_name": contact_name, "phone": phone, "telegram": telegram, "note": note,
                              "tags": tags, "contact_id": contact_id, "price": price})

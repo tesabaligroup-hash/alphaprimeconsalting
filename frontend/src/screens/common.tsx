@@ -6,7 +6,7 @@ import { useApp, type Route } from "../ui";
 
 export function ServiceCardView({ s }: { s: Service }) {
   const { go } = useApp();
-  const total = s.steps.length || 4;
+  const total = s.steps.length || 3;
   const done = s.steps.filter((x) => x.state === "done").length;
   const showProgress = s.badge_tone === "warn" || s.badge_tone === "info";
   const current = s.steps.find((x) => x.state === "current");

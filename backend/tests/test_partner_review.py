@@ -60,3 +60,45 @@ def test_new_deal_with_known_service_needs_no_review():
     db.flush()
     (acc,) = sync_lead(db, MockKommo(), _lead("D12-EXT", partner="xwolf7", lead_id=1))
     assert acc.status == "to_payout" and acc.amount > 0
+
+
+def test_autofill_partner_for_referral_lead_and_next_deals():
+    from app.models import Referral
+    from app.services.partner import autofill_partner
+    from app.timeutil import utcnow
+
+    db = _db()
+    u = User(telegram_id=7, telegram_username="lena")
+    db.add(u); db.flush()
+    p = Partner(user_id=u.id, kind="private", display_name="Лена", codeword="LENAWOLF", created_at=datetime(2026, 1, 1))
+    db.add(p); db.flush()
+    db.add(Referral(partner_id=p.id, friend_name="Олег", channel="tg", contact="@oleg", status="attached",
+                    attached_at=utcnow(), kommo_lead_id=501))
+    db.flush()
+    kommo = MockKommo()
+
+    first = KommoLead(id=501, name="Рекомендация: Олег", price=0, pipeline_id=13724291, status_id=1, status_name="Распределение",
+                      fields={}, contact_ids=[777], updated_at=datetime(2026, 11, 12))
+    assert autofill_partner(db, kommo, first) == p and kommo.partner_set[501] == "LENAWOLF"
+    assert p.kommo_partner_value == "LENAWOLF"
+
+    nxt = KommoLead(id=502, name="Олег KITAS", price=0, pipeline_id=13724291, status_id=1, status_name="Ждем $",
+                    fields={}, contact_ids=[777], updated_at=datetime(2026, 11, 12))
+    assert autofill_partner(db, kommo, nxt) == p and kommo.partner_set[502] == "LENAWOLF"
+
+    manual_no = KommoLead(id=503, name="Олег", price=0, pipeline_id=13724291, status_id=1, status_name="Ждем $",
+                          fields={"Партнёр": "Нет"}, contact_ids=[777], updated_at=datetime(2026, 11, 12))
+    assert autofill_partner(db, kommo, manual_no) is None  # «Нет» от менеджера не трогаем
+
+
+def test_weekly_report_lists_problem_deals():
+    from app.services.quality import lead_problems
+
+    bad = _lead("Другое", partner="")
+    bad.status_name = "Ждем $"
+    probs = lead_problems(bad)
+    assert any("Тип услуги" in x for x in probs) and any("Партнёр" in x for x in probs)
+    good = _lead("D12-EXT", partner="Нет")
+    good.status_name = "Ждем $"
+    good.contact_ids = [1]
+    assert lead_problems(good) == []

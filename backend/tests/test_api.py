@@ -49,9 +49,8 @@ def test_home_has_family_dates_and_news(client):
 
 def test_service_detail_steps_order(client):
     d = client.get("/api/services/1001", headers=DEV).json()["service"]
-    assert [s["title"] for s in d["steps"]] == ["Документы собраны", "Оплата", "Подача в иммиграцию", "Готово — документы в приложении"]
-    assert [s["state"] for s in d["steps"]] == ["done", "current", "todo", "todo"]
-    assert d["steps"][0]["at"].startswith("2026-11-04")
+    assert [s["title"] for s in d["steps"]] == ["Оплата", "Подача в иммиграцию", "Готово — документы в приложении"]
+    assert [s["state"] for s in d["steps"]] == ["current", "todo", "todo"]
 
 
 def test_cannot_open_someone_elses_deal(client):
@@ -189,3 +188,12 @@ def test_admin_accrual_buttons(client):
                         headers={"referer": "/admin/accruals"}, follow_redirects=False)
         assert r.status_code == 303, (action, r.text)
     assert client.get("/admin/accruals?status=review").status_code == 200
+    with SessionLocal() as db:
+        acc = db.get(Accrual, aid)
+        acc.status, acc.decision = "to_payout", "approved"
+        db.commit()
+    assert "Выплачено" in client.get("/admin/accruals?status=to_payout").text
+    r = client.post(f"/admin/accruals/{aid}", data={"csrf": csrf, "action": "payout"}, follow_redirects=False)
+    assert r.status_code == 303
+    with SessionLocal() as db:
+        assert db.get(Accrual, aid).status == "paid"

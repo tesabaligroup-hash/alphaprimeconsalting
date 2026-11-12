@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import httpx
 
 from .base import KommoContact, KommoFile, KommoLead, StatusChange
+from .mapping import LEAD_FIELDS, norm
 
 log = logging.getLogger(__name__)
 
@@ -72,6 +73,11 @@ class RealKommo:
 
     def _post(self, path: str, payload) -> dict | list:
         r = self._http.post(path, json=payload)
+        r.raise_for_status()
+        return r.json() if r.content else {}
+
+    def _patch(self, path: str, payload) -> dict | list:
+        r = self._http.patch(path, json=payload)
         r.raise_for_status()
         return r.json() if r.content else {}
 
@@ -244,6 +250,29 @@ class RealKommo:
                 break
             page += 1
         return out
+
+    def set_lead_partner(self, lead_id: int, value: str) -> bool:
+        """Ставит в сделку поле «Партнёр». Если такого варианта в списке нет — добавляет его (остальные сохраняются)."""
+        field = next((f for f in self.custom_fields("leads") if norm(f.get("name")) == norm(LEAD_FIELDS["partner"])), None)
+        if not field:
+            log.warning("Kommo: нет поля «%s» у сделок", LEAD_FIELDS["partner"])
+            return False
+        if field.get("type") in ("select", "multiselect", "radiobutton"):
+            enums = field.get("enums") or []
+            enum = next((e for e in enums if norm(e.get("value")) == norm(value)), None)
+            if not enum:
+                keep = [{"id": e["id"], "value": e["value"], "sort": e.get("sort", 0)} for e in enums]
+                top = max([e.get("sort", 0) for e in enums] or [0])
+                self._patch(f"/leads/custom_fields/{field['id']}", {"enums": keep + [{"value": value, "sort": top + 10}]})
+                fresh = next((f for f in self.custom_fields("leads") if f["id"] == field["id"]), field)
+                enum = next((e for e in fresh.get("enums") or [] if norm(e.get("value")) == norm(value)), None)
+                if not enum:
+                    return False
+            values = [{"enum_id": enum["id"]}]
+        else:
+            values = [{"value": value}]
+        self._patch("/leads", [{"id": lead_id, "custom_fields_values": [{"field_id": field["id"], "values": values}]}])
+        return True
 
     def create_lead(self, *, title: str, contact_name: str, phone: str | None = None,
                     telegram: str | None = None, note: str | None = None, tags: list[str] | None = None,

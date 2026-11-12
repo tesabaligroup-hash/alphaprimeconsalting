@@ -36,6 +36,10 @@
         <button name="action" value="paid" class="btn-line">Уже выплачено</button>
         <button name="action" value="reject" class="btn-line">Не платить</button>
       </form>
+      {% elif a.status == 'to_payout' %}
+      <form method="post" action="/admin/accruals/{{ a.id }}" onsubmit="return confirm('Отметить {{ a.amount }} IDR партнёру {{ partners[a.partner_id].display_name if a.partner_id in partners }} как выплаченные?')">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button name="action" value="payout" class="btn-gold">Выплачено</button></form>
       {% elif a.decision %}
       <form method="post" action="/admin/accruals/{{ a.id }}"><input type="hidden" name="csrf" value="{{ csrf }}">
         <button name="action" value="reopen" class="btn-line">Вернуть на проверку</button></form>

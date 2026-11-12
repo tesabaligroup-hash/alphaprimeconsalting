@@ -36,3 +36,17 @@ def notify_managers(title: str, lines: list[str], lead_id: int | None = None) ->
     except httpx.HTTPError as exc:
         log.warning("Уведомление менеджерам не отправлено: %s", exc)
         return False
+
+
+def notify_user(telegram_id: int | None, text: str) -> bool:
+    """Личное сообщение человеку от бота (например, партнёру о выплате). Ошибки не ломают операцию."""
+    s = get_settings()
+    if not s.bot_token or not telegram_id:
+        return False
+    try:
+        r = httpx.post(f"https://api.telegram.org/bot{s.bot_token}/sendMessage", timeout=10,
+                       json={"chat_id": telegram_id, "text": text})
+        return r.status_code == 200
+    except httpx.HTTPError as exc:
+        log.warning("Сообщение пользователю %s не отправлено: %s", telegram_id, exc)
+        return False

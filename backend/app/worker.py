@@ -6,6 +6,7 @@ import asyncio
 import logging
 import re
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command, CommandObject, CommandStart
@@ -16,10 +17,11 @@ from sqlalchemy import select
 from .config import get_settings
 from .db import SessionLocal, init_db
 from .kommo import get_kommo
-from .models import Partner, Referral, User
+from .models import ProgramSetting, Partner, Referral, User
 from .partner_rules import DEFAULTS, normalize_codeword
 from .services.linking import find_contact, link_user, relink_unlinked
 from .services.partner import sync_all
+from .services.quality import weekly_report
 from .notify import notify_managers
 from .timeutil import utcnow
 
@@ -82,6 +84,66 @@ async def start(message: Message, command: CommandObject):
 async def chat_id(message: Message):
     """Напишите /chatid в группе менеджеров — бот ответит её номером для MANAGERS_CHAT_ID."""
     await message.answer(f"ID этого чата: {message.chat.id}\nВпишите его в .env как MANAGERS_CHAT_ID и перезапустите сервер.")
+
+
+def is_managers_chat(message: Message) -> bool:
+    return bool(settings.managers_chat_id) and str(message.chat.id) == str(settings.managers_chat_id)
+
+
+@dp.message(Command("kod"))
+async def check_codeword(message: Message, command: CommandObject):
+    """/kod СЛОВО в группе менеджеров — чей это партнёр и что поставить в поле «Партнёр»."""
+    if not is_managers_chat(message):
+        return
+    word = (command.args or "").strip().lstrip("@")
+    if not word:
+        await message.answer("Напишите так: /kod ANNABALI")
+        return
+    with SessionLocal() as db:
+        code = normalize_codeword(word)
+        p = db.scalar(select(Partner).where(Partner.codeword == code)) or \
+            db.scalar(select(Partner).where(Partner.kommo_partner_value.ilike(word))) or \
+            db.scalar(select(Partner).join(User, Partner.user_id == User.id).where(User.telegram_username.ilike(word)))
+        if not p:
+            await message.answer(f"❌ «{word}» — такого партнёра нет. Клиенту без скидки, в поле «Партнёр» — «Нет».")
+            return
+        value = p.kommo_partner_value or p.codeword
+        if p.status != "active":
+            await message.answer(f"⚠️ {p.display_name} — партнёр не активен ({p.status}). Скидку не даём, в поле «Партнёр» — «Нет».")
+            return
+        nick = f" · @{p.user.telegram_username}" if p.user and p.user.telegram_username else ""
+        await message.answer(f"✅ Партнёр: {p.display_name}{nick}\nВ поле «Партнёр» в Kommo поставьте: {value}\n"
+                             "Клиенту — цена со скидкой партнёра.")
+
+
+@dp.message(Command("proverka"))
+async def crm_check(message: Message):
+    """/proverka в группе менеджеров — список сделок, где не хватает данных (то же, что по понедельникам)."""
+    if not is_managers_chat(message):
+        return
+    await message.answer("Проверяю сделки, минуту…")
+    text = await asyncio.to_thread(weekly_report, get_kommo())
+    await message.answer(text or "✅ Всё заполнено.", parse_mode="HTML", disable_web_page_preview=True)
+
+
+async def weekly_check(bot: Bot, kommo) -> None:
+    """По понедельникам после 10:00 (Бали) — список недозаполненных сделок в группу менеджеров."""
+    now = datetime.now(ZoneInfo(settings.timezone))
+    if not settings.managers_chat_id or now.weekday() != 0 or now.hour < 10:
+        return
+    today = now.date().isoformat()
+    with SessionLocal() as db:
+        row = db.get(ProgramSetting, "weekly_report")
+        if row and (row.value or {}).get("date") == today:
+            return
+        text = await asyncio.to_thread(weekly_report, kommo)
+        if text:
+            await bot.send_message(settings.managers_chat_id, text, parse_mode="HTML", disable_web_page_preview=True)
+        if row:
+            row.value = {"date": today}
+        else:
+            db.add(ProgramSetting(key="weekly_report", value={"date": today}))
+        db.commit()
 
 
 @dp.message(F.contact)
@@ -170,6 +232,7 @@ async def sync_loop(bot: Bot):
                         log.warning("Не удалось отправить уведомление партнёру %s", partner_id)
             last = started
             log.info("Синхронизация: %s уведомлений", len(notes))
+            await weekly_check(bot, kommo)
         except Exception:
             log.exception("Синхронизация с Kommo не удалась")
         await asyncio.sleep(SYNC_EVERY_MINUTES * 60)

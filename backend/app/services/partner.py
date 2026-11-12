@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..kommo.base import KommoClient, KommoLead
-from ..kommo.mapping import (CANCEL_STATUSES, CONTACT_FIELDS, FULLY_PAID_STATUSES, LEAD_FIELDS, NO_PARTNER_VALUES,
+from ..kommo.mapping import (CANCEL_STATUSES, CLIENT_PIPELINE_IDS, CONTACT_FIELDS, FULLY_PAID_STATUSES, LEAD_FIELDS, NO_PARTNER_VALUES,
                              RESULT_ISSUED_STATUSES, STATUS_LOST, STATUS_WON, norm)
 from ..models import Accrual, Level2Link, Partner, ProgramSetting, Referral, StopWord, User
 from ..partner_rules import (ACCRUAL_LABELS, DEFAULTS, accrual_status, calc_payouts, codeword_problems, next_payout_date,
@@ -161,11 +161,51 @@ NOTIFY_TEXT = {
 }
 
 
+def autofill_partner(db: Session, kommo: KommoClient, lead: KommoLead) -> Partner | None:
+    """Пустое поле «Партнёр» у клиента, закреплённого за партнёром, — заполняем сами (в Kommo и в этой сделке).
+
+    Закреплён = рекомендация «закреплена» не больше 12 месяцев назад, и эта сделка создана по ней
+    или это тот же контакт. «Нет»/«Другое», поставленные менеджером, не трогаем.
+    """
+    if lead.pipeline_id not in CLIENT_PIPELINE_IDS or lead.status_id == STATUS_LOST:
+        return None
+    if field_value(lead.fields, LEAD_FIELDS["partner"]) not in (None, ""):
+        return None
+    s = program_settings(db)
+    since = utcnow() - timedelta(days=30 * s["attach_months"])
+    refs = list(db.scalars(select(Referral).where(Referral.status == "attached", Referral.attached_at >= since)
+                           .order_by(Referral.attached_at)))
+    ids = set(lead.contact_ids)
+    ref = next((r for r in refs if r.kommo_lead_id == lead.id), None)
+    if not ref and ids:
+        for r in refs:
+            friend = db.get(User, r.friend_user_id) if r.friend_user_id else None
+            if (r.kommo_contact_id in ids) or (friend and ids & set(friend.contact_ids)):
+                ref = r
+                break
+    if not ref or not ref.partner or ref.partner.status != "active":
+        return None
+    if ref.kommo_lead_id == lead.id and not ref.kommo_contact_id and lead.contact_ids:
+        ref.kommo_contact_id = lead.contact_ids[0]  # чтобы узнавать и следующие сделки этого клиента
+    p = ref.partner
+    value = p.kommo_partner_value or p.codeword
+    if not value:
+        return None
+    if not p.kommo_partner_value:
+        p.kommo_partner_value = value
+    if kommo.set_lead_partner(lead.id, value):
+        lead.fields[LEAD_FIELDS["partner"]] = value
+        log.info("Kommo: в сделку %s проставлен партнёр %s", lead.id, value)
+        return p
+    return None
+
+
 def sync_all(db: Session, kommo: KommoClient, since: datetime) -> list[tuple[int, str]]:
     """Обновляет начисления. Возвращает уведомления для партнёров: [(partner_id, текст)]."""
     notes: list[tuple[int, str]] = []
     for lead in kommo.get_leads_updated_since(since):
         try:
+            autofill_partner(db, kommo, lead)
             for acc in sync_lead(db, kommo, lead):
                 for old, new in acc.__dict__.pop("_events", []):
                     if new == "review" or (old is None and new not in ("awaiting_payment", "in_work")):

@@ -100,7 +100,7 @@ def build_card(lead: KommoLead, kommo: KommoClient, default_person: str, with_hi
     archived = lead.status_id == STATUS_WON
     if not archived and sname not in STATUS_TO_STEP:
         return None
-    step_index, state = (3, "done") if archived else STATUS_TO_STEP[sname]
+    step_index, state = (len(CLIENT_STEPS) - 1, "done") if archived else STATUS_TO_STEP[sname]
 
     f = lead.fields
     raw_code = field_value(f, LEAD_FIELDS["service_type"])
@@ -161,7 +161,7 @@ def build_card(lead: KommoLead, kommo: KommoClient, default_person: str, with_hi
 
     # «Подача в иммиграцию» — только для виз и KITAS; у компаний и бухгалтерии этот шаг — «В работе»
     if not tariff or tariff.category not in ("kitas", "visa", "ext"):
-        steps[2].title = "В работе"
+        steps[1].title = "В работе"
     title = tariff.name if tariff else (str(raw_code) if raw_code else lead.name)
     if tariff and tariff.category == "buh":
         title = f"Бухгалтерия: {tariff.name[:1].lower()}{tariff.name[1:]}"

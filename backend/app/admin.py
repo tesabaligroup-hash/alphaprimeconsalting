@@ -15,6 +15,7 @@ from .config import get_settings
 from .db import get_db
 from .kommo import get_kommo
 from .models import Accrual, AuditLog, Level2Link, News, Partner, Referral, StopWord, User
+from .notify import notify_user
 from .partner_rules import ACCRUAL_LABELS, normalize_codeword
 from .services import partner as partner_svc
 from .tariffs import TARIFFS, find_tariff
@@ -346,6 +347,14 @@ def accrual_decide(acc_id: int, request: Request, csrf: str = Form(""), action: 
     if code and find_tariff(code):
         for a in siblings:
             a.manual_code = find_tariff(code).code
+    if action == "payout":  # «Выплачено» — только это начисление (у 2-го уровня своя выплата)
+        if acc.status == "to_payout":
+            acc.decision, acc.status = "paid", "paid"
+            p = db.get(Partner, acc.partner_id)
+            if p and p.user:
+                notify_user(p.user.telegram_id, partner_svc.NOTIFY_TEXT["paid"].format(
+                    name=acc.client_display, amount=f"{acc.amount:,}".replace(",", " "), date="", reason=""))
+        siblings = []
     decision = {"approve": "approved", "paid": "paid", "reject": "rejected", "reopen": None}.get(action, "keep")
     if decision != "keep":
         if decision == "approved" and not (acc.manual_code or find_tariff(acc.service_code)):
