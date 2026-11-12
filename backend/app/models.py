@@ -204,3 +204,17 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(64))
     details: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class WidgetMessage(Base):
+    """Виджет, отправленный ботом в личный чат (Telegram Widgets): его обновляем, когда меняются данные."""
+
+    __tablename__ = "widget_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))  # visa / events / partner
+    chat_id: Mapped[int] = mapped_column(BigInteger)
+    message_id: Mapped[int] = mapped_column(Integer)
+    state_hash: Mapped[str | None] = mapped_column(String(64))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

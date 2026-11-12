@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command, CommandObject, CommandStart
-from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, Message, MenuButtonWebApp,
+from aiogram.types import (BotCommand, BotCommandScopeAllPrivateChats, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, Message, MenuButtonWebApp,
                            ReplyKeyboardMarkup, ReplyKeyboardRemove, WebAppInfo)
 from sqlalchemy import select
 
@@ -24,6 +24,7 @@ from .services.partner import sync_all
 from .services.quality import weekly_report
 from .notify import notify_managers
 from .timeutil import utcnow
+from . import widgets
 
 log = logging.getLogger("worker")
 settings = get_settings()
@@ -146,6 +147,56 @@ async def weekly_check(bot: Bot, kommo) -> None:
         db.commit()
 
 
+async def _send_widget(message: Message, kind: str):
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.telegram_id == message.from_user.id))
+        if not user:
+            user = User(telegram_id=message.from_user.id, telegram_username=message.from_user.username,
+                        first_name=message.from_user.first_name)
+            db.add(user)
+            db.commit()
+        if kind == "partner" and not db.scalar(select(Partner).where(Partner.user_id == user.id)):
+            await message.answer("Вы ещё не в партнёрской программе. Откройте кабинет → «Партнёрка» → «Стать партнёром».")
+            return
+        try:
+            await widgets.send(db, get_kommo(), user, kind)
+        except Exception as exc:
+            log.warning("Виджет %s не отправлен: %s", kind, exc)
+            await message.answer("Не получилось показать карточку. Обновите Telegram до последней версии и попробуйте ещё раз.")
+
+
+@dp.message(Command("visa"), F.chat.type == "private")
+async def cmd_visa(message: Message):
+    """Виджет «Моя виза»."""
+    await _send_widget(message, "visa")
+
+
+@dp.message(Command("events"), F.chat.type == "private")
+async def cmd_events(message: Message):
+    """Виджет «Мероприятия»."""
+    await _send_widget(message, "events")
+
+
+@dp.message(Command("partner"), F.chat.type == "private")
+async def cmd_partner(message: Message):
+    """Виджет «Партнёрка»."""
+    await _send_widget(message, "partner")
+
+
+async def widget_query_middleware(handler, update, data):
+    """widget_query aiogram пока не знает — ловим сырое поле обновления сами."""
+    extra = getattr(update, "model_extra", None) or {}
+    q = extra.get("widget_query") or extra.get("shared_widget_query")
+    if q:
+        with SessionLocal() as db:
+            await widgets.handle_query(db, get_kommo(), q)
+        return None
+    return await handler(update, data)
+
+
+dp.update.outer_middleware(widget_query_middleware)
+
+
 @dp.message(F.contact)
 async def got_contact(message: Message):
     c = message.contact
@@ -213,7 +264,8 @@ async def sync_loop(bot: Bot):
     full_at = utcnow()
     while True:
         started = utcnow()
-        if started - full_at > timedelta(hours=1):
+        full_hour = started - full_at > timedelta(hours=1)
+        if full_hour:
             # раз в час — все сделки заново: новый партнёр или исправленное поле «Партнёр» подхватят и старые сделки
             last, full_at = started - timedelta(days=400), started
         try:
@@ -233,6 +285,10 @@ async def sync_loop(bot: Bot):
             last = started
             log.info("Синхронизация: %s уведомлений", len(notes))
             await weekly_check(bot, kommo)
+            if full_hour:  # виджеты — раз в час (визы, мероприятия, партнёрка)
+                with SessionLocal() as db:
+                    n = await widgets.refresh_all(db, kommo)
+                log.info("Виджеты: обновлено %s", n)
         except Exception:
             log.exception("Синхронизация с Kommo не удалась")
         await asyncio.sleep(SYNC_EVERY_MINUTES * 60)
@@ -249,7 +305,15 @@ async def main():
     except Exception:
         log.warning("Не удалось установить кнопку меню (проверьте PUBLIC_URL — нужен https)")
     asyncio.create_task(sync_loop(bot))
-    await dp.start_polling(bot)
+    try:
+        await bot.set_my_commands([
+            BotCommand(command="visa", description="Моя виза — сроки и статус"),
+            BotCommand(command="events", description="Мероприятия"),
+            BotCommand(command="partner", description="Партнёрка — баланс"),
+        ], scope=BotCommandScopeAllPrivateChats())
+    except Exception:
+        log.warning("Не удалось задать команды бота")
+    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types() + ["widget_query", "shared_widget_query"])
 
 
 if __name__ == "__main__":

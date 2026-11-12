@@ -19,6 +19,7 @@ from .kommo.base import KommoClient
 from .links import partner_links
 from .models import News, Partner, Referral, ServiceOrder, User
 from .services import cabinet, partner as partner_svc
+from .services.interest import register_interest
 from .services.linking import link_user
 from .notify import notify_managers
 from .tariffs import BY_CODE, CATEGORY_LABELS, POPULAR_CODES, TARIFFS, find_tariff
@@ -199,29 +200,8 @@ def news_interest(news_id: int, user: User = Depends(current_user), db: Session 
     n = db.get(News, news_id)
     if not n or not n.published or not n.cta_lead:
         raise HTTPException(404, "Новость не найдена")
-    code = f"news:{n.id}"
-    recent = db.scalar(select(ServiceOrder).where(ServiceOrder.user_id == user.id, ServiceOrder.service_code == code,
-                                                  ServiceOrder.created_at > utcnow() - timedelta(hours=1)))
-    if recent:
+    if not register_interest(db, kommo, user, n):
         return {"ok": True, "duplicate": True}
-    tg = f"@{user.telegram_username}" if user.telegram_username else f"id {user.telegram_id}"
-    lead_id = None
-    try:
-        lead_id = kommo.create_lead(
-            title=f"Интерес из приложения: {n.title}", contact_name=user.first_name or "Клиент из приложения",
-            phone=user.phone, telegram=tg, contact_id=user.kommo_contact_id,
-            note=f"Клиент нажал «Узнать подробнее» в новости «{n.title}» в Telegram-приложении.",
-            tags=["Приложение", "Новость"],
-        )
-    except Exception:
-        log.exception("Kommo: не удалось создать сделку по новости")
-    db.add(ServiceOrder(user_id=user.id, service_code=code, kommo_lead_id=lead_id))
-    db.commit()
-    notify_managers("📣 Интерес к новости", [
-        f"Новость: {n.title}",
-        f"Клиент: {user.first_name or '—'} · {tg}" + (f" · {user.phone}" if user.phone else ""),
-        "Уже есть в Kommo" if user.kommo_contact_id else "Новый клиент (в Kommo создан контакт)",
-    ], lead_id)
     return {"ok": True}
 
 
