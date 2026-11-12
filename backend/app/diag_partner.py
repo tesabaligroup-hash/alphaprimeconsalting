@@ -11,6 +11,7 @@
 import sys
 from collections import Counter
 from datetime import timedelta
+from difflib import SequenceMatcher
 
 from sqlalchemy import select
 
@@ -26,7 +27,17 @@ from .timeutil import utcnow
 
 
 def _like(key: str, *values) -> bool:
-    return any(v and (key in loose_key(v) or loose_key(v) in key) for v in values if loose_key(v))
+    """Похоже по написанию: Kissunets ≈ Кицунес ≈ kitsunes ≈ kitsune_bali (для проверки, не для начислений)."""
+    for v in values:
+        lv = loose_key(v)
+        if not lv or not key:
+            continue
+        if len(lv) >= 4 and (key in lv or lv in key):
+            return True
+        score = max(SequenceMatcher(None, key, lv).ratio(), SequenceMatcher(None, key, lv[:len(key)]).ratio())
+        if score >= 0.65:
+            return True
+    return False
 
 
 def main(arg: str, link_id: int | None = None) -> None:
