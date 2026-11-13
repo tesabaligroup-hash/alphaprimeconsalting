@@ -153,6 +153,12 @@ def sync_lead(db: Session, kommo: KommoClient, lead: KommoLead, now: datetime | 
             status, hold_until = "cancelled", None
         elif not acc.decision and status not in ("cancelled", "paid") and (old_deal or (tariff is None and in_payment)):
             status, hold_until = "review", None
+        # Заработанное не откатывается: менеджер мог вытащить закрытую сделку назад по воронке,
+        # чтобы прочитать старую переписку. Отменяет начисление только «Закрыто и не реализовано» (возврат).
+        frozen = acc.id and acc.status in ("confirmed", "to_payout") and status in ("awaiting_payment", "in_work", "review")
+        if frozen:
+            status, hold_until, amount = acc.status, acc.hold_until, acc.amount
+            fully_paid_at, issued_at = acc.fully_paid_at or fully_paid_at, acc.result_issued_at or issued_at
         if acc.status != "to_payout" and status == "to_payout":
             acc.to_payout_at = now
         old = acc.status if acc.id else None

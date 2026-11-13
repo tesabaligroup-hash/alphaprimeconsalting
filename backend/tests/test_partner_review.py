@@ -128,3 +128,25 @@ def test_multi_service_deal_sums_all_services_and_early_stage_is_not_review():
                       status_name="РАСПРЕДЕЛЕНИЕ", fields={"Партнёр": "Kissunets"}, contact_ids=[], updated_at=datetime(2026, 11, 12))
     (acc,) = sync_lead(db, MockKommo(), early)
     assert acc.status == "awaiting_payment"  # друг виден, но это не «Проверяем»
+
+
+def test_earned_accrual_survives_deal_dragged_back():
+    db = _db()
+    u = User(telegram_id=13, telegram_username="z")
+    db.add(u); db.flush()
+    db.add(Partner(user_id=u.id, kind="private", display_name="Z", codeword="ZWOLF77", created_at=datetime(2026, 1, 1)))
+    db.flush()
+    kommo = MockKommo()
+    won = _lead("E33G", partner="ZWOLF77", lead_id=900)
+    won.price = 11_900_000
+    (acc,) = sync_lead(db, kommo, won)
+    assert acc.status == "to_payout" and acc.amount > 0
+    amount = acc.amount
+    back = KommoLead(id=900, name="Roman", price=5_000_000, pipeline_id=13724291, status_id=105886603, status_name="РАСПРЕДЕЛЕНИЕ",
+                     fields={"Партнёр": "ZWOLF77", "Тип услуги": "E33G"}, contact_ids=[], updated_at=datetime(2026, 11, 13))
+    (acc,) = sync_lead(db, kommo, back)  # менеджер вытащил сделку, чтобы прочитать переписку
+    assert acc.status == "to_payout" and acc.amount == amount
+    lost = KommoLead(id=900, name="Roman", price=5_000_000, pipeline_id=13724291, status_id=143, status_name="Закрыто и не реализовано",
+                     fields={"Партнёр": "ZWOLF77", "Тип услуги": "E33G"}, contact_ids=[], updated_at=datetime(2026, 11, 13))
+    (acc,) = sync_lead(db, kommo, lost)  # возврат денег — отмена работает
+    assert acc.status == "cancelled"
