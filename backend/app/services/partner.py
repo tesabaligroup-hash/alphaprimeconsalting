@@ -85,6 +85,11 @@ def sync_lead(db: Session, kommo: KommoClient, lead: KommoLead, now: datetime | 
     partner = find_partner_for_lead(db, lead)
     if not partner or partner.status == "blocked":
         return []
+    if partner.user and lead.contact_ids and set(partner.user.contact_ids) & set(lead.contact_ids):
+        # собственная покупка партнёра — вознаграждение только за друзей
+        for acc in db.scalars(select(Accrual).where(Accrual.kommo_lead_id == lead.id, Accrual.status != "paid")):
+            db.delete(acc)
+        return []
     code = field_value(lead.fields, LEAD_FIELDS["service_type"])
     tariff = combined_tariff(str(code) if code else None)  # несколько услуг в сделке — считаем по всем
     if tariff and tariff.code == "CONS":

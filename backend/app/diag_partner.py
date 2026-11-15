@@ -85,7 +85,9 @@ def main(arg: str, link_id: int | None = None) -> None:
                 continue
             accs = sync_lead(db, k, lead)
             if not accs:
-                print("    ⚠️ начисления нет (этап до «Ждем $»? сделка не в Consulting? консультация?)")
+                own = who.user and set(who.user.contact_ids) & set(lead.contact_ids)
+                print("    ⚪ собственная сделка партнёра — за себя вознаграждение не начисляется" if own else
+                      "    ⚠️ начисления нет (сделка не в Consulting? консультация?)")
             for acc in accs:
                 print(f"    → {who.display_name}: {acc.amount:,} IDR · {ACCRUAL_LABELS[acc.status]}")
         db.commit()

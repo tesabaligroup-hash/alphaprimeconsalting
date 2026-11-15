@@ -150,3 +150,14 @@ def test_earned_accrual_survives_deal_dragged_back():
                      fields={"Партнёр": "ZWOLF77", "Тип услуги": "E33G"}, contact_ids=[], updated_at=datetime(2026, 11, 13))
     (acc,) = sync_lead(db, kommo, lost)  # возврат денег — отмена работает
     assert acc.status == "cancelled"
+
+
+def test_partner_own_deal_gives_no_reward():
+    db = _db()
+    u = User(telegram_id=14, telegram_username="aplebedev", kommo_contact_id=4242)
+    db.add(u); db.flush()
+    db.add(Partner(user_id=u.id, kind="private", display_name="Андрей", codeword="APLEBEDEV", created_at=datetime(2026, 1, 1)))
+    db.flush()
+    own = _lead("E33G", partner="aplebedev", lead_id=950)
+    own.contact_ids = [4242]
+    assert sync_lead(db, MockKommo(), own) == []
