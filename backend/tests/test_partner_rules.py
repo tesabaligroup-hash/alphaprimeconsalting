@@ -39,9 +39,12 @@ def test_huge_manager_discount_never_pays_more_than_margin():
     assert p.level1 + p.level2 <= 120_000 and p.level1 == 100_000 and p.level2 == 20_000
 
 
-def test_service_without_payouts_goes_to_manager():
+def test_rare_service_without_payouts_pays_nothing():
+    from app.tariffs import combined_tariff
     t = find_tariff("ADR")
-    assert t.l1 is None and calc_payouts(t).known is False
+    assert t.l1 is None and calc_payouts(t).level1 == 0
+    mixed = combined_tariff("E33G, ADR")  # редкая услуга в сделке не мешает основной
+    assert mixed.l1 == 1_000_000 and mixed.l2 == 200_000
 
 
 @pytest.mark.parametrize("word,ok", [

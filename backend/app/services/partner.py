@@ -92,8 +92,11 @@ def sync_lead(db: Session, kommo: KommoClient, lead: KommoLead, now: datetime | 
         return []
     code = field_value(lead.fields, LEAD_FIELDS["service_type"])
     tariff = combined_tariff(str(code) if code else None)  # несколько услуг в сделке — считаем по всем
-    if tariff and tariff.code == "CONS":
-        return []  # консультации в программе не участвуют
+    if tariff and (tariff.code == "CONS" or not tariff.l1):
+        # консультации и редкие услуги без выплат (нет в таблице) в программе не участвуют
+        for acc in db.scalars(select(Accrual).where(Accrual.kommo_lead_id == lead.id, Accrual.status != "paid")):
+            db.delete(acc)
+        return []
     existing = list(db.scalars(select(Accrual).where(Accrual.kommo_lead_id == lead.id, Accrual.period == "")))
     manual = next((a.manual_code for a in existing if a.manual_code), None)
     if manual and find_tariff(manual):
@@ -155,7 +158,7 @@ def sync_lead(db: Session, kommo: KommoClient, lead: KommoLead, now: datetime | 
         old_deal = bool(done_at and done_at < joined)  # оплачено или выдано ещё до вступления партнёра
         if acc.decision == "rejected":
             status, hold_until = "cancelled", None
-        elif not acc.decision and status not in ("cancelled", "paid") and (old_deal or ((tariff is None or tariff.l1 is None) and in_payment)):
+        elif not acc.decision and status not in ("cancelled", "paid") and (old_deal or (tariff is None and in_payment)):
             status, hold_until = "review", None
         # Заработанное не откатывается: менеджер мог вытащить закрытую сделку назад по воронке,
         # чтобы прочитать старую переписку. Отменяет начисление только «Закрыто и не реализовано» (возврат).
