@@ -1,4 +1,4 @@
-# Сервер: api (приложение + админка), worker (бот + синхронизация с Kommo), db (PostgreSQL), caddy (HTTPS)
+# Сервер: api (приложение + админка), worker (бот + синхронизация с Kommo), db (PostgreSQL), caddy (HTTPS + детское приложение kids/)
 services:
   db:
     image: postgres:16-alpine
@@ -47,8 +47,10 @@ services:
       - "443:443"
     environment:
       APP_DOMAIN: ${APP_DOMAIN:?задайте APP_DOMAIN в .env}
+      KIDS_DOMAIN: ${KIDS_DOMAIN:-kids.alpha-prime.group}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./kids:/srv/kids:ro
       - caddy_data:/data
     depends_on:
       - api

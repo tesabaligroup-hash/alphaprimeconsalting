@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Мир Августины</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Мир Августины">
+<meta name="theme-color" content="#b89cf5">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.json">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&family=Comfortaa:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fbf7ff; --card:#ffffff; --ink:#3b2a63; --soft:#8d7bb5; --lav:#b89cf5; --lav2:#e9e0ff;
+  --deep:#6a48c9; --gold:#f2b93b; --gold2:#ffe7a6; --pink:#ff8fc0; --mint:#5fd3ad; --red:#ff6b81;
+  --r:22px; --shadow:0 8px 24px rgba(106,72,201,.12);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{font-family:Nunito,system-ui,sans-serif;color:var(--ink);background:var(--bg);overflow:hidden;user-select:none;-webkit-user-select:none}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,textarea{font:inherit;user-select:text;-webkit-user-select:text}
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:10px;padding:10px 14px 6px}
+.who{flex:1;min-width:0}
+.who .t{font-family:Comfortaa;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who .lv{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:var(--soft)}
+.bar{height:8px;border-radius:9px;background:var(--lav2);overflow:hidden;flex:1;max-width:160px}
+.bar i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,var(--lav),var(--deep));transition:width .6s}
+.coin{display:flex;align-items:center;gap:4px;background:#fff;border-radius:99px;padding:6px 12px;font-weight:900;box-shadow:var(--shadow);font-size:16px}
+.coin.st{background:var(--gold2)}
+.lock{width:38px;height:38px;border-radius:50%;background:#fff;box-shadow:var(--shadow);font-size:17px}
+main{flex:1;overflow:hidden;position:relative}
+.page{position:absolute;inset:0;overflow-y:auto;padding:6px 14px 110px;display:none;-webkit-overflow-scrolling:touch}
+.page.on{display:block;animation:pageIn .35s ease}
+@keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+h2{font-family:Comfortaa;font-size:20px;margin:14px 2px 10px}
+h3{margin:0 0 8px;font-size:17px}
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+.muted{color:var(--soft);font-weight:700;font-size:14px}
+nav{position:absolute;left:12px;right:12px;bottom:12px;display:flex;justify-content:space-around;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:26px;box-shadow:0 10px 30px rgba(106,72,201,.2);padding:6px;z-index:20}
+nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;padding:7px 2px;border-radius:20px;font-size:11px;font-weight:800;color:var(--soft);transition:.2s;position:relative}
+nav button b{font-size:23px;line-height:1;transition:transform .25s}
+nav button.on{background:var(--lav2);color:var(--deep)}
+nav button.on b{transform:scale(1.15) translateY(-1px)}
+nav button .dot{position:absolute;top:4px;right:22%;width:10px;height:10px;border-radius:50%;background:var(--red);box-shadow:0 0 0 2px #fff}
+/* ===== сцена ===== */
+.scene{position:relative;height:min(58vh,560px);min-height:330px;border-radius:30px;overflow:hidden;box-shadow:var(--shadow);background:#e9dcc8}
+.scene .bg{position:absolute;inset:0}
+.scene .bg svg,.scene .bg img{width:100%;height:100%;display:block;transition:filter .8s}
+.scene.night .bg img,.scene.night .bg svg{filter:brightness(.55) saturate(.85) hue-rotate(-12deg)}
+.scene .nightsky{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .8s;background:radial-gradient(circle at 70% 18%,#fff8 0,transparent 4%),linear-gradient(180deg,#1b164a55,transparent 60%)}
+.scene.night .nightsky{opacity:1}
+.sparkle{position:absolute;width:5px;height:5px;border-radius:50%;background:#fff;opacity:0;animation:twinkle 4s infinite;pointer-events:none}
+@keyframes twinkle{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:.9;transform:scale(1.2)}}
+.dust{position:absolute;width:4px;height:4px;border-radius:50%;background:#fff7d6;opacity:.0;animation:dust 9s linear infinite;pointer-events:none}
+@keyframes dust{0%{opacity:0;transform:translate(0,0)}20%{opacity:.8}100%{opacity:0;transform:translate(40px,-80px)}}
+.actor{position:absolute;bottom:7%;transform-origin:50% 100%;z-index:2}
+.actor .stack{position:relative;height:100%;transform-origin:50% 100%}
+.actor img{position:absolute;bottom:0;left:50%;transform:translateX(-50%);height:100%;transition:opacity .45s ease;pointer-events:none;filter:drop-shadow(0 6px 8px rgba(60,30,100,.22))}
+.actor .shadow{position:absolute;bottom:-3%;left:50%;width:60%;height:5%;transform:translateX(-50%);border-radius:50%;background:rgba(60,30,100,.22);filter:blur(3px);animation:shadowB 3.6s ease-in-out infinite}
+#girl{left:10%;height:82%;width:40%}
+#pet{right:6%;height:40%;width:36%}
+.breathe{animation:breathe 3.6s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1,1)}50%{transform:scale(1.012,1.022)}}
+.bob{animation:bob 2.8s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-6%) rotate(1.5deg)}}
+@keyframes shadowB{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(.9)}}
+.hop{animation:hop .6s cubic-bezier(.3,1.6,.5,1)}
+@keyframes hop{0%{transform:scale(1,1)}20%{transform:scale(1.1,.88)}50%{transform:translateY(-14%) scale(.95,1.07)}80%{transform:scale(1.04,.96)}100%{transform:none}}
+.shake{animation:shake .5s}
+@keyframes shake{0%,100%{transform:none}20%{transform:rotate(-6deg)}40%{transform:rotate(6deg)}60%{transform:rotate(-4deg)}80%{transform:rotate(3deg)}}
+.dim img{filter:grayscale(.5) brightness(.95) drop-shadow(0 6px 8px rgba(60,30,100,.2))}
+.bubble{position:absolute;right:5%;bottom:51%;max-width:46%;background:#fff;border-radius:18px;padding:9px 13px;font-weight:800;font-size:14px;box-shadow:var(--shadow);opacity:0;transform:translateY(8px) scale(.9);transition:.35s;pointer-events:none;z-index:4}
+.bubble.on{opacity:1;transform:none}
+.bubble:after{content:"";position:absolute;bottom:-8px;right:34%;border:9px solid transparent;border-top-color:#fff;border-bottom:0}
+.badge{position:absolute;top:-6%;right:2%;font-size:28px;animation:bob 2s ease-in-out infinite}
+.zz{position:absolute;top:0;right:10%;font-weight:900;color:#fff;font-size:20px;animation:zz 2.4s infinite;text-shadow:0 2px 6px #6a48c9}
+@keyframes zz{0%{opacity:0;transform:translate(0,0) scale(.6)}30%{opacity:1}100%{opacity:0;transform:translate(18px,-40px) scale(1.3)}}
+.stitle{position:absolute;left:12px;top:12px;background:#ffffffdd;border-radius:99px;padding:5px 12px;font-weight:900;font-size:13px;color:var(--deep);z-index:4}
+.mess{position:absolute;font-size:clamp(46px,8vw,78px);line-height:1;z-index:1;transform:rotate(var(--r,0deg));filter:drop-shadow(0 3px 2px #0003);transition:transform .5s,opacity .5s}
+.mess.gone{transform:scale(0) rotate(90deg)!important;opacity:0}
+.mess.stain{width:clamp(70px,13vw,130px);height:clamp(26px,4.5vw,46px);border-radius:50%;background:radial-gradient(ellipse at 40% 40%,#8a6a4a 0,#6e5034 55%,transparent 72%);opacity:.75;filter:blur(1px)}
+.mess.drop{animation:dropIn .6s cubic-bezier(.3,1.6,.5,1)}
+@keyframes dropIn{0%{transform:translateY(-200px) rotate(var(--r,0deg));opacity:0}100%{transform:rotate(var(--r,0deg));opacity:1}}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.slot{border:3px dashed var(--lav);border-radius:18px;aspect-ratio:1.2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-weight:900;background:#faf7ff;overflow:hidden;position:relative}
+.slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.slot.ok{border-style:solid;border-color:var(--mint)}
+.slot .e{font-size:34px}
+.slot .ck{position:absolute;top:6px;right:6px;background:var(--mint);color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;z-index:1}
+.rooms{position:absolute;right:10px;top:10px;display:flex;gap:6px;z-index:4}
+.rooms button{width:36px;height:36px;border-radius:50%;background:#ffffffcc;font-size:18px;box-shadow:0 2px 8px #0002}
+.rooms button.on{background:#fff;box-shadow:0 0 0 3px var(--lav)}
+/* сейчас */
+.now{display:flex;align-items:center;gap:12px;border:2px solid var(--lav);background:linear-gradient(135deg,#fff,#f6f0ff)}
+.now .e{font-size:38px}
+.now .tx{flex:1;min-width:0}
+.now .tx b{display:block;font-size:17px}
+.now.late{border-color:var(--red);background:linear-gradient(135deg,#fff,#fff0f3);animation:pulse 1.4s infinite}
+.stats{display:flex;gap:10px;margin:12px 0}
+.stat{flex:1;background:#fff;border-radius:18px;padding:10px 12px;box-shadow:var(--shadow)}
+.stat .l{display:flex;justify-content:space-between;font-weight:800;font-size:13px;margin-bottom:6px}
+.stat .bar{max-width:none;height:10px}
+.stat.food .bar i{background:linear-gradient(90deg,#ffc36b,#ff8f5a)}
+.stat.joy .bar i{background:linear-gradient(90deg,#ff9ed0,#c27bff)}
+.stat.clean .bar i{background:linear-gradient(90deg,#8ee6c8,#3fbf95)}
+.stat.low{animation:pulse 1.4s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 4px #ff6b8155}}
+.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.act{background:#fff;border-radius:20px;padding:12px 6px;box-shadow:var(--shadow);font-weight:800;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:3px;transition:transform .15s}
+.act b{font-size:28px}
+.act:active,.btn:active,.chip:active,.item:active,.row button:active{transform:scale(.95)}
+.today{display:flex;align-items:center;gap:14px}
+.ring{width:64px;height:64px;flex:none}
+/* расписание */
+.part{font-family:Comfortaa;font-size:18px;margin:18px 2px 8px;display:flex;justify-content:space-between;align-items:center}
+.part small{font-family:Nunito;font-weight:800;font-size:13px;color:var(--soft)}
+.row{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:18px;background:#fff;box-shadow:var(--shadow);margin-bottom:8px;position:relative}
+.row .tm{width:46px;font-weight:900;font-size:14px;color:var(--soft);font-variant-numeric:tabular-nums}
+.row .e{font-size:26px;width:32px;text-align:center}
+.row .tx{flex:1;font-weight:800;font-size:15px;min-width:0}
+.row .tx small{display:block;font-weight:700;font-size:12px;color:var(--soft)}
+.row.cur{box-shadow:0 0 0 3px var(--lav),var(--shadow)}
+.row.late{box-shadow:0 0 0 3px var(--red),var(--shadow)}
+.row.ok{background:#e9fbf4}
+.row.lateok{background:#fff7e3}
+.row.miss{background:#fff0f3;opacity:.8}
+.row.wait{opacity:.55}
+.subs{display:flex;flex-wrap:wrap;gap:6px;margin:-2px 0 10px 56px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:flex;align-items:center;gap:7px;padding:9px 12px;border-radius:14px;background:var(--lav2);font-weight:800;font-size:13px;transition:.2s}
+.chip.done{background:#d8f7ec;color:#1f8f69}
+.chip.done:after{content:"✓";font-weight:900}
+.lesson .head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.lesson .name{font-weight:900;font-size:16px}
+.tag{font-size:12px;font-weight:900;padding:4px 10px;border-radius:99px;background:var(--lav2);color:var(--deep);white-space:nowrap}
+.tag.ok{background:#d8f7ec;color:#1f8f69}.tag.wait{background:var(--gold2);color:#9a6a00}.tag.bad{background:#ffe0e6;color:#c2334d}
+.steps{display:flex;flex-direction:column;gap:8px}
+.step{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:16px;background:#f7f3ff;font-weight:700;font-size:14px}
+.step .ic{font-size:22px;width:30px;text-align:center}
+.step .tx{flex:1}
+.step small{display:block;color:var(--soft);font-weight:700;font-size:12px}
+.step.done{background:#e6faf2;color:#1f8f69}
+.step.locked{opacity:.45}
+.step.cur{background:#fff;box-shadow:0 0 0 2px var(--lav) inset}
+.btn{background:linear-gradient(135deg,var(--lav),var(--deep));color:#fff;font-weight:900;padding:10px 16px;border-radius:14px;box-shadow:0 6px 14px rgba(106,72,201,.3);transition:transform .15s;white-space:nowrap}
+.btn.gold{background:linear-gradient(135deg,#ffd66b,#f2a93b);color:#5a3a00;box-shadow:0 6px 14px rgba(242,169,59,.35)}
+.btn.mint{background:linear-gradient(135deg,#7fe6c4,#2fb488);box-shadow:0 6px 14px rgba(47,180,136,.35)}
+.btn.ghost{background:#fff;color:var(--deep);box-shadow:inset 0 0 0 2px var(--lav)}
+.btn.small{padding:7px 11px;font-size:13px;border-radius:12px}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.thumb{width:44px;height:44px;border-radius:10px;object-fit:cover;box-shadow:0 2px 6px #0002}
+.testin{width:70px;padding:8px;border-radius:12px;border:2px solid var(--lav);text-align:center;font-weight:900;font-size:16px}
+.tabs{display:flex;gap:8px;margin:6px 0 12px;flex-wrap:wrap}
+.tabs button{padding:9px 16px;border-radius:99px;background:#fff;font-weight:900;box-shadow:var(--shadow)}
+.tabs button.on{background:var(--deep);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.item{background:#fff;border-radius:20px;padding:12px;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;position:relative;transition:transform .15s}
+.item .pic{height:130px;display:flex;align-items:flex-end;justify-content:center;font-size:60px;width:100%}
+.item .pic img{max-height:130px;max-width:100%}
+.item .pic svg,.item .pic img.rimg{width:100%;height:120px;border-radius:14px;object-fit:cover}
+.item .nm{font-weight:900;font-size:14px;line-height:1.15}
+.item .ds{font-size:12px;color:var(--soft);font-weight:700;min-height:16px}
+.item.lockd .pic img{filter:brightness(0) opacity(.22)}
+.item.lockd .pic img.rimg,.item.lockd .pic svg{filter:grayscale(1) opacity(.4)}
+.item .rib{position:absolute;top:10px;left:10px;font-size:11px;font-weight:900;padding:3px 8px;border-radius:99px;background:var(--gold2);color:#9a6a00;z-index:1}
+.item.wearing{box-shadow:0 0 0 3px var(--mint),var(--shadow)}
+.rew{display:flex;align-items:center;gap:12px;padding:12px;border-radius:18px;background:#fff;box-shadow:var(--shadow);margin-bottom:10px}
+.rew .e{font-size:34px;width:48px;text-align:center}
+.rew .tx{flex:1;font-weight:900}
+.rew small{display:block;font-weight:700;color:var(--soft)}
+.focus{display:flex;flex-direction:column;align-items:center;text-align:center}
+.timer{position:relative;width:min(70vw,300px);aspect-ratio:1;margin:8px auto}
+.timer svg{width:100%;height:100%;transform:rotate(-90deg)}
+.timer .in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.timer .in img{height:50%}
+.timer .tm{font-size:34px;font-weight:900;font-variant-numeric:tabular-nums;margin-top:-4px}
+.seg{display:flex;background:#fff;border-radius:99px;padding:4px;box-shadow:var(--shadow);margin:8px 0}
+.seg button{padding:8px 16px;border-radius:99px;font-weight:900}
+.seg button.on{background:var(--lav2);color:var(--deep)}
+.mini-tip{font-size:13px;color:var(--soft);font-weight:700;max-width:420px}
+.ov{position:fixed;inset:0;background:rgba(48,28,96,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.ov.on{display:flex;animation:pageIn .25s}
+.modal{background:#fff;border-radius:28px;padding:22px;width:min(540px,100%);max-height:92vh;overflow-y:auto;text-align:center;box-shadow:0 20px 60px #0004}
+.modal h2{margin-top:0}
+.eggs{display:flex;justify-content:center;gap:10px;margin:14px 0}
+.eggs button{flex:1;max-width:140px;padding:8px;border-radius:20px;transition:.2s}
+.eggs button img{width:100%}
+.eggs button.sel{background:var(--lav2);transform:translateY(-6px)}
+.eggs button.sel img{animation:wobble 1s infinite}
+@keyframes wobble{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}75%{transform:rotate(7deg)}}
+.hatch{position:relative;height:280px;display:flex;align-items:flex-end;justify-content:center}
+.hatch img{height:240px;position:absolute;bottom:10px}
+.egg-crazy{animation:crazy .18s infinite}
+@keyframes crazy{0%{transform:rotate(-9deg) translateX(-4px)}50%{transform:rotate(9deg) translateX(4px)}100%{transform:rotate(-9deg)}}
+.pop{animation:popIn .9s cubic-bezier(.2,1.6,.4,1)}
+@keyframes popIn{0%{transform:scale(.2);opacity:0}100%{transform:scale(1);opacity:1}}
+.flash{position:fixed;inset:0;background:radial-gradient(circle,#fff 0,#fff8 40%,transparent 70%);opacity:0;pointer-events:none;z-index:80}
+.flash.go{animation:flash 1s ease-out}
+@keyframes flash{0%{opacity:0}15%{opacity:1}100%{opacity:0}}
+.rays{position:absolute;left:50%;bottom:20%;width:150%;aspect-ratio:1;transform:translate(-50%,50%);background:repeating-conic-gradient(#ffe7a655 0 10deg,transparent 10deg 20deg);border-radius:50%;animation:spin 8s linear infinite;pointer-events:none;z-index:1}
+@keyframes spin{to{transform:translate(-50%,50%) rotate(360deg)}}
+.namein{width:100%;padding:12px;border-radius:16px;border:2px solid var(--lav);font-size:20px;font-weight:900;text-align:center;margin:10px 0}
+textarea.diary{width:100%;min-height:70px;padding:12px;border-radius:16px;border:2px solid var(--lav2);font-size:16px;font-weight:700;margin:4px 0 10px;resize:vertical;background:#fdfbff}
+textarea.diary:focus,.namein:focus{outline:none;border-color:var(--lav)}
+.pin{display:grid;grid-template-columns:repeat(3,70px);gap:10px;justify-content:center;margin:14px 0}
+.pin button{height:62px;border-radius:18px;background:var(--lav2);font-size:24px;font-weight:900}
+.dots{display:flex;gap:10px;justify-content:center;font-size:22px;letter-spacing:4px}
+.pt{position:fixed;pointer-events:none;z-index:90;font-size:24px;will-change:transform,opacity}
+.gain{position:fixed;pointer-events:none;z-index:91;font-weight:900;font-size:20px;color:var(--deep);text-shadow:0 2px 0 #fff,0 0 8px #fff;animation:gain 1.3s ease-out forwards;white-space:nowrap}
+@keyframes gain{0%{opacity:0;transform:translateY(0) scale(.6)}20%{opacity:1;transform:translateY(-10px) scale(1.15)}100%{opacity:0;transform:translateY(-70px) scale(1)}}
+.toast{position:fixed;left:50%;top:14px;transform:translate(-50%,-160%);background:#fff;padding:12px 18px;border-radius:18px;box-shadow:0 10px 30px #6a48c944;font-weight:900;z-index:95;transition:transform .4s cubic-bezier(.3,1.5,.5,1);max-width:90vw;text-align:center}
+.toast.on{transform:translate(-50%,0)}
+.forest{position:relative;border-radius:30px;overflow:hidden;box-shadow:var(--shadow)}
+.forest img{width:100%;display:block}
+.forest .msg{position:absolute;left:12px;right:12px;bottom:12px;background:#ffffffe6;border-radius:20px;padding:14px;text-align:center;font-weight:800}
+.prow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0eafc;text-align:left;flex-wrap:wrap}
+.prow:last-child{border-bottom:0}
+.prow .tx{flex:1;font-weight:800;min-width:140px}
+.prow small{display:block;color:var(--soft);font-weight:700}
+.prow input[type=time]{border:2px solid var(--lav2);border-radius:10px;padding:5px;font-weight:800}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:8px 0}
+.kpi{background:#f7f3ff;border-radius:16px;padding:10px;text-align:center}
+.kpi b{display:block;font-size:22px;color:var(--deep)}
+.kpi span{font-size:12px;font-weight:800;color:var(--soft)}
+.left{text-align:left}
+.photo-big{max-width:100%;border-radius:14px;margin:6px 0}
+.rule{display:flex;gap:10px;align-items:flex-start;font-weight:700;font-size:14px;margin:6px 0}
+.rule b{font-size:20px}
+@media (min-width:900px){
+  #home .wrap{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;align-items:start}
+  .scene{height:min(72vh,660px)}
+  .page{padding-left:24px;padding-right:24px}
+  nav{left:50%;right:auto;transform:translateX(-50%);width:560px}
+}
+@media (max-width:420px){
+  nav button span{display:none}
+  .top .who .t{font-size:15px}
+  .coin{padding:5px 9px;font-size:14px}
+  .scene{min-height:300px}
+  .mess{font-size:40px}
+  .subs{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important;animation-iteration-count:1!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="who">
+      <div class="t" id="title">Августина</div>
+      <div class="lv"><span id="lvl">Ур. 1</span><div class="bar"><i id="xpbar" style="width:0"></i></div></div>
+    </div>
+    <div class="coin" id="cr" title="Кристаллы: за режим дня и порядок">💎 <span>0</span></div>
+    <div class="coin st" id="stc" title="Звёзды: за уроки">⭐ <span>0</span></div>
+    <button class="lock" id="parentBtn" aria-label="Для мамы">🔒</button>
+  </div>
+  <main>
+    <section class="page" id="home"></section>
+    <section class="page" id="day"></section>
+    <section class="page" id="study"></section>
+    <section class="page" id="shop"></section>
+    <section class="page" id="hobby"></section>
+    <section class="page" id="rewards"></section>
+  </main>
+  <nav id="nav">
+    <button data-p="home"><b>🏠</b><span>Дом</span></button>
+    <button data-p="day"><b>🗓️</b><span>Режим дня</span></button>
+    <button data-p="study"><b>📚</b><span>Уроки</span></button>
+    <button data-p="shop"><b>🛍️</b><span>Магазин</span></button>
+    <button data-p="hobby"><b>🎾</b><span>Хобби</span></button>
+    <button data-p="rewards"><b>🎡</b><span>Награды</span></button>
+  </nav>
+</div>
+<div class="ov" id="ov"><div class="modal" id="modal"></div></div>
+<div class="flash" id="flash"></div>
+<div class="toast" id="toast"></div>
+<input type="file" accept="image/*" id="fileIn" style="display:none">
+
+<script>
+/* =================== ДАННЫЕ =================== */
+const IMG=n=>`img/${n}.webp`;
+const KEY='avgustina_world_v2';
+const PET_TYPES={dragon:{egg:'egg0',baby:'pet_dragon',label:'Дракончик'},fox:{egg:'egg1',baby:'pet_fox',label:'Лисёнок'},unicorn:{egg:'egg2',baby:'pet_unicorn',label:'Единорожка'}};
+const PET_STAGES=[{n:'Яйцо',xp:0},{n:'Малыш',xp:0},{n:'Ребёнок',xp:150},{n:'Подросток',xp:400},{n:'Взрослый',xp:900},{n:'Легенда',xp:1800}];
+const GIRL_STAGES=['girl_s0','girl_s1','girl_s2','girl_s3','girl_s4'];
+const CARE=[
+  {stage:1,e:'🪮',nm:'Расчёска',ds:'Причесать волосы',price:10},
+  {stage:2,e:'🧼',nm:'Умыться',ds:'Чистое личико',price:12},
+  {stage:3,e:'👟',nm:'Новые туфельки',ds:'Прощай, старые башмаки',price:15},
+  {stage:4,e:'👕',nm:'Моя одежда',ds:'Футболка с дракончиком',price:25},
+];
+const OUTFITS=[
+  {id:'yellow',img:'outfit_yellow',nm:'Платье с ромашками',price:40,lvl:2,rare:'Обычное'},
+  {id:'lilac',img:'outfit_lilac',nm:'Сиреневое платье',price:55,lvl:3,rare:'Обычное'},
+  {id:'blue',img:'outfit_blue',nm:'Голубое с бантом',price:80,lvl:5,rare:'Редкое'},
+  {id:'princess',img:'outfit_princess',nm:'Платье принцессы',price:0,lvl:1,rare:'Легенда',ach:'4 недели подряд всё выполнено'},
+];
+const ROOMS=[
+  {id:'attic',nm:'Чердак',e:'🏚️',price:0,ds:'Отсюда всё начинается'},
+  {id:'bedroom',nm:'Спальня',e:'🛏️',price:60,ds:'Уютная комната со звёздами',need:'Сначала приведи себя в порядок'},
+  {id:'playroom',nm:'Игровая',e:'🧸',price:90,lvl:3,ds:'Полки, игрушки и доска для рисования'},
+  {id:'terrace',nm:'Терраса на Бали',e:'🌴',price:120,lvl:4,ds:'Пальмы и океан'},
+];
+const FOOD=[
+  {e:'🍪',nm:'Печенька',ds:'+30 сытости',price:5,food:30,joy:5},
+  {e:'🥧',nm:'Ягодный пирог',ds:'+70 сытости, +15 радости',price:12,food:70,joy:15},
+  {e:'🧸',nm:'Игрушка',ds:'+35 радости',price:10,food:0,joy:35},
+  {e:'💊',nm:'Лекарство',ds:'Вылечить, если заболел',price:15,food:10,joy:10,med:true},
+];
+const REWARDS=[
+  {id:'ps',e:'🎮',nm:'Вечер PlayStation',price:30},
+  {id:'cinema',e:'🍿',nm:'Кино',price:40},
+  {id:'kids',e:'🎠',nm:'Детский развлекательный центр',price:50},
+  {id:'skate',e:'⛸️',nm:'Каток',price:60},
+  {id:'aqua',e:'🌊',nm:'Аквапарк',price:80},
+  {id:'padel',e:'🎾',nm:'Падл на выходных',price:0,neuro:5},
+];
+const BAG=['Портфель','Планшет','Тетрадь с переводчиком','Контейнер с обедом','Снэк'];
+// режим дня. at — когда начинается, by — до скольки успеть. cr — кристаллы
+const SCHED_WD=[
+  {id:'wake',part:'m',at:'07:30',by:'07:35',e:'⏰',nm:'Подъём',cr:2},
+  {id:'wash',part:'m',at:'07:30',by:'07:45',e:'🪥',nm:'Умыться и почистить зубы',cr:3},
+  {id:'dress',part:'m',at:'07:30',by:'07:45',e:'👕',nm:'Одеться и заправить кровать',cr:3},
+  {id:'down',part:'m',at:'07:45',by:'07:50',e:'🚶‍♀️',nm:'Спуститься вниз',cr:2},
+  {id:'breakfast',part:'m',at:'07:45',by:'08:05',e:'🥣',nm:'Завтрак',cr:2},
+  {id:'bagcheck',part:'m',at:'08:00',by:'08:10',e:'🎒',nm:'Проверить, всё ли собрано',cr:4,sub:BAG},
+  {id:'change',part:'d',at:'14:30',by:'15:00',e:'👚',nm:'Переодеться, форму на место',cr:2},
+  {id:'neuro',part:'d',at:'17:00',by:'19:00',e:'🎾',nm:'Нейро-мячики, 10 минут',cr:3},
+  {id:'bagpack',part:'e',at:'19:00',by:'20:00',e:'🎒',nm:'Собрать портфель на завтра',cr:4,sub:BAG},
+  {id:'laundry',part:'e',at:'19:00',by:'20:15',e:'🧺',nm:'Отнести вещи в стирку',cr:4,clean:'laundry'},
+  {id:'tidy',part:'e',at:'19:30',by:'20:30',e:'🧹',nm:'Убрать комнату',cr:6,clean:'tidy'},
+  {id:'shower',part:'e',at:'20:15',by:'20:45',e:'🛁',nm:'Душ и зубы',cr:3},
+  {id:'diary',part:'e',at:'20:30',by:'20:55',e:'📔',nm:'Мой дневник',cr:5,diary:true},
+  {id:'sleep',part:'e',at:'21:00',by:'21:10',e:'😴',nm:'Лечь спать',cr:3},
+];
+const SCHED_WE=[
+  {id:'wake',part:'m',at:'08:30',by:'08:40',e:'⏰',nm:'Подъём',cr:2},
+  {id:'wash',part:'m',at:'08:30',by:'08:45',e:'🪥',nm:'Умыться и почистить зубы',cr:3},
+  {id:'dress',part:'m',at:'08:30',by:'08:50',e:'👕',nm:'Одеться и заправить кровать',cr:3},
+  {id:'breakfast',part:'m',at:'08:45',by:'09:15',e:'🥣',nm:'Завтрак',cr:2},
+  {id:'neuro',part:'d',at:'10:00',by:'13:00',e:'🎾',nm:'Нейро-мячики, 10 минут',cr:3},
+  {id:'laundry',part:'e',at:'19:00',by:'20:15',e:'🧺',nm:'Отнести вещи в стирку',cr:4,clean:'laundry'},
+  {id:'tidy',part:'e',at:'19:30',by:'20:30',e:'🧹',nm:'Убрать комнату',cr:6,clean:'tidy'},
+  {id:'shower',part:'e',at:'20:15',by:'20:45',e:'🛁',nm:'Душ и зубы',cr:3},
+  {id:'diary',part:'e',at:'20:30',by:'21:00',e:'📔',nm:'Мой дневник',cr:5,diary:true},
+  {id:'sleep',part:'e',at:'21:30',by:'22:00',e:'😴',nm:'Лечь спать',cr:3},
+];
+const PARTS={m:['☀️ Утро',''],d:['🌤️ День',''],e:['🌙 Вечер','']};
+const STEPS=[
+  {k:'video',t:'Видеоуроки',ic:'🎬'},
+  {k:'pres',t:'Презентации',ic:'🖼️'},
+  {k:'terms',t:'Учебник: прочитать и выписать термины',ic:'✍️',photo:true,note:'Сфотографируй тетрадь с терминами'},
+  {k:'tasks',t:'Задания в тетради',ic:'📝',photo:true,note:'Устно — только если так написано в учебнике'},
+  {k:'test',t:'Тест (нужно 80% и больше)',ic:'✅',test:true},
+  {k:'fb',t:'Обратная связь',ic:'💬'},
+];
+/* ===== Программа «Онлайн-школа №1», 3 класс, I–II четверть ===== */
+// Q — номер урока, с которого начинается II четверть
+const SUBJ={
+  rus:{nm:'Русский язык',e:'✏️',c:'#8b6be0',q2:18,total:71,done:18,prog:[19],L:['Речь. Язык','Текст','Типы текстов','(название уточнить)','Виды предложений по цели высказывания','Виды предложений по интонации','Обращение','Члены предложения','Словосочетание. Разбор предложения по членам','Простое и сложное предложения. Характеристика предложения','Пунктуация в сложном предложении','Лексическое значение слова. Однозначные и многозначные слова','Синонимы и антонимы','Омонимы','Фразеологизмы. Устаревшие слова','Признаки частей речи. Имя числительное','Однокоренные слова','Гласные звуки и буквы для их обозначения','Согласные звуки и буквы для их обозначения','Разделительный мягкий знак','Корень слова. Чередование звуков в корне','Сложные слова','Окончание. Форма слова','Нулевое окончание. Неизменяемые слова','Приставка','Значения приставки. Образование слов','Суффикс','Значения суффикса. Образование слов','Основа слова. Разбор слова по составу','Правописание слов с безударными гласными в корне слова','Правописание слов с парными по глухости-звонкости согласными в корне']},
+  math:{nm:'Математика',e:'🔢',c:'#ff9a5a',q2:19,total:null,done:21,doneExtra:[23],prog:[22,24],L:['Урок 1','Урок 2','Урок 3','Урок 4','Урок 5','Урок 6','Урок 7','Умножение и деление с числами 2, 3, 4','Задачи с величинами. Цена, количество, стоимость. Масса предмета. Расход ткани','Умножение и деление с числами 5 и 6','Задачи на разностное и кратное сравнения','Диаграммы','Задачи на увеличение и уменьшение числа на несколько единиц и в несколько раз','Умножение и деление с числами 7, 8, 9','Площадь','Квадратный сантиметр','Площадь прямоугольника','Квадратный дециметр. Квадратный метр','Задача на нахождение третьего слагаемого. Решение задач','Умножение на 1 и 0','Деление вида a : a и 0 : a','Задачи на нахождение суммы двух произведений. Решение задач','Доля величины','Задачи на нахождение доли величины','Задачи на нахождение величины по доле','Окружность. Диаметр окружности','Единицы времени. Год. Месяц','Сутки. Определение времени','Вычисления вида 20 · 3, 60 : 3','Вычисления вида 80 : 20','Умножение суммы на число. Решение задач','Вычисления вида 23 · 4']},
+  okr:{nm:'Окружающий мир',e:'🌍',c:'#3fbf95',q2:8,total:35,done:7,prog:[8,9,10],L:['Царства живой природы. Способы изучения природы','Человек и общество','Политико-административная карта РФ','Экология. Природные сообщества. Круговорот веществ','Созвездия и звёзды','Тела, вещества, частицы','Свойства и охрана воздуха и воды. Круговорот воды в природе','Почва','Разнообразие растений и их охрана','Дыхание и питание растений','Размножение и развитие растений','Разнообразие животных и их охрана. Питание животных','Размножение и развитие животных']},
+  lit:{nm:'Литературное чтение',e:'📖',c:'#ff7eb6',q2:8,total:34,done:7,prog:[8],L:['Фольклор. Былины','Виды сказок. Р. н. с. «Сестрица Алёнушка и братец Иванушка»','Композиция волшебной сказки. Р. н. с. «Иван-царевич и Серый Волк»','Особенности стихотворений. Произведения И. З. Сурикова','Средства художественной выразительности. Произведения А. А. Фета, Ф. И. Тютчева','Стихотворения А. С. Пушкина об осени','Стихотворения А. С. Пушкина о зиме','Герой произведения. А. С. Пушкин «Сказка о царе Салтане…»','Особенности басни. Произведения И. А. Крылова','Произведения М. Ю. Лермонтова','Типы текстов. Произведения Л. Н. Толстого','Рассказчик и автор произведения. Л. Н. Толстой «Акула»','Аппарат издания. Д. Н. Мамин-Сибиряк «Сказка про храброго зайца…»','В. Ф. Одоевский «Мороз Иванович»']},
+  eng:{nm:'Английский',e:'🇬🇧',c:'#5aa9ff',q2:null,total:null,done:0,prog:[],L:[]},
+};
+const ROT=['rus','math','okr','lit'];
+function initProg(){const P={};for(const s in SUBJ){P[s]={};const d=SUBJ[s];for(let n=1;n<=d.done;n++)P[s][n]={st:'done'};(d.doneExtra||[]).forEach(n=>P[s][n]={st:'done'});d.prog.forEach(n=>P[s][n]={st:'prog',step:0,photos:{}})}return P}
+/* ===== Вопросы для повторения (по пройденным урокам) ===== */
+// [предмет, урок, вопрос, [правильный, неверный, неверный], пояснение]
+const QB=[
+['rus',1,'Что такое речь?',['Общение людей с помощью языка','Набор букв алфавита','Правила письма'],'Речь — это то, как мы общаемся: говорим и пишем.'],
+['rus',1,'Какой бывает речь?',['Устная и письменная','Только устная','Громкая и тихая'],'Говорим — устная речь, пишем — письменная.'],
+['rus',2,'Что такое текст?',['Несколько предложений, связанных по смыслу','Любые слова подряд','Одно длинное слово'],'В тексте предложения связаны общей темой.'],
+['rus',2,'Что выражает заголовок текста?',['Тему или главную мысль','Последнее слово текста','Количество предложений'],'Заголовок подсказывает, о чём текст.'],
+['rus',3,'Текст, который отвечает на вопрос «Почему?», — это…',['Рассуждение','Описание','Повествование'],'Рассуждение объясняет причину: «потому что…».'],
+['rus',3,'Текст, который отвечает на вопрос «Какой?», — это…',['Описание','Повествование','Рассуждение'],'Описание рассказывает, как выглядит предмет.'],
+['rus',5,'«Закрой, пожалуйста, окно». Какое это предложение по цели высказывания?',['Побудительное','Вопросительное','Повествовательное'],'Оно побуждает к действию — просит что-то сделать.'],
+['rus',5,'«Какая сегодня погода?» — это предложение…',['Вопросительное','Побудительное','Повествовательное'],'В нём есть вопрос, в конце — «?».'],
+['rus',6,'Какой знак ставят в конце восклицательного предложения?',['!','?','.'],'Восклицательное произносят с сильным чувством и ставят «!».'],
+['rus',7,'Найди обращение: «Мама, посмотри на радугу!»',['Мама','посмотри','радугу'],'Обращение — это слово, которым называют того, к кому обращаются.'],
+['rus',7,'Как обращение выделяется на письме?',['Запятыми','Кавычками','Скобками'],'Обращение отделяют запятыми.'],
+['rus',8,'Главные члены предложения — это…',['Подлежащее и сказуемое','Дополнение и обстоятельство','Определение и дополнение'],'Подлежащее + сказуемое = грамматическая основа.'],
+['rus',8,'На какой вопрос отвечает подлежащее?',['Кто? Что?','Что делает?','Какой?'],'Подлежащее — о ком или о чём говорится.'],
+['rus',9,'Что из этого — словосочетание?',['Синее море','Море и небо','Море'],'В словосочетании есть главное и зависимое слово: море (какое?) синее.'],
+['rus',10,'Сколько грамматических основ в сложном предложении?',['Две и больше','Одна','Ни одной'],'Сложное предложение состоит из нескольких простых.'],
+['rus',10,'«Солнце светит, и птицы поют». Это предложение…',['Сложное','Простое','Не предложение'],'Две основы: солнце светит, птицы поют.'],
+['rus',11,'Что ставят между частями сложного предложения перед «а», «но»?',['Запятую','Точку','Двоеточие'],'Части сложного предложения разделяют запятой.'],
+['rus',12,'Слово «ключ» (от двери и родник) — какое?',['Многозначное','Однозначное','Это два разных языка'],'У многозначного слова несколько значений.'],
+['rus',12,'Лексическое значение слова — это…',['Что слово обозначает','Сколько в нём букв','Как оно пишется'],'Значение объясняет смысл слова.'],
+['rus',13,'Подбери антоним к слову «весёлый»',['Грустный','Радостный','Смешной'],'Антонимы — слова с противоположным значением.'],
+['rus',13,'Синонимы — это слова…',['Близкие по значению','Противоположные по значению','Одинаковые по звучанию'],'Например: смелый — храбрый.'],
+['rus',14,'«Лук» (растение) и «лук» (оружие) — это…',['Омонимы','Синонимы','Антонимы'],'Омонимы звучат одинаково, но значат разное.'],
+['rus',15,'Что значит «бить баклуши»?',['Бездельничать','Колоть дрова','Играть в мяч'],'Это фразеологизм — устойчивое выражение.'],
+['rus',15,'«Как кот наплакал» значит…',['Очень мало','Очень грустно','Очень громко'],'Фразеологизм про маленькое количество.'],
+['rus',16,'Какое слово — имя числительное?',['Пять','Пятёрка','Пятнистый'],'Числительное обозначает число или порядок: пять, пятый.'],
+['rus',16,'На какие вопросы отвечает числительное?',['Сколько? Который?','Кто? Что?','Что делать?'],'Пять (сколько?), пятый (который?).'],
+['rus',17,'Какие слова однокоренные?',['Лес, лесной, лесник','Лес, лиса, лестница','Гора, горе, горох'],'У однокоренных слов общий корень и близкий смысл.'],
+['rus',18,'Сколько гласных звуков в русском языке?',['6','10','33'],'Звуков 6: [а], [о], [у], [ы], [и], [э]. А гласных букв — 10.'],
+['rus',18,'Какие буквы в начале слова обозначают два звука?',['Е, Ё, Ю, Я','А, О, У','Ы, И, Э'],'Ель = [й’эль], яма = [й’ама].'],
+['lit',1,'Кто главный герой былин?',['Богатырь','Принцесса','Купец'],'Былины — песни о подвигах богатырей.'],
+['lit',1,'Самый известный богатырь из былин —',['Илья Муромец','Иван-дурак','Кощей Бессмертный'],'Илья Муромец, Добрыня Никитич, Алёша Попович.'],
+['lit',2,'Почему Иванушка стал козлёночком?',['Не послушал сестрицу и попил из копытца','Его сразу заколдовала Баба-яга','Съел волшебное яблоко'],'Не послушался — и попил из козьего копытца.'],
+['lit',2,'Какие бывают сказки?',['Волшебные, бытовые, о животных','Только смешные','Длинные и короткие'],'Это три вида народных сказок.'],
+['lit',3,'Кто помогал Ивану-царевичу?',['Серый Волк','Конёк-горбунок','Золотая рыбка'],'Серый Волк помог добыть Жар-птицу и Елену Прекрасную.'],
+['lit',3,'Как часто начинается волшебная сказка?',['«В некотором царстве, в некотором государстве…»','«Однажды утром в городе…»','«Конец»'],'Это зачин — начало волшебной сказки.'],
+['lit',4,'Что делает стихотворение стихотворением?',['Ритм и рифма','Много героев','Только диалоги'],'Рифма — созвучие концов строк.'],
+['lit',5,'Что такое эпитет?',['Яркое образное определение («золотая осень»)','Повтор слова','Вопрос автора'],'Эпитет делает описание красочным.'],
+['lit',5,'Сравнение — это когда…',['Один предмет сравнивают с другим («как», «словно»)','Слова противоположны','Слова звучат одинаково'],'Например: «снег, как пух».'],
+['lit',6,'Какое время года Пушкин называл «очей очарованье»?',['Осень','Весна','Зима'],'«Унылая пора! Очей очарованье!» — про осень.'],
+['lit',7,'Чьи строки: «Мороз и солнце; день чудесный!»?',['А. С. Пушкина','И. А. Крылова','Л. Н. Толстого'],'Это стихотворение Пушкина «Зимнее утро».'],
+['okr',1,'Что из этого — царство живой природы?',['Грибы','Камни','Вода'],'Царства: растения, животные, грибы, бактерии.'],
+['okr',1,'Как учёные изучают природу?',['Наблюдают и проводят опыты','Только читают сказки','Никак'],'Наблюдение, опыт, измерение.'],
+['okr',2,'Что такое общество?',['Люди, которые живут и действуют вместе','Один человек','Животные в лесу'],'Семья, класс, страна — всё это общество.'],
+['okr',3,'Столица России — это…',['Москва','Санкт-Петербург','Казань'],'Москва — столица Российской Федерации.'],
+['okr',3,'Что показывает политико-административная карта?',['Границы страны, регионы и города','Только горы и реки','Погоду'],'На ней видно деление страны на регионы.'],
+['okr',4,'Экология — это наука о…',['Связях живых существ с окружающей средой','Звёздах','Числах'],'Экология изучает, как всё в природе связано.'],
+['okr',4,'Пример природного сообщества —',['Лес','Город','Зоопарк'],'Лес, луг, водоём — природные сообщества.'],
+['okr',5,'Солнце — это…',['Звезда','Планета','Спутник Земли'],'Солнце — ближайшая к нам звезда.'],
+['okr',5,'Созвездие с «ковшом» —',['Большая Медведица','Орион','Лебедь'],'Семь ярких звёзд образуют ковш.'],
+['okr',6,'Что из этого — вещество?',['Сахар','Стакан','Ложка'],'Стакан и ложка — тела, а сахар — вещество.'],
+['okr',6,'Из чего состоят вещества?',['Из мельчайших частиц','Из воды','Из воздуха'],'Частицы такие маленькие, что их не видно.'],
+['okr',7,'Как называется превращение воды в пар?',['Испарение','Замерзание','Таяние'],'При нагревании вода испаряется.'],
+['okr',7,'Какой газ из воздуха нужен нам для дыхания?',['Кислород','Углекислый газ','Водяной пар'],'Мы вдыхаем кислород.'],
+['math',8,'4 · 3 = ?',['12','7','16'],'4 + 4 + 4 = 12.'],
+['math',8,'16 : 4 = ?',['4','6','3'],'4 · 4 = 16, значит 16 : 4 = 4.'],
+['math',9,'Ручка стоит 5 руб. Сколько стоят 3 ручки?',['15 руб.','8 руб.','2 руб.'],'Стоимость = цена · количество = 5 · 3.'],
+['math',9,'Как найти стоимость?',['Цену умножить на количество','Цену прибавить к количеству','Количество разделить на цену'],'Стоимость = цена × количество.'],
+['math',10,'6 · 5 = ?',['30','11','36'],'6 · 5 = 30.'],
+['math',10,'36 : 6 = ?',['6','5','7'],'6 · 6 = 36.'],
+['math',11,'На сколько 15 больше 5?',['На 10','В 3 раза','На 3'],'«На сколько» — вычитаем: 15 − 5 = 10.'],
+['math',11,'Во сколько раз 15 больше 5?',['В 3 раза','На 10','В 10 раз'],'«Во сколько раз» — делим: 15 : 5 = 3.'],
+['math',12,'Для чего нужна диаграмма?',['Чтобы наглядно сравнить числа','Чтобы решать уравнения','Чтобы рисовать узоры'],'Столбики сразу показывают, где больше.'],
+['math',13,'Увеличь 4 в 2 раза',['8','6','2'],'«В 2 раза больше» — умножаем: 4 · 2.'],
+['math',13,'Уменьши 12 на 3',['9','4','15'],'«На 3 меньше» — вычитаем: 12 − 3.'],
+['math',14,'7 · 8 = ?',['56','54','63'],'7 · 8 = 56.'],
+['math',14,'72 : 9 = ?',['8','9','7'],'9 · 8 = 72.'],
+['math',15,'Площадь — это…',['Сколько места фигура занимает на плоскости','Длина границы фигуры','Количество углов'],'А длина границы — это периметр.'],
+['math',16,'Площадь квадрата со стороной 1 см —',['1 кв. см','4 см','1 см'],'Это и есть квадратный сантиметр.'],
+['math',17,'Площадь прямоугольника 3 см на 5 см?',['15 кв. см','16 кв. см','8 кв. см'],'Площадь = длина · ширина = 3 · 5.'],
+['math',18,'Сколько квадратных сантиметров в 1 квадратном дециметре?',['100','10','1000'],'1 дм = 10 см, 10 · 10 = 100.'],
+['math',19,'Сумма трёх чисел 20. Два из них — 7 и 8. Третье?',['5','15','35'],'20 − 7 − 8 = 5.'],
+['math',20,'9 · 0 = ?',['0','9','1'],'Любое число, умноженное на 0, равно 0.'],
+['math',20,'1 · 7 = ?',['7','1','0'],'При умножении на 1 число не меняется.'],
+['math',21,'0 : 5 = ?',['0','5','1'],'0 разделить на любое число — 0.'],
+['math',21,'8 : 8 = ?',['1','0','8'],'Число, делённое само на себя, равно 1.'],
+['math',23,'Половина — это какая доля?',['Одна вторая (1/2)','Одна третья','Одна четвёртая'],'Целое делят на 2 равные части.'],
+['math',23,'Чтобы найти 1/3 от 12, нужно…',['12 : 3 = 4','12 · 3 = 36','12 − 3 = 9'],'Чтобы найти долю, делим на число частей.'],
+];
+const BREAK=['🦘 Попрыгай 20 раз','🏃‍♀️ Пробеги круг по дому','💃 Потанцуй под песню','🧘 Потянись 5 раз','💧 Попей воды','🔌 Планшет — на зарядку'];
+const MESS_ITEMS={sock:['🧦','laundry'],shirt:['👕','laundry'],pants:['👖','laundry'],dress:['👗','laundry'],toy:['🧸','tidy'],book:['📚','tidy'],paper:['🗞️','tidy'],crayon:['🖍️','tidy'],peel:['🍌','tidy'],cup:['🥤','tidy'],candy:['🍬','tidy'],stain:['','tidy']};
+const MESS_POS=[[2,2,-12],[44,1,8],[34,12,-20],[62,10,15],[84,2,-8],[4,14,22],[72,1,-15],[52,5,10],[20,1,5],[90,12,-25]];
+const MESS_MAX=10;
+const PHRASES={
+  happy:['Я так рад тебя видеть!','Давай учиться вместе!','Ты моя лучшая подруга 💜','Сегодня будет классный день!','Погладь меня! 🥰'],
+  hungry:['Я проголодался… 🍪','Животик урчит…','Покормишь меня?'],
+  sad:['Мне скучно… поиграем?','Давай сделаем дело вместе?'],
+  sick:['Мне плохо… нужно лекарство 💊','Апчхи…'],
+  sleep:['Zzz… спокойной ночи…'],
+  study:['Я учусь рядом с тобой 📚'],
+  messy:['Ой, сколько беспорядка… 🙈','Давай вечером уберёмся? 🧹','Я споткнулся о носок! 🧦']
+};
+
+/* =================== КАРТИНКИ КОМНАТ (код) =================== */
+const ROOM_IMG={attic:'room_attic',bedroom:'room_bedroom',terrace:'room_terrace',playroom:'room_playroom'};
+function roomSVG(id){
+  if(ROOM_IMG[id])return`<img src="${IMG(ROOM_IMG[id])}" style="width:100%;height:100%;object-fit:cover;object-position:50% 70%;display:block" alt="">`;
+  const planks=(y0,y1,step,c)=>{let s='';for(let x=0;x<=400;x+=step)s+=`<line x1="${x}" y1="${y0}" x2="${x}" y2="${y1}" stroke="${c}" stroke-width="1.5"/>`;return s};
+  if(id==='attic')return`<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice">
+  <defs><linearGradient id="aw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1dfc5"/><stop offset="1" stop-color="#dcbc93"/></linearGradient>
+  <linearGradient id="asky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe6ff"/><stop offset="1" stop-color="#fff3c9"/></linearGradient>
+  <radialGradient id="aglow"><stop offset="0" stop-color="#fff6c2" stop-opacity=".95"/><stop offset="1" stop-color="#fff6c2" stop-opacity="0"/></radialGradient>
+  <linearGradient id="afl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9875a"/><stop offset="1" stop-color="#a0714a"/></linearGradient></defs>
+  <rect width="400" height="300" fill="url(#aw)"/><g opacity=".5">${planks(0,205,24,'#c9a477')}</g>
+  <polygon points="0,0 175,0 0,125" fill="#8a5a3b"/><polygon points="400,0 225,0 400,125" fill="#8a5a3b"/>
+  <g stroke="#6b4226" stroke-width="6"><line x1="0" y1="125" x2="175" y2="0"/><line x1="400" y1="125" x2="225" y2="0"/></g>
+  <g stroke="#7a4e30" stroke-width="3"><line x1="0" y1="70" x2="98" y2="0"/><line x1="400" y1="70" x2="302" y2="0"/></g>
+  <circle cx="200" cy="74" r="38" fill="url(#asky)" stroke="#6b4226" stroke-width="8"/>
+  <g stroke="#6b4226" stroke-width="5"><line x1="200" y1="36" x2="200" y2="112"/><line x1="162" y1="74" x2="238" y2="74"/></g>
+  <path d="M168 50 l14 -2 M210 92 l16 -4" stroke="#fff" stroke-width="3" opacity=".7"/>
+  <g fill="none" stroke="#fff" stroke-width="1" opacity=".75"><path d="M176 0 L196 28 M176 0 L205 14 M176 0 L186 30 M181 7 Q190 12 199 10 M184 14 Q193 21 202 18"/><path d="M224 0 L210 26 M224 0 L198 10 M219 6 Q211 11 204 9"/></g>
+  <line x1="304" y1="0" x2="304" y2="48" stroke="#5a3a22" stroke-width="2"/><circle cx="304" cy="64" r="46" fill="url(#aglow)"/><circle cx="304" cy="56" r="9" fill="#fff3a8" stroke="#e9c86a" stroke-width="2"/><rect x="299" y="44" width="10" height="6" fill="#7a5a3a"/>
+  <rect y="203" width="400" height="97" fill="url(#afl)"/><rect y="200" width="400" height="6" fill="#7a4a2c"/>
+  <g stroke="#8c5f3b" stroke-width="2"><line x1="0" y1="228" x2="400" y2="228"/><line x1="0" y1="258" x2="400" y2="258"/><line x1="0" y1="288" x2="400" y2="288"/><line x1="80" y1="206" x2="80" y2="228"/><line x1="230" y1="206" x2="230" y2="228"/><line x1="150" y1="228" x2="150" y2="258"/><line x1="320" y1="228" x2="320" y2="258"/><line x1="40" y1="258" x2="40" y2="288"/><line x1="260" y1="258" x2="260" y2="288"/></g>
+  <g transform="translate(16,166)"><rect y="4" width="66" height="40" rx="5" fill="#7a4a2c"/><rect y="-10" width="66" height="18" rx="9" fill="#8d5a36"/><rect x="9" y="-10" width="6" height="54" fill="#c9a24a"/><rect x="51" y="-10" width="6" height="54" fill="#c9a24a"/><rect x="28" y="12" width="10" height="11" rx="2" fill="#e2c15a"/></g>
+  <g transform="translate(322,150)"><rect width="56" height="54" fill="#d4a46c" stroke="#a87a45" stroke-width="2"/><rect x="24" width="8" height="54" fill="#e8c38f"/><rect x="8" y="-36" width="40" height="36" fill="#c9955c" stroke="#a87a45" stroke-width="2"/><rect x="24" y="-36" width="8" height="36" fill="#ddb683"/></g>
+  <ellipse cx="200" cy="262" rx="150" ry="22" fill="#c79a6c" opacity=".55"/>
+  </svg>`;
+  if(id==='bedroom')return`<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice">
+  <defs><pattern id="bst" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M18 9 l2.2 4.6 5 .6 -3.7 3.4 1 5 -4.5 -2.5 -4.5 2.5 1 -5 -3.7 -3.4 5 -.6z" fill="#e7d9ff"/></pattern>
+  <linearGradient id="bsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a9dcff"/><stop offset="1" stop-color="#fff0d1"/></linearGradient>
+  <linearGradient id="bfl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7dcec"/><stop offset="1" stop-color="#efcde3"/></linearGradient></defs>
+  <rect width="400" height="300" fill="#f5edff"/><rect width="400" height="205" fill="url(#bst)"/>
+  <path d="M10 22 Q 100 40 200 22 T 390 22" fill="none" stroke="#c9b6ea" stroke-width="1.5"/>
+  ${[30,62,94,126,158,190,222,254,286,318,350,378].map((x,i)=>`<circle cx="${x}" cy="${26+Math.sin(i)*6}" r="4" fill="${['#ffd66b','#ff9ed0','#9fdcff','#b6f0c9'][i%4]}"/>`).join('')}
+  <rect x="155" y="40" width="90" height="85" rx="6" fill="url(#bsky)" stroke="#fff" stroke-width="7"/><line x1="200" y1="40" x2="200" y2="125" stroke="#fff" stroke-width="5"/><line x1="155" y1="82" x2="245" y2="82" stroke="#fff" stroke-width="5"/>
+  <circle cx="225" cy="60" r="8" fill="#fff6c2"/>
+  <path d="M140 34 Q 152 90 146 132 L 168 132 Q 162 80 172 36 Z" fill="#ff9ec7"/><path d="M260 34 Q 248 90 254 132 L 232 132 Q 238 80 228 36 Z" fill="#ff9ec7"/>
+  <rect x="135" y="30" width="130" height="10" rx="5" fill="#c9a5f5"/>
+  <rect x="34" y="44" width="54" height="44" rx="4" fill="#fff" stroke="#e2c15a" stroke-width="4"/><path d="M61 76 l-12 -12 a7 7 0 0 1 12 -6 a7 7 0 0 1 12 6z" fill="#ff8fc0"/>
+  <rect x="26" y="118" width="88" height="6" rx="2" fill="#c49a6c"/>
+  <rect x="32" y="94" width="9" height="24" fill="#8b6be0"/><rect x="43" y="98" width="8" height="20" fill="#5fd3ad"/><rect x="53" y="92" width="10" height="26" fill="#ff8fc0"/><rect x="65" y="100" width="8" height="18" fill="#ffd66b"/><circle cx="96" cy="108" r="10" fill="#b89cf5"/>
+  <rect y="205" width="400" height="95" fill="url(#bfl)"/><rect y="201" width="400" height="6" fill="#fff"/>
+  <g transform="translate(262,128)">
+    <path d="M0 0 Q 64 -40 128 0" fill="none" stroke="#e8d9ff" stroke-width="5"/>
+    <rect x="0" y="0" width="128" height="62" rx="18" fill="#c9b0f5"/><rect x="10" y="10" width="108" height="44" rx="14" fill="#d9c6fb"/>
+    <rect x="-6" y="52" width="144" height="26" rx="8" fill="#fff"/>
+    <rect x="-6" y="58" width="144" height="34" rx="10" fill="#b89cf5"/><path d="M-6 70 h144" stroke="#a585ee" stroke-width="3"/>
+    <ellipse cx="34" cy="52" rx="24" ry="11" fill="#fff"/><ellipse cx="92" cy="52" rx="24" ry="11" fill="#ffe3f1"/>
+    <rect x="-2" y="90" width="8" height="12" fill="#a585ee"/><rect x="126" y="90" width="8" height="12" fill="#a585ee"/>
+  </g>
+  <g transform="translate(118,150)"><path d="M10 50 h26 l-4 26 h-18 z" fill="#ff9ec7"/><ellipse cx="23" cy="40" rx="9" ry="16" fill="#5fd3ad"/><ellipse cx="12" cy="44" rx="7" ry="13" fill="#4cc29b" transform="rotate(-25 12 44)"/><ellipse cx="34" cy="44" rx="7" ry="13" fill="#4cc29b" transform="rotate(25 34 44)"/></g>
+  <ellipse cx="190" cy="262" rx="160" ry="26" fill="#e3d0ff"/><ellipse cx="190" cy="262" rx="130" ry="18" fill="#efe4ff"/>
+  </svg>`;
+  if(id==='terrace')return`<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice">
+  <defs><linearGradient id="tsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fd3ff"/><stop offset="1" stop-color="#ffeccc"/></linearGradient>
+  <linearGradient id="tsea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5cc3e6"/><stop offset="1" stop-color="#9fe3ef"/></linearGradient>
+  <linearGradient id="tdeck" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9a978"/><stop offset="1" stop-color="#c38d5c"/></linearGradient></defs>
+  <rect width="400" height="300" fill="url(#tsky)"/><circle cx="318" cy="52" r="24" fill="#ffe28a"/><circle cx="318" cy="52" r="36" fill="#ffe28a" opacity=".3"/>
+  <g fill="#fff" opacity=".9"><ellipse cx="90" cy="48" rx="34" ry="12"/><ellipse cx="112" cy="40" rx="22" ry="12"/><ellipse cx="230" cy="70" rx="26" ry="9"/></g>
+  <path d="M0 150 Q 60 120 120 150 Z" fill="#7cc58a"/><rect y="148" width="400" height="58" fill="url(#tsea)"/>
+  <g stroke="#fff" stroke-width="2" opacity=".6"><path d="M40 166 h30 M150 178 h40 M280 162 h26 M320 186 h40 M90 192 h24"/></g>
+  <rect y="203" width="400" height="97" fill="url(#tdeck)"/><g opacity=".5">${planks(206,300,34,'#a87347')}</g>
+  <g stroke="#b07d4f" stroke-width="5"><line x1="0" y1="198" x2="400" y2="198"/></g>
+  <g fill="#a87347">${[10,60,110,290,340,390].map(x=>`<rect x="${x}" y="168" width="6" height="34"/>`).join('')}</g>
+  <path d="M30 210 Q 22 140 48 70" stroke="#8a5a3b" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <g fill="#3fae6a"><path d="M48 70 Q 10 60 -6 86 Q 22 70 48 74z"/><path d="M48 70 Q 70 40 104 50 Q 70 52 50 74z"/><path d="M48 70 Q 30 36 6 34 Q 34 44 46 74z"/><path d="M48 70 Q 90 70 104 98 Q 80 78 48 74z"/><path d="M48 70 Q 52 30 76 18 Q 58 38 50 72z"/></g>
+  <circle cx="44" cy="80" r="5" fill="#8a5a3b"/><circle cx="54" cy="80" r="5" fill="#8a5a3b"/>
+  <path d="M372 212 Q 380 160 360 110" stroke="#8a5a3b" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <g fill="#4cbf78"><path d="M360 110 Q 330 96 318 116 Q 340 104 360 114z"/><path d="M360 110 Q 380 84 410 92 Q 384 96 362 114z"/><path d="M360 110 Q 350 84 330 80 Q 352 92 358 114z"/><path d="M360 110 Q 396 116 404 136 Q 384 120 360 114z"/></g>
+  <g transform="translate(120,182)"><rect width="30" height="22" rx="4" fill="#e98a5a"/><circle cx="8" cy="-4" r="7" fill="#fff"/><circle cx="20" cy="-8" r="7" fill="#fff6c2"/><circle cx="15" cy="0" r="7" fill="#ffd1e6"/></g>
+  <g transform="translate(270,186)"><rect width="26" height="18" rx="4" fill="#e98a5a"/><ellipse cx="13" cy="-6" rx="14" ry="10" fill="#3fae6a"/><circle cx="8" cy="-8" r="3" fill="#ff6b81"/><circle cx="18" cy="-4" r="3" fill="#ff6b81"/></g>
+  <ellipse cx="200" cy="264" rx="150" ry="22" fill="#b07d4f" opacity=".35"/>
+  </svg>`;
+  return'';
+}
+
+/* =================== СОСТОЯНИЕ =================== */
+const pad=n=>String(n).padStart(2,'0');
+const dstr=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>dstr(new Date());
+const tmin=t=>{const[h,m]=t.split(':').map(Number);return h*60+m};
+const nowMin=()=>{const d=new Date();return d.getHours()*60+d.getMinutes()+d.getSeconds()/60};
+function fresh(){return{v:2,started:false,petType:null,petName:'Искра',petStage:0,petXP:0,food:80,joy:75,sick:false,lastTick:Date.now(),missed:0,rescue:0,
+  crystals:15,stars:0,xp:0,girl:0,outfit:null,owned:[],room:'attic',rooms:['attic'],mess:['sock','toy','paper','shirt','peel'],
+  pets:0,petsDay:'',day:null,history:[],pendL:[],pendR:[],pin:'1234',
+  prog:initProg(),rot:0,review:{},weak:[],log:[],focus:null,focusTotal:0,unlockedPrincess:false,brk:null,diary:{},
+  schedWD:JSON.parse(JSON.stringify(SCHED_WD)),schedWE:JSON.parse(JSON.stringify(SCHED_WE))}}
+let S;
+function load(){try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
+  if(!S){let old=null;try{old=JSON.parse(localStorage.getItem('avgustina_world_v1'))}catch(e){}
+    S=fresh();if(old&&old.started){['started','petType','petName','petStage','petXP','food','joy','crystals','stars','xp','girl','outfit','owned','unlockedPrincess','focusTotal','pin'].forEach(k=>{if(old[k]!==undefined)S[k]=old[k]})}}
+  // миграция со старых версий
+  if(!S.prog||!S.progV){S.prog=initProg();S.progV=1;S.pendL=[];if(S.day)S.day.lessons=null}
+  ['review','log'].forEach(k=>{if(!S[k])S[k]=k==='log'?[]:{}});if(!S.weak)S.weak=[];if(S.rot==null)S.rot=0;
+  if(!S.schedWD.find(x=>x.id==='neuro')){const i=S.schedWD.findIndex(x=>x.id==='bagpack');S.schedWD.splice(i<0?S.schedWD.length:i,0,{id:'neuro',part:'d',at:'17:00',by:'19:00',e:'🎾',nm:'Нейро-мячики, 10 минут',cr:3})}
+  if(!S.schedWE.find(x=>x.id==='neuro')){const i=S.schedWE.findIndex(x=>x.part==='e');S.schedWE.splice(i<0?S.schedWE.length:i,0,{id:'neuro',part:'d',at:'10:00',by:'13:00',e:'🎾',nm:'Нейро-мячики, 10 минут',cr:3})}
+  if(!S.books)S.books=[];if(!S.neuro)S.neuro={};
+  const sw=S.schedWE.find(x=>x.id==='sleep');if(sw&&sw.at==='21:00'&&!S.sleepFix){sw.at='21:30';sw.by='22:00';S.sleepFix=1}
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+load();
+const isWeekend=d=>{const w=(d||new Date()).getDay();return w===0||w===6};
+function schedFor(dateStr){const d=new Date(dateStr+'T12:00:00'),wd=d.getDay();let L=isWeekend(d)?S.schedWE:S.schedWD;
+  if(wd===0&&!L.find(x=>x.id==='bagpack'))L=[...L,S.schedWD.find(x=>x.id==='bagpack')].sort((a,b)=>tmin(a.at)-tmin(b.at));
+  // отбой: пятница и суббота — до 22:00, воскресенье — в 21:00
+  if(wd===5)L=L.map(x=>x.id==='sleep'?{...x,at:'21:30',by:'22:00'}:x);
+  if(wd===0)L=L.map(x=>x.id==='sleep'?{...x,at:'21:00',by:'21:10'}:x);
+  return L}
+/* ---- уроки ---- */
+const LK=(s,n)=>s+':'+n, LP=k=>{const[s,n]=k.split(':');return{s,n:+n}};
+const OPEN=['prog','fix','returned'];
+const ltitle=(s,n)=>SUBJ[s].L[n-1]||('Урок '+n);
+const lget=k=>{const{s,n}=LP(k);return S.prog[s][n]};
+function lstart(k){const{s,n}=LP(k);if(!S.prog[s][n])S.prog[s][n]={st:'prog',step:0,photos:{}};return S.prog[s][n]}
+const isOpenK=k=>{const x=lget(k);return !x||OPEN.includes(x.st)};
+const isDoneSt=x=>x&&(x.st==='done'||x.st==='review');
+function nextLesson(excl){
+  for(const s of ROT)for(const n of Object.keys(S.prog[s]).map(Number).sort((a,b)=>a-b)){if(OPEN.includes(S.prog[s][n].st)&&!excl.includes(LK(s,n)))return LK(s,n)}
+  for(let i=0;i<ROT.length;i++){const s=ROT[(S.rot+i)%ROT.length];for(let n=1;n<=SUBJ[s].L.length;n++){if(!S.prog[s][n]&&!excl.includes(LK(s,n))){S.rot=(S.rot+i+1)%ROT.length;return LK(s,n)}}}
+  return null}
+const PER_DAY=2;
+function newDay(carry=[]){const wd=new Date().getDay(),list=[...carry];
+  if(wd>=1&&wd<=5){while(list.length<PER_DAY){const k=nextLesson(list);if(!k)break;list.push(k)}}
+  return{date:today(),r:{},sub:{},lessons:list,carry:[...carry],did:[],done:0,focus:0,tests:[]}}
+function rollDay(){
+  if(!S.day){S.day=newDay();return}
+  if(!S.day.lessons){const d=S.day.date;S.day=Object.assign(S.day,newDay(),{date:d,r:S.day.r||{},sub:S.day.sub||{},done:S.day.done||0})}
+  if(S.day.date===today())return;
+  const prev=S.day,sch=schedFor(prev.date);
+  const miss=sch.filter(it=>!prev.r[it.id]).length,ontime=sch.filter(it=>prev.r[it.id]&&!prev.r[it.id].late).length;
+  S.history.push({date:prev.date,done:prev.done,sched:sch.length,ontime,miss,lessons:(prev.did||[]).length,total:prev.lessons.length,focus:prev.focus,tests:prev.tests});
+  if(S.history.length>60)S.history.shift();
+  if(!prev.r.laundry)addMess(['sock','shirt','pants']);
+  if(!prev.r.tidy){addMess(['toy','book','paper','crayon','peel','cup','candy','stain']);if(!prev.tidyPen){S.crystals=Math.max(0,S.crystals-5);S.newMess=2}}
+  S.joy=Math.max(0,S.joy-miss*3);
+  const gap=Math.max(1,Math.round((new Date(today())-new Date(prev.date))/864e5));
+  if(prev.done===0)S.missed+=gap;else S.missed=gap-1;
+  if(S.missed>=2)S.sick=true;
+  if(S.missed>=3)S.rescue=0;
+  S.day=newDay(prev.lessons.filter(isOpenK));
+}
+function addMess(pool){for(let i=0;i<2;i++){if(S.mess.length>=MESS_MAX)return;const c=pool.filter(p=>!S.mess.includes(p));if(!c.length)return;S.mess.push(c[Math.floor(Math.random()*c.length)])}}
+function tick(){const now=Date.now(),h=(now-S.lastTick)/36e5;if(h>0){S.food=Math.max(0,S.food-h*3);S.joy=Math.max(0,S.joy-h*1.2);S.lastTick=now}}
+const petGone=()=>S.missed>=3;
+function petMood(){
+  if(petGone())return'forest';
+  if(S.focus&&S.focus.mode==='work'&&S.focus.end>Date.now())return'study';
+  const hr=new Date().getHours();
+  if(hr>=21&&S.day.r.sleep||hr>=22||hr<7)return'sleep';
+  if(S.sick)return'sick';
+  if(S.food<30)return'hungry';
+  if(S.joy<30)return'sad';
+  return'happy';
+}
+const level=()=>1+Math.floor(S.xp/100);
+function girlImg(){if(S.outfit)return OUTFITS.find(o=>o.id===S.outfit).img;return GIRL_STAGES[S.girl]}
+function girlTitle(){if(S.outfit==='princess')return'Принцесса Августина';if(S.outfit)return'Модница Августина';return['Растрёпка','Золушка','Золушка','Золушка','Августина'][S.girl]}
+function petImg(m){
+  m=m||petMood();if(!S.petType)return'egg0';
+  if(S.petType!=='dragon')return PET_TYPES[S.petType].baby;
+  const e=['happy','hungry','sad','sick','sleep','study','eat','jump','proud'].includes(m)?m:'happy';
+  if(S.petStage===1)return'd1_'+e;if(S.petStage>=5)return'dL_'+e;return'dstage'+S.petStage;
+}
+function petBadge(m){if(!S.petType)return'';const full=S.petType==='dragon'&&(S.petStage===1||S.petStage>=5);if(full)return'';return{hungry:'🍪',sad:'💧',sick:'🌡️',study:'📚',eat:'😋',jump:'💖',proud:'🏅'}[m]||''}
+const cleanPct=()=>Math.round(100-S.mess.length/MESS_MAX*100);
+
+/* =================== ЭФФЕКТЫ =================== */
+const $=s=>document.querySelector(s);
+function burst(x,y,emojis,n=12,spread=120){for(let i=0;i<n;i++){const p=document.createElement('div');p.className='pt';p.textContent=emojis[i%emojis.length];p.style.left=x+'px';p.style.top=y+'px';document.body.appendChild(p);
+  const a=Math.random()*Math.PI*2,d=spread*(.4+Math.random()*.8),dx=Math.cos(a)*d,dy=Math.sin(a)*d-60;
+  p.animate([{transform:'translate(-50%,-50%) scale(.3)',opacity:1},{transform:`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(${.8+Math.random()*.7}) rotate(${Math.random()*90-45}deg)`,opacity:0}],{duration:900+Math.random()*600,easing:'cubic-bezier(.2,.8,.3,1)'}).onfinish=()=>p.remove()}}
+function floatUp(x,y,text,dy=0){const g=document.createElement('div');g.className='gain';g.textContent=text;g.style.left=(x-30)+'px';g.style.top=(y-20+dy)+'px';document.body.appendChild(g);setTimeout(()=>g.remove(),1400)}
+function centerOf(el){const r=el.getBoundingClientRect();return[r.left+r.width/2,r.top+r.height/2]}
+function flash(){const f=$('#flash');f.classList.remove('go');void f.offsetWidth;f.classList.add('go')}
+let toastT;function toast(t){const e=$('#toast');e.innerHTML=t;e.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('on'),2800)}
+let AC;function chime(notes=[660,880,1320]){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();notes.forEach((f,i)=>{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.value=f;const t=AC.currentTime+i*.09;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.12,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.35);o.connect(g).connect(AC.destination);o.start(t);o.stop(t+.4)})}catch(e){}}
+function replay(el,cls){if(!el)return;el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls)}
+function setImg(stack,name){if(!stack)return;const[a,b]=stack.querySelectorAll('img');if(a.dataset.n===name&&a.style.opacity!=='0')return;b.src=IMG(name);b.dataset.n=name;b.style.opacity=1;a.style.opacity=0;stack.appendChild(a)}
+['girl_s0','girl_s1','girl_s2','girl_s3','girl_s4','outfit_yellow','outfit_lilac','outfit_blue','outfit_princess','gpose_jump','gpose_cheer','gpose_wave',
+ ...['happy','jump','eat','hungry','sad','sleep','sick','study','proud'].flatMap(e=>['d1_'+e,'dL_'+e]),'dstage2','dstage3','dstage4','egg0','egg1','egg2','pet_dragon','pet_fox','pet_unicorn','forest'].forEach(n=>{const i=new Image();i.src=IMG(n)});
+
+/* =================== НАЧИСЛЕНИЯ =================== */
+// cr — кристаллы (режим/порядок), st — звёзды (уроки)
+function earn({cr=0,st=0,xp=0,pxp=0,joy=4,count=true},el){
+  const lv0=level();S.crystals+=cr;S.stars+=st;S.xp+=xp;S.joy=Math.min(100,S.joy+joy);
+  if(count){S.day.done++;if(petGone()){S.rescue++;if(S.rescue>=3){S.missed=0;S.sick=false;S.food=Math.max(S.food,50);S.joy=80;save();setTimeout(()=>{go('home');petReturns()},700)}}else if(S.missed>0)S.missed=0}
+  if(pxp)addPetXP(pxp);
+  if(el){const[x,y]=centerOf(el);let k=0;if(cr)floatUp(x,y,'+'+cr+' 💎',-(k++)*26);if(st)floatUp(x,y,'+'+st+' ⭐',-(k++)*26);if(!cr&&!st&&xp)floatUp(x,y,'+'+xp+' опыта');burst(x,y,cr?['✨','💎']:st?['✨','⭐']:['✨','💜'],8,90)}
+  chime();if(level()>lv0)setTimeout(()=>{toast(`🎉 Новый уровень ${level()}!`);chime([523,659,784,1047])},600);
+  save();renderTop();
+}
+function addPetXP(n){if(!S.petStage)return;S.petXP+=n;const next=PET_STAGES[S.petStage+1];if(S.petType==='dragon'&&next&&S.petXP>=next.xp){S.petStage++;save();setTimeout(evolve,900)}}
+
+/* =================== РЕЖИМ ДНЯ =================== */
+function itemState(it){
+  const r=S.day.r[it.id],n=nowMin(),at=tmin(it.at),by=tmin(it.by);
+  if(r)return r.late?'lateok':'ok';
+  if(n<at-30)return'wait';
+  if(n<=by)return n>=at?'cur':'soon';
+  if(n<=by+120)return'late';
+  return'miss';
+}
+function currentItem(){
+  const L=schedFor(S.day.date);let lateOne=null,cur=null,next=null;
+  for(const it of L){const s=itemState(it);if(s==='late'&&!lateOne)lateOne=it;if(s==='cur'&&!cur)cur=it;if((s==='soon'||s==='wait')&&!next)next=it}
+  return{lateOne,cur,next};
+}
+function leftTxt(it){const d=Math.round(tmin(it.by)-nowMin());if(d>0)return`осталось ${d} мин`;return`опоздание ${-d} мин`}
+function completeItem(id,el){
+  const it=schedFor(S.day.date).find(x=>x.id===id);if(!it||S.day.r[id])return;
+  if(it.sub){const sb=S.day.sub[id]||{};if(it.sub.some((s,i)=>!sb[i])){toast('Сначала отметь всё в списке 🎒');replay(el,'shake');return}}
+  if(it.diary){openDiary(el);return}
+  if(it.id==='tidy'){openRoomCheck();return}
+  if(it.id==='neuro'){htab='neuro';go('hobby');if(!S.neuroRun)setTimeout(()=>toast('Нажми «Начать тренировку» 🎾'),300);return}
+  const late=nowMin()>tmin(it.by);
+  S.day.r[id]={at:Date.now(),late};
+  const cr=late?Math.max(1,Math.floor(it.cr/2)):it.cr;
+  earn({cr,xp:late?4:8,pxp:late?5:10,joy:late?1:4},el);
+  if(late)toast(`Сделано, но с опозданием ⏰ +${cr} 💎`);else toast(`⚡ Вовремя! +${cr} 💎`);
+  if(it.clean)doClean(it.clean);
+  checkAllDay(el);rerender();
+}
+function checkAllDay(el){const L=schedFor(S.day.date);if(L.every(it=>S.day.r[it.id])&&!S.day.allBonus){S.day.allBonus=1;setTimeout(()=>{earn({cr:10,xp:20,pxp:25,count:false},el);toast('🌟 Весь режим дня выполнен! +10 💎');burst(innerWidth/2,innerHeight/3,['🌟','💎','🎉','✨'],26,220)},900)}}
+function toggleSub(id,i,el){const sb=S.day.sub[id]=S.day.sub[id]||{};sb[i]=!sb[i];save();el.classList.toggle('done',!!sb[i]);if(sb[i]){chime([880]);const[x,y]=centerOf(el);burst(x,y,['✨'],4,40)}}
+/* ===== Проверка комнаты перед сном ===== */
+const ROOM_SPOTS=[['bed','🛏️','Кровать'],['floor','🧹','Пол'],['toys','🧸','Место для игрушек'],['closet','🚪','Шкаф']];
+let roomPh={};
+function openRoomCheck(){roomPh=(S.day.roomPh)||{};renderRoomCheck()}
+function renderRoomCheck(){const n=ROOM_SPOTS.filter(([k])=>roomPh[k]).length;
+  modal(`<h2>🧹 Проверка комнаты</h2><div class="muted">Сфотографируй 4 места. Всё чисто — уборка засчитана!</div>
+  <div class="slots">${ROOM_SPOTS.map(([k,e,t])=>`<button class="slot ${roomPh[k]?'ok':''}" onclick="roomShot('${k}')">${roomPh[k]?`<img src="${roomPh[k]}"><span class="ck">✓</span>`:`<span class="e">${e}</span>${t}<span class="muted" style="font-size:12px">📷 нажми</span>`}</button>`).join('')}</div>
+  <button class="btn mint" style="width:100%;padding:13px" ${n<4?'disabled':''} onclick="submitRoom()">Готово — комната чистая ✨ (${n}/4)</button>
+  <button class="btn ghost" style="width:100%;margin-top:10px" onclick="roomFail()">😔 Я не убралась</button>
+  <button class="btn ghost small" style="margin-top:10px" onclick="closeModal()">Закрыть</button>`)}
+function roomShot(k){photoCtx={room:k};const f=$('#fileIn');f.value='';f.click()}
+function submitRoom(){S.day.roomPh=roomPh;S.roomChecks=S.roomChecks||{};S.roomChecks[S.day.date]={ph:roomPh,st:'ok'};const ks=Object.keys(S.roomChecks).sort();while(ks.length>7)delete S.roomChecks[ks.shift()];
+  const it=schedFor(S.day.date).find(x=>x.id==='tidy'),late=nowMin()>tmin(it.by);S.day.r.tidy={at:Date.now(),late};
+  closeModal();go('day');setTimeout(()=>{const el=document.querySelector('[data-id="tidy"]');earn({cr:late?3:it.cr,xp:10,pxp:12,joy:6},el);toast('🧹 Уборка засчитана! Мама увидит фото');doClean('tidy');checkAllDay(el)},300)}
+function roomFail(auto){
+  if(S.day.r.tidy&&!S.day.r.tidy.fail)return;
+  S.day.r.tidy={at:Date.now(),late:true,fail:true};S.day.tidyPen=1;
+  S.crystals=Math.max(0,S.crystals-5);S.joy=Math.max(0,S.joy-10);
+  const before=S.mess.length;addMess(['toy','book','paper','crayon','peel','cup','candy','stain']);addMess(['sock','shirt','pants','dress']);S.newMess=S.mess.length-before;
+  S.roomChecks=S.roomChecks||{};S.roomChecks[S.day.date]={ph:{},st:'fail'};save();renderTop();
+  if(!auto)closeModal();go('home');
+  setTimeout(()=>{toast(auto?'⏰ Время уборки прошло — штраф −5 💎':'Штраф −5 💎 — в комнате стало грязнее 😢');say('Ой… тут всё валяется 😟 Завтра уберёмся?');const sc=$('#scene');if(sc){replay(sc,'shake')}chime([300,240,200])},300)}
+function autoTidyPenalty(){const it=schedFor(S.day.date).find(x=>x.id==='tidy');if(!it||S.day.r.tidy)return;if(nowMin()>tmin(it.by)+30)roomFail(true)}
+function parentRejectRoom(d){const rc=S.roomChecks[d];if(!rc||rc.st!=='ok')return;rc.st='rejected';S.crystals=Math.max(0,S.crystals-5);const before=S.mess.length;addMess(['toy','book','paper','candy','stain']);addMess(['sock','shirt']);S.newMess=S.mess.length-before;save();renderTop();toast('Уборка не засчитана: −5 💎');renderParent()}
+function doClean(kind){
+  const before=S.mess.length;S.mess=S.mess.filter(m=>MESS_ITEMS[m][1]!==kind);const removed=before-S.mess.length;
+  if(removed){S.joy=Math.min(100,S.joy+removed*3);save();setTimeout(()=>{go('home');setTimeout(()=>{document.querySelectorAll('.mess[data-k]').forEach(m=>{if(MESS_ITEMS[m.dataset.k][1]===kind){const[x,y]=centerOf(m);burst(x,y,['✨','🫧','⭐'],8,70);m.classList.add('gone')}});
+    say(kind==='tidy'?'Ура, как чисто! Мне тут нравится 💜':'Носочки в стирке! Спасибо! 🧺');setTimeout(renderHome,900)},400)},700)}
+}
+
+/* =================== ДНЕВНИК =================== */
+const DQ=['Что сегодня было хорошего? 🌈','Чему я научилась? 💡','За что я себя хвалю? 🏅'];
+function openDiary(el){const d=S.diary[today()]||['','',''];
+  modal(`<h2>📔 Мой дневник</h2><div class="muted" style="margin-bottom:10px">${new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'})}</div><div class="left">${DQ.map((q,i)=>`<b>${q}</b><textarea class="diary" id="dq${i}" placeholder="Напиши хотя бы пару слов…">${d[i]||''}</textarea>`).join('')}</div>
+  <button class="btn" style="padding:12px 28px" onclick="saveDiary()">Сохранить ✨</button> <button class="btn ghost" onclick="closeModal()">Потом</button>`)}
+function saveDiary(){const a=DQ.map((q,i)=>$('#dq'+i).value.trim());if(a.filter(x=>x.length>=3).length<3){toast('Ответь на все три вопроса 💜');return}
+  S.diary[today()]=a;const keys=Object.keys(S.diary).sort();while(keys.length>30)delete S.diary[keys.shift()];
+  const it=schedFor(S.day.date).find(x=>x.id==='diary');const late=nowMin()>tmin(it.by);S.day.r.diary={at:Date.now(),late};
+  closeModal();go('day');setTimeout(()=>{const el=document.querySelector('[data-id="diary"]');earn({cr:late?2:it.cr,xp:10,pxp:12,joy:6},el);toast('📔 Записано! Спокойной ночи ✨');checkAllDay(el);renderDay()},300)}
+
+/* =================== ВЕРХ =================== */
+function renderTop(){
+  $('#title').textContent=girlTitle();$('#lvl').textContent='Ур. '+level();$('#xpbar').style.width=(S.xp%100)+'%';
+  $('#cr span').textContent=S.crystals;$('#stc span').textContent=S.stars;
+  const pend=S.pendL.length+S.pendR.filter(r=>r.st==='wait').length;$('#parentBtn').textContent=pend?'🔔':'🔒';
+  const {lateOne,cur}=currentItem();const db=document.querySelector('nav button[data-p=day]');let dot=db.querySelector('.dot');
+  if(lateOne||cur){if(!dot){dot=document.createElement('i');dot.className='dot';db.appendChild(dot)}}else if(dot)dot.remove();
+}
+
+/* =================== ДОМ =================== */
+let bubbleT;
+function renderHome(){
+  const m=petMood(),el=$('#home');
+  if(m==='forest'){el.innerHTML=`<div class="wrap"><div><div class="forest"><img src="${IMG('forest')}" alt=""><div class="msg"><div style="font-size:18px">${S.petName} убежал в лес 😢</div><div style="margin:6px 0 10px;color:var(--soft)">Он ждал тебя 3 дня. Выполни 3 любых дела — и он вернётся!</div><div class="bar" style="max-width:none;height:14px"><i style="width:${Math.min(100,S.rescue/3*100)}%;background:linear-gradient(90deg,var(--mint),#3fbf95)"></i></div><div style="margin-top:6px">${S.rescue} / 3</div></div></div></div><div><button class="btn" style="width:100%;margin-top:14px;padding:14px" onclick="go('day')">Спасательный квест 🗺️</button></div></div>`;return}
+  const hr=new Date().getHours(),night=hr>=20||hr<7;
+  const {lateOne,cur,next}=currentItem(),show=lateOne||cur;
+  const L=schedFor(S.day.date),doneN=L.filter(it=>S.day.r[it.id]).length,pct=L.length?doneN/L.length:1;
+  const sp=Array.from({length:night?14:6},(_,i)=>`<i class="sparkle" style="left:${8+Math.random()*84}%;top:${4+Math.random()*44}%;animation-delay:${i*.4}s"></i>`).join('');
+  const dust=S.room==='attic'?Array.from({length:6},(_,i)=>`<i class="dust" style="left:${35+Math.random()*30}%;top:${20+Math.random()*30}%;animation-delay:${i*1.5}s"></i>`).join(''):'';
+  const mess=S.mess.map((k,i)=>`<span class="mess ${k==='stain'?'stain':''} ${i>=S.mess.length-(S.newMess||0)?'drop':''}" data-k="${k}" style="left:${MESS_POS[i][0]}%;bottom:${MESS_POS[i][1]}%;--r:${MESS_POS[i][2]}deg;animation-delay:${(i%4)*.15}s">${MESS_ITEMS[k][0]}</span>`).join('');S.newMess=0;
+  el.innerHTML=`<div class="wrap"><div>
+   <div class="scene ${night?'night':''}" id="scene">
+     <div class="bg">${roomSVG(S.room)}</div><div class="nightsky"></div>${sp}${dust}${mess}
+     <div class="stitle">${ROOMS.find(r=>r.id===S.room).e} ${ROOMS.find(r=>r.id===S.room).nm}</div>
+     ${S.rooms.length>1?`<div class="rooms">${S.rooms.map(r=>`<button class="${r===S.room?'on':''}" onclick="setRoom('${r}')">${ROOMS.find(x=>x.id===r).e}</button>`).join('')}</div>`:''}
+     <div class="actor" id="girl"><div class="shadow"></div><div class="stack breathe"><img><img></div></div>
+     <div class="actor" id="pet"><div class="shadow"></div><div class="stack bob"><img><img></div><div class="badge" id="pbadge"></div></div>
+     <div class="bubble" id="bubble"></div>
+   </div></div><div>
+   ${show?`<div class="card now ${lateOne?'late':''}" style="margin-top:12px"><span class="e">${show.e}</span><div class="tx"><span class="muted">${lateOne?'⏰ Опаздываешь!':'Сейчас по режиму'}</span><b>${show.nm}</b><span class="muted">до ${show.by} · ${leftTxt(show)}</span></div><button class="btn ${lateOne?'gold':''}" onclick="${show.sub?`go('day')`:`completeItem('${show.id}',this)`}">${show.sub?'Открыть':show.id==='tidy'?'Проверка 📷':show.id==='neuro'?'Тренировка ▶':show.diary?'Написать':'Сделала ✓'}</button></div>`
+     :next?`<div class="card now" style="margin-top:12px;border-color:var(--lav2)"><span class="e">${next.e}</span><div class="tx"><span class="muted">Дальше в ${next.at}</span><b>${next.nm}</b></div></div>`:''}
+   <div class="stats">
+     <div class="stat food ${S.food<30?'low':''}"><div class="l"><span>🍪 Сытость</span><span>${Math.round(S.food)}%</span></div><div class="bar"><i style="width:${S.food}%"></i></div></div>
+     <div class="stat joy ${S.joy<30?'low':''}"><div class="l"><span>💜 Радость</span><span>${Math.round(S.joy)}%</span></div><div class="bar"><i style="width:${S.joy}%"></i></div></div>
+     <div class="stat clean ${cleanPct()<40?'low':''}"><div class="l"><span>🧹 Чистота</span><span>${cleanPct()}%</span></div><div class="bar"><i style="width:${cleanPct()}%"></i></div></div>
+   </div>
+   <div class="actions">
+     <button class="act" onclick="openShop('pet')"><b>🍪</b>Покормить</button>
+     <button class="act" id="petBtn"><b>🤚</b>Погладить</button>
+     <button class="act" onclick="go('study')"><b>📚</b>Уроки</button>
+   </div>
+   <div class="card today" onclick="go('day')">
+     <svg class="ring" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#e9e0ff" stroke-width="5"/><circle cx="18" cy="18" r="15.5" fill="none" stroke="url(#gr)" stroke-width="5" stroke-linecap="round" stroke-dasharray="${pct*97.4} 97.4" transform="rotate(-90 18 18)"/><defs><linearGradient id="gr"><stop offset="0" stop-color="#b89cf5"/><stop offset="1" stop-color="#6a48c9"/></linearGradient></defs><text x="18" y="21" text-anchor="middle" font-size="9" font-weight="900" fill="#6a48c9">${Math.round(pct*100)}%</text></svg>
+     <div style="flex:1"><h3>Режим дня</h3><div class="muted">${pct>=1?'Всё выполнено! Ты супер 🌟':`${doneN} из ${L.length} дел`}</div></div><b style="font-size:24px">›</b>
+   </div>
+   ${(S.books||[]).filter(b=>b.st==='reading').length?`<div class="card" onclick="htab='books';go('hobby')" style="cursor:pointer"><h3>📖 Читаю сейчас</h3><div class="muted">${S.books.filter(b=>b.st==='reading').map(b=>`${esc(b.title)}${b.total?` — ${Math.round(b.page/b.total*100)}%`:''}`).join(' · ')}</div></div>`:''}
+   ${S.girl<4?`<div class="card" onclick="openShop('me')" style="background:linear-gradient(135deg,#fff,#fff6e0)"><h3>✨ Приведи себя в порядок</h3><div class="muted">Неделя 1: ${S.girl}/4. Следующее — ${CARE[S.girl].e} ${CARE[S.girl].nm} за ${CARE[S.girl].price} 💎</div></div>`:''}
+   </div></div>`;
+  setImg($('#girl .stack'),girlImg());setPetVisual(m);
+  $('#girl').onclick=girlTap;$('#pet').onclick=()=>petTap();$('#petBtn').onclick=()=>petTap();
+  document.querySelectorAll('.mess').forEach(x=>x.onclick=()=>{replay(x,'shake');say('Это уберём вечером на «Убрать комнату» 🧹')});
+  sayRandom(m);
+}
+function setRoom(r){S.room=r;save();renderHome();flash()}
+function setPetVisual(m){const st=$('#pet .stack');if(!st)return;setImg(st,petImg(m));const pb=$('#pbadge');pb.innerHTML=m==='sleep'?'<span class="zz">z</span><span class="zz" style="animation-delay:.8s">Z</span>':petBadge(m);
+  $('#pet').classList.toggle('dim',m==='sick'||m==='sad');$('#pet').style.height=([32,34,40,46,52,52][S.petStage]||40)+'%';st.className='stack '+(m==='sleep'?'breathe':'bob')}
+function say(t){const b=$('#bubble');if(!b)return;b.textContent=t;b.classList.add('on');clearTimeout(bubbleT);bubbleT=setTimeout(()=>b.classList.remove('on'),3800)}
+function sayRandom(m){const {lateOne,cur}=currentItem();let l;
+  if(m==='happy'&&lateOne)l=[`Ты опаздываешь! ${lateOne.e} ${lateOne.nm} ⏰`];
+  else if(m==='happy'&&cur)l=[`Сейчас: ${cur.nm} ${cur.e} — ${leftTxt(cur)}!`];
+  else if(m==='happy'&&S.mess.length>=4&&Math.random()<.5)l=PHRASES.messy;
+  else l=PHRASES[m]||PHRASES.happy;
+  setTimeout(()=>say(l[Math.floor(Math.random()*l.length)]),700)}
+function girlTap(){const g=$('#girl');replay(g,'hop');const[x,y]=centerOf(g);burst(x,y-60,['💖','✨','⭐'],8,90);chime([784,988]);
+  if(S.girl>=4&&!S.outfit){const p=['gpose_jump','gpose_cheer','gpose_wave'];setImg($('#girl .stack'),p[Math.floor(Math.random()*3)]);setTimeout(()=>setImg($('#girl .stack'),girlImg()),1500)}}
+function petTap(){const m=petMood(),p=$('#pet');if(!p)return;if(m==='sleep'){say('Тсс… я сплю 😴');return}
+  replay(p.querySelector('.stack'),'hop');const[x,y]=centerOf(p);burst(x,y-30,['💜','💖','✨'],10,100);
+  if(S.petsDay!==today()){S.petsDay=today();S.pets=0}if(S.pets<5){S.pets++;S.joy=Math.min(100,S.joy+3);save()}
+  if(m==='happy'){setImg(p.querySelector('.stack'),petImg('jump'));setTimeout(()=>setPetVisual(petMood()),1400)}
+  say(m==='hungry'?'Спасибо! А покушать? 🍪':m==='sick'?'Мне нужно лекарство 💊':'Р-р-р… это я так мурчу 💜');chime([880,1175]);setTimeout(renderHomeStats,300)}
+function renderHomeStats(){[['food',S.food],['joy',S.joy],['clean',cleanPct()]].forEach(([k,v])=>{const f=document.querySelector('.stat.'+k);if(!f)return;f.querySelector('i').style.width=v+'%';f.querySelector('.l span:last-child').textContent=Math.round(v)+'%';f.classList.toggle('low',v<(k==='clean'?40:30))})}
+function feedAnim(item){go('home');setTimeout(()=>{const p=$('#pet');if(!p)return;const[x,y]=centerOf(p);
+  setImg(p.querySelector('.stack'),petImg(item.med?'happy':item.food?'eat':'jump'));if(petBadge('eat'))$('#pbadge').textContent=item.food?'😋':'💖';
+  replay(p.querySelector('.stack'),'hop');setTimeout(()=>burst(x,y,item.med?['✨','💚','⭐']:['💖','✨',item.e],12,110),300);
+  say(item.med?'Ура, я здоров! Спасибо! 💚':item.food?'Ням-ням! Как вкусно! 😋':'Ура, игрушка! 🎉');renderHomeStats();setTimeout(()=>setPetVisual(petMood()),2200)},350)}
+function evolve(){go('home');setTimeout(()=>{const p=$('#pet');if(!p)return;const sc=$('#scene');const rays=document.createElement('div');rays.className='rays';sc.appendChild(rays);
+  replay(p.querySelector('.stack'),'shake');setTimeout(()=>replay(p.querySelector('.stack'),'shake'),500);
+  setTimeout(()=>{flash();chime([523,659,784,1047,1319]);setPetVisual(petMood());replay(p,'pop');const[x,y]=centerOf(p);burst(x,y,['⭐','✨','💜','🌟'],24,180);say(`Я вырос! Теперь я ${PET_STAGES[S.petStage].n.toLowerCase()}! 🎉`)},1100);
+  setTimeout(()=>rays.remove(),4500)},400)}
+function girlTransform(){go('home');setTimeout(()=>{const g=$('#girl');if(!g)return;const[x,y]=centerOf(g);burst(x,y,['✨','⭐','💫'],20,150);replay(g.querySelector('.stack'),'shake');
+  setTimeout(()=>{flash();setImg(g.querySelector('.stack'),girlImg());replay(g,'pop');burst(x,y-40,['💖','✨','🌸'],16,140);chime([659,784,988,1319]);renderTop()},700)},350)}
+function petReturns(){setTimeout(()=>{const p=$('#pet');if(!p)return;flash();replay(p,'pop');const[x,y]=centerOf(p);burst(x,y,['💜','🎉','✨'],22,160);say('Я вернулся! Я так скучал! 💜');toast(`🎉 ${S.petName} вернулся из леса!`);chime([523,659,784,1047])},500)}
+
+/* =================== СТРАНИЦА: РЕЖИМ ДНЯ =================== */
+function renderDay(){
+  const el=$('#day'),L=schedFor(S.day.date);let h='';
+  if(petGone())h+=`<div class="card" style="background:#e6faf2;margin-top:8px"><h3>🗺️ Спасательный квест</h3><div style="font-weight:700">Сделай 3 любых дела, чтобы ${S.petName} вернулся: ${S.rescue}/3</div></div>`;
+  const ok=L.filter(it=>S.day.r[it.id]&&!S.day.r[it.id].late).length,lt=L.filter(it=>S.day.r[it.id]&&S.day.r[it.id].late).length;
+  h+=`<div class="card" style="margin-top:8px;display:flex;gap:10px;align-items:center"><div style="flex:1"><h3 style="margin:0">🗓️ ${isWeekend()?'Выходной':'Учебный день'}</h3><div class="muted">⚡ вовремя ${ok} · ⏰ с опозданием ${lt} · всего ${L.length}</div></div><div class="muted" style="text-align:right">Вовремя — 💎 полностью<br>Опоздала — половина</div></div>`;
+  ['m','d','e'].forEach(p=>{const items=L.filter(it=>it.part===p);if(!items.length)return;
+    h+=`<div class="part">${PARTS[p][0]}<small>${items[0].at}–${items[items.length-1].by}</small></div>`;
+    items.forEach(it=>{const s=itemState(it),r=S.day.r[it.id];
+      let right;
+      if(r&&r.fail)right=`<span class="tag bad">Не убралась −5💎</span>`;
+      else if(s==='ok')right=`<span class="tag ok">⚡ Вовремя</span>`;
+      else if(s==='lateok')right=`<span class="tag wait">⏰ Позже</span>`;
+      else if(s==='miss')right=`<span class="tag bad">Пропущено</span>`;
+      else if(s==='wait')right=`<span class="tag">в ${it.at}</span>`;
+      else right=`<button class="btn small ${s==='late'?'gold':''}" onclick="completeItem('${it.id}',this)">${it.diary?'Написать':it.id==='tidy'?'Проверка 📷':it.id==='neuro'?'Тренировка ▶':'Сделала ✓'}</button>`;
+      const sub=s==='cur'||s==='late'||s==='soon'?(s==='late'?`<small style="color:var(--red)">${leftTxt(it)}</small>`:s==='cur'?`<small>до ${it.by} · ${leftTxt(it)}</small>`:`<small>с ${it.at} до ${it.by}</small>`):r?`<small>в ${new Date(r.at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</small>`:'';
+      h+=`<div class="row ${s}" data-id="${it.id}"><span class="tm">${it.at}</span><span class="e">${it.e}</span><span class="tx">${it.nm}${sub}</span>${right}</div>`;
+      if(it.sub&&!r&&(s==='cur'||s==='late'||s==='soon')){const sb=S.day.sub[it.id]||{};h+=`<div class="subs">${it.sub.map((x,i)=>`<button class="chip ${sb[i]?'done':''}" onclick="toggleSub('${it.id}',${i},this)">${x}</button>`).join('')}</div>`}
+    });
+    if(p==='d'&&S.day.lessons.length)h+=`<div class="row" onclick="go('study')" style="cursor:pointer"><span class="tm">15:00</span><span class="e">📚</span><span class="tx">Уроки русской школы<small>${S.day.lessons.filter(k=>!isOpenK(k)).length} из ${S.day.lessons.length} сдано · за уроки — ⭐</small></span><b style="font-size:22px">›</b></div>`;
+  });
+  h+=`<div class="card" style="margin-top:14px"><div class="rule"><b>💎</b><span>Кристаллы — только за режим дня и порядок. На них — одежда, комнаты и вкусняшки для ${S.petName}.</span></div><div class="rule"><b>⭐</b><span>Звёзды — за уроки. На них — развлечения: аквапарк, кино, PlayStation.</span></div><div class="rule"><b>🌟</b><span>Весь режим дня выполнен — бонус +10 💎</span></div></div>`;
+  el.innerHTML=h;
+}
+
+/* =================== СТРАНИЦА: УРОКИ =================== */
+let fMode=45,fInt,stab='today',mapSubj='rus';
+function renderStudy(){
+  const el=$('#study');
+  let h=`<div class="tabs" style="margin-top:8px"><button class="${stab==='today'?'on':''}" onclick="stab='today';renderStudy()">📌 Сегодня</button><button class="${stab==='map'?'on':''}" onclick="stab='map';renderStudy()">🗺️ Программа</button><button class="${stab==='review'?'on':''}" onclick="stab='review';renderStudy()">🧠 Повторение${needReview()?' •':''}</button><button class="${stab==='timer'?'on':''}" onclick="stab='timer';renderStudy()">⏳ Таймер</button></div>`;
+  if(stab==='today')h+=studyToday();else if(stab==='map')h+=studyMap(false);else if(stab==='review')h+=studyReview();else h+=studyTimer();
+  el.innerHTML=h;clearInterval(fInt);if(stab==='timer'&&S.focus&&S.focus.end>Date.now())fInt=setInterval(focusTick,1000);
+}
+function lessonCard(k){
+  const{s,n}=LP(k),l=lget(k)||{st:'todo',step:0,photos:{}},sj=SUBJ[s];
+  const tag={todo:['','Новый урок'],prog:['','В процессе'],fix:['bad','Работа над ошибками'],returned:['bad','Мама вернула'],review:['wait','На проверке у мамы'],done:['ok','Готово ✓']}[l.st];
+  const debt=(S.day.carry||[]).includes(k);
+  let h=`<div class="card lesson" style="border-left:6px solid ${sj.c}"><div class="head"><div><div class="muted" style="font-size:12px">${sj.e} ${sj.nm} · Урок ${n}${debt?' · <span style="color:var(--red)">долг</span>':''}</div><div class="name">${ltitle(s,n)}</div></div><span class="tag ${tag[0]}">${tag[1]}</span></div>`;
+  if(l.st==='done'||l.st==='review'){h+=`<div class="muted">${l.st==='review'?'Отправлено маме. Тест: '+l.test+'%':'Урок закрыт 🎉'}</div></div>`;return h}
+  h+=`<div class="steps">`;
+  STEPS.forEach((st,j)=>{const done=j<l.step,cur=j===l.step,locked=j>l.step;let right='';
+    if(done)right=l.photos&&l.photos[st.k]?`<img class="thumb" src="${l.photos[st.k]}">`:(st.test?`<b>${l.test}%</b>`:'✓');
+    else if(cur){if(st.photo)right=`<button class="btn small" onclick="takePhoto('${k}','${st.k}',this)">📷 Фото</button>`;else if(st.test)right=`<input class="testin" type="number" min="0" max="100" placeholder="%" id="t_${s}_${n}"><button class="btn small" onclick="submitTest('${k}',this)">OK</button>`;else right=`<button class="btn small" onclick="doStep('${k}',this)">Готово</button>`}
+    h+=`<div class="step ${done?'done':''} ${cur?'cur':''} ${locked?'locked':''}"><span class="ic">${st.ic}</span><span class="tx">${st.t}${st.note&&cur?`<small>${st.note}</small>`:''}${st.test&&cur&&l.st==='fix'?`<small>Разбери ошибки и пройди тест ещё раз</small>`:''}</span>${right}</div>`});
+  return h+`</div></div>`;
+}
+function studyToday(){
+  const d=S.day,we=isWeekend();let h='';
+  const doneN=d.lessons.filter(k=>!isOpenK(k)).length;
+  h+=`<div class="card" style="display:flex;gap:12px;align-items:center"><div style="font-size:34px">${we?'🌈':'📚'}</div><div style="flex:1"><h3 style="margin:0">${we?'Выходной':'Уроки на сегодня'}</h3><div class="muted">${we?(d.lessons.length?'Новых уроков нет — только долги за неделю':'Новых уроков нет. Отдыхай!'):`Сдано ${doneN} из ${d.lessons.length} · урок, принятый мамой, = +5 ⭐`}</div></div></div>`;
+  d.lessons.forEach(k=>h+=lessonCard(k));
+  const started=[];for(const s of ROT)for(const n in S.prog[s])if(OPEN.includes(S.prog[s][n].st)&&!d.lessons.includes(LK(s,n)))started.push(LK(s,n));
+  if(started.length)h+=`<h2>⏸ Начатые и не законченные</h2>`+started.map(k=>{const{s,n}=LP(k);return`<div class="row"><span class="e">${SUBJ[s].e}</span><span class="tx">${ltitle(s,n)}<small>${SUBJ[s].nm} · урок ${n}</small></span><button class="btn small ghost" onclick="takeLesson('${k}')">Доделать</button></div>`}).join('');
+  if(!we&&doneN===d.lessons.length&&d.lessons.length)h+=`<div class="card" style="text-align:center;background:#e9fbf4"><h3>🎉 Все уроки на сегодня сданы!</h3><button class="btn small ghost" onclick="extraLesson()">Взять ещё один урок</button></div>`;
+  return h;
+}
+function takeLesson(k){if(!S.day.lessons.includes(k))S.day.lessons.push(k);lstart(k);save();stab='today';renderStudy();toast('📌 Урок добавлен на сегодня')}
+function extraLesson(){const k=nextLesson(S.day.lessons);if(!k){toast('Все уроки I–II четверти пройдены! 🏆');return}takeLesson(k)}
+function subjProgress(s){const L=SUBJ[s].L.length;let d=0,o=0;for(let n=1;n<=L;n++){const x=S.prog[s][n];if(isDoneSt(x))d++;else if(x&&OPEN.includes(x.st))o++}return{d,o,L}}
+function studyMap(parent){
+  let h=`<div class="card"><h3>🗺️ Программа: I–II четверть</h3><div class="muted">${parent?'Нажми на урок, чтобы отметить сделан / не сделан.':'Зелёные — сдано, фиолетовые — начато. Нажми на урок, чтобы взять его сегодня.'}</div></div>`;
+  h+=`<div class="tabs">${Object.keys(SUBJ).map(s=>`<button class="${mapSubj===s?'on':''}" onclick="mapSubj='${s}';${parent?'renderParent()':'renderStudy()'}">${SUBJ[s].e} ${SUBJ[s].nm.split(' ')[0]}</button>`).join('')}</div>`;
+  const s=mapSubj,sj=SUBJ[s];
+  if(!sj.L.length)return h+`<div class="card" style="text-align:center"><div style="font-size:40px">🇬🇧</div><h3>Список уроков ещё не загружен</h3><div class="muted">Мама пришлёт скриншоты программы английского — и уроки появятся здесь.</div></div>`;
+  const p=subjProgress(s),pct=Math.round(p.d/p.L*100);
+  h+=`<div class="card"><div style="display:flex;justify-content:space-between;font-weight:900"><span>${sj.e} ${sj.nm}</span><span>${p.d}/${p.L}</span></div><div class="bar" style="max-width:none;height:12px;margin:8px 0"><i style="width:${pct}%;background:${sj.c}"></i></div><div class="muted">Сдано ${p.d} · начато ${p.o} · осталось ${p.L-p.d-p.o}${sj.total?' · всего в году '+sj.total:''}</div></div>`;
+  sj.L.forEach((t,i)=>{const n=i+1,x=S.prog[s][n],k=LK(s,n),inToday=S.day.lessons.includes(k);
+    if(n===1)h+=`<div class="part">I четверть</div>`;if(n===sj.q2+1)h+=`<div class="part">II четверть</div>`;
+    const ic=!x?'⚪':x.st==='done'?'✅':x.st==='review'?'🕓':'⏸️';
+    const cls=!x?'':x.st==='done'?'ok':x.st==='review'?'lateok':'cur';
+    h+=`<div class="row ${cls}" onclick="${parent?`cycleLesson('${k}')`:(isDoneSt(x)?'':`takeLesson('${k}')`)}" style="cursor:pointer"><span class="tm" style="width:34px">${n}</span><span class="e" style="font-size:20px">${ic}</span><span class="tx" style="font-size:14px">${t}${inToday&&!isDoneSt(x)?'<small>📌 на сегодня</small>':''}</span></div>`});
+  return h;
+}
+function cycleLesson(k){const{s,n}=LP(k),x=S.prog[s][n];if(!x)S.prog[s][n]={st:'done'};else if(x.st==='done')delete S.prog[s][n];else S.prog[s][n]={st:'done'};save();renderParent()}
+function doStep(k,btn){const l=lstart(k);l.step++;earn({xp:8,pxp:10},btn);if(l.step>=STEPS.length)finishLesson(k,btn);renderStudy()}
+let photoCtx=null;
+function takePhoto(k,step,btn){photoCtx={k,step,btn};const f=$('#fileIn');f.value='';f.click()}
+$('#fileIn').onchange=e=>{const file=e.target.files[0];if(!file||!photoCtx)return;const r=new FileReader();
+  if(photoCtx.room){r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),sc=Math.min(1,360/Math.max(im.width,im.height));c.width=im.width*sc;c.height=im.height*sc;c.getContext('2d').drawImage(im,0,0,c.width,c.height);roomPh[photoCtx.room]=c.toDataURL('image/jpeg',.55);chime([880]);renderRoomCheck()};im.src=r.result};r.readAsDataURL(file);return}
+  r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),sc=Math.min(1,420/Math.max(im.width,im.height));c.width=im.width*sc;c.height=im.height*sc;c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+    const l=lstart(photoCtx.k);l.photos=l.photos||{};l.photos[photoCtx.step]=c.toDataURL('image/jpeg',.6);l.step++;earn({xp:10,pxp:12},photoCtx.btn);renderStudy()};im.src=r.result};r.readAsDataURL(file)};
+function submitTest(k,btn){const{s,n}=LP(k);const v=parseInt($(`#t_${s}_${n}`).value);if(isNaN(v)||v<0||v>100){toast('Введи результат теста от 0 до 100');return}
+  const l=lstart(k);l.test=v;S.day.tests.push(v);
+  if(v>=80){l.step++;l.st='prog';earn({xp:20,pxp:30},btn);toast(`✅ Тест ${v}%! Остался последний шаг — обратная связь`)}
+  else{l.st='fix';earn({xp:3,count:false},btn);toast(`${v}% — почти! Разбери ошибки и пройди тест ещё раз 💪`)}
+  renderStudy()}
+function finishLesson(k,btn){const{s,n}=LP(k),l=lget(k);l.st='review';if(!S.day.did.includes(k))S.day.did.push(k);
+  S.pendL.push({k,date:S.day.date,test:l.test,photos:l.photos||{}});S.log.push({date:today(),k,act:'done',test:l.test});if(S.log.length>200)S.log.shift();
+  toast('🎉 Урок сдан! Мама проверит → +5 ⭐');setTimeout(startBreak,1200)}
+function startBreak(){S.focus={mode:'rest',dur:10*60e3,end:Date.now()+10*60e3};save();
+  modal(`<h2>☕ Перерыв 10 минут</h2><p class="muted">Мозгу нужен отдых! Выбери, что сделаешь:</p><div class="chips" style="justify-content:center">${BREAK.map(b=>`<span class="chip">${b}</span>`).join('')}</div><p style="font-weight:800">Сначала положи планшет на зарядку 🔌<br>${S.petName} подождёт тебя!</p><button class="btn" onclick="closeModal()">Иду!</button>`)}
+/* ---- повторение ---- */
+const weekKey=()=>{const d=new Date(),m=new Date(d);m.setDate(d.getDate()-((d.getDay()+6)%7));return dstr(m)};
+const needReview=()=>!S.review[weekKey()];
+let RQ=null;
+function reviewPool(){return QB.filter(q=>isDoneSt(S.prog[q[0]][q[1]]))}
+function pickQuestions(n){const pool=reviewPool(),out=[],usedL=new Set();
+  // сначала вопросы по темам, где были ошибки
+  const weak=pool.filter(q=>S.weak.includes(LK(q[0],q[1])));
+  const sh=a=>a.map(x=>[Math.random(),x]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
+  for(const q of [...sh(weak),...sh(pool)]){const lk=LK(q[0],q[1]);if(usedL.has(lk))continue;if(out.filter(o=>o[0]===q[0]).length>=1&&out.length<3&&pool.some(p=>!out.find(o=>o[0]===p[0])&&p[0]!==q[0]))continue;out.push(q);usedL.add(lk);if(out.length>=n)break}
+  return out.map(q=>({q,opts:sh(q[3].map((t,i)=>({t,ok:i===0})))}));}
+function studyReview(){
+  const wk=S.review[weekKey()];
+  if(!RQ){let h=`<div class="card" style="text-align:center"><div style="font-size:46px">🧠</div><h3>Повторение недели</h3><div class="muted" style="margin-bottom:12px">3 вопроса по урокам, которые ты уже прошла.${wk?`<br>На этой неделе: <b>${wk.score}/3</b> ✓`:'<br>Ответишь на 2 из 3 — получишь +3 ⭐'}</div>
+    <button class="btn" style="padding:13px 30px" onclick="startReview(${wk?'false':'true'})">${wk?'Потренироваться ещё':'Начать ▶'}</button></div>`;
+    h+=`<div class="card"><h3>📚 Из чего вопросы</h3><div class="muted">Сейчас в базе ${reviewPool().length} вопросов по ${new Set(reviewPool().map(q=>LK(q[0],q[1]))).size} пройденным урокам. Новые темы добавляются, когда урок сдан.</div></div>`;
+    return h}
+  const i=RQ.i,it=RQ.items[i];
+  if(i>=RQ.items.length){const sc=RQ.score;return`<div class="card" style="text-align:center"><div style="font-size:50px">${sc===3?'🏆':sc===2?'🌟':'💪'}</div><h3>${sc} из 3!</h3><div class="muted">${RQ.weekly&&sc>=2?'+3 ⭐ за повторение недели!':sc<2?'Ничего страшного — повтори темы ниже и попробуй ещё раз.':'Отличная тренировка!'}</div>${RQ.wrong.length?`<div style="text-align:left;margin-top:12px"><b>Повторить:</b>${RQ.wrong.map(k=>{const{s,n}=LP(k);return`<div class="muted">${SUBJ[s].e} ${SUBJ[s].nm}, урок ${n} — ${ltitle(s,n)}</div>`}).join('')}</div>`:''}<button class="btn" style="margin-top:14px" onclick="RQ=null;renderStudy()">Готово</button></div>`}
+  const[s,n,q]=it.q;
+  return`<div class="card"><div class="muted" style="display:flex;justify-content:space-between"><span>${SUBJ[s].e} ${SUBJ[s].nm} · урок ${n}</span><span>Вопрос ${i+1}/3</span></div>
+    <h3 style="margin:12px 0 14px;font-size:19px">${q}</h3><div style="display:flex;flex-direction:column;gap:10px">${it.opts.map((o,j)=>`<button class="row" style="justify-content:flex-start;font-weight:800;font-size:16px;${RQ.ans!=null?(o.ok?'background:#d8f7ec;':RQ.ans===j?'background:#ffe0e6;':''):''}" onclick="answer(${j},this)" ${RQ.ans!=null?'disabled':''}><span class="e" style="font-size:20px">${['🅰️','🅱️','🅲'][j]||'•'}</span>${o.t}</button>`).join('')}</div>
+    ${RQ.ans!=null?`<div class="card" style="margin:12px 0 0;background:${it.opts[RQ.ans].ok?'#e9fbf4':'#fff6e0'}"><b>${it.opts[RQ.ans].ok?'Верно! 🎉':'Не совсем 🤔'}</b><div class="muted" style="margin-top:4px">${it.q[4]}</div></div><button class="btn" style="margin-top:12px;width:100%" onclick="RQ.i++;RQ.ans=null;if(RQ.i>=RQ.items.length)finishReview();renderStudy()">${i<2?'Дальше →':'Результат'}</button>`:''}</div>`;
+}
+function startReview(weekly){const items=pickQuestions(3);if(items.length<3){toast('Пока мало пройденных уроков для повторения');return}RQ={items,i:0,score:0,ans:null,wrong:[],weekly};renderStudy()}
+function answer(j,el){const it=RQ.items[RQ.i];RQ.ans=j;const ok=it.opts[j].ok,lk=LK(it.q[0],it.q[1]);
+  if(ok){RQ.score++;S.weak=S.weak.filter(x=>x!==lk);const[x,y]=centerOf(el);burst(x,y,['✨','🧠','⭐'],10,90);chime()}
+  else{RQ.wrong.push(lk);if(!S.weak.includes(lk))S.weak.push(lk);replay(el,'shake');chime([300,240])}
+  save();renderStudy()}
+function finishReview(){S.log.push({date:today(),act:'review',score:RQ.score,wrong:RQ.wrong});
+  if(RQ.weekly){S.review[weekKey()]={score:RQ.score,date:today(),wrong:RQ.wrong};if(RQ.score>=2){earn({st:3,xp:15,pxp:15,count:false},null);toast('🧠 Повторение недели: +3 ⭐')}}
+  save();renderTop()}
+/* ---- таймер урока ---- */
+function studyTimer(){
+  const f=S.focus,running=f&&f.end>Date.now();const dur=running?f.dur:fMode*60e3,left=running?f.end-Date.now():dur,pct=1-left/dur;
+  return`<div class="card focus">
+    <h3>${running?(f.mode==='work'?`Урок идёт — ${S.petName} учится рядом 📚`:'Перерыв — подвигайся! 🦘'):'⏳ Таймер урока'}</h3>
+    ${running?'':`<div class="seg"><button class="${fMode===45?'on':''}" onclick="fMode=45;renderStudy()">Урок 45 мин</button><button class="${fMode===30?'on':''}" onclick="fMode=30;renderStudy()">30 мин</button></div><div class="muted">После урока — отдых 10 минут</div>`}
+    <div class="timer"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="none" stroke="#e9e0ff" stroke-width="7"/><circle id="fring" cx="50" cy="50" r="45" fill="none" stroke="${running&&f.mode==='rest'?'#5fd3ad':'#8b6be0'}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${pct*282.7} 282.7"/></svg>
+      <div class="in"><img id="fpet" class="${running?'':'breathe'}" src="${IMG(petImg(running&&f.mode==='work'?'study':'happy'))}"><div class="tm" id="ftm">${fmt(left)}</div></div></div>
+    ${running&&f.mode==='rest'?`<div class="chips" style="justify-content:center;margin-bottom:10px">${BREAK.map(b=>`<span class="chip">${b}</span>`).join('')}</div>`:''}
+    ${running?`<button class="btn ghost" onclick="stopFocus()">Остановить</button>`:`<button class="btn" style="padding:14px 34px;font-size:18px" onclick="startFocus()">Начать урок ▶</button>`}
+    <p class="mini-tip">💡 На iPad открой это окно сбоку через <b>Slide Over</b>: урок на большом экране, ${S.petName} с таймером рядом.</p>
+    <p class="mini-tip">Сегодня уроков с таймером: <b>${S.day.focus}</b> · всего: <b>${S.focusTotal}</b></p></div>`;
+}
+function fmt(ms){const s=Math.max(0,Math.round(ms/1000));return pad(Math.floor(s/60))+':'+pad(s%60)}
+function startFocus(){S.focus={mode:'work',dur:fMode*60e3,end:Date.now()+fMode*60e3};save();chime([523,784]);renderStudy()}
+function stopFocus(){S.focus=null;save();renderStudy()}
+function focusTick(){const f=S.focus;if(!f){clearInterval(fInt);return}const left=f.end-Date.now();const t=$('#ftm');if(t)t.textContent=fmt(left);const r=$('#fring');if(r)r.setAttribute('stroke-dasharray',`${(1-left/f.dur)*282.7} 282.7`);
+  if(left<=0){clearInterval(fInt);
+    if(f.mode==='work'){S.day.focus++;S.focusTotal++;S.focus={mode:'rest',dur:10*60e3,end:Date.now()+10*60e3};save();const p=$('#fpet');if(p){p.src=IMG(petImg('proud'));replay(p,'hop')}
+      earn({st:1,xp:15,pxp:20},p);toast('🔔 Урок окончен! Отдых 10 минут. Планшет — на зарядку 🔌');setTimeout(()=>{if(cur==='study')renderStudy()},1800)}
+    else{S.focus=null;save();toast('Отдых окончен — к следующему уроку! 💪');chime([523,784]);if(cur==='study')renderStudy()}}}
+
+/* =================== МАГАЗИН =================== */
+let shopTab='me';
+function openShop(t){shopTab=t;go('shop')}
+function renderShop(){
+  const el=$('#shop');let h=`<div class="card" style="margin-top:8px;padding:12px 16px;background:linear-gradient(135deg,#fff,#eefcf6)"><div class="rule" style="margin:0"><b>💎</b><span>Здесь всё покупается за кристаллы — их дают режим дня и чистая комната.</span></div></div>
+  <div class="tabs"><button class="${shopTab==='me'?'on':''}" onclick="shopTab='me';renderShop()">✨ Я</button><button class="${shopTab==='home'?'on':''}" onclick="shopTab='home';renderShop()">🏠 Домик</button><button class="${shopTab==='pet'?'on':''}" onclick="shopTab='pet';renderShop()">🐾 ${S.petName}</button></div>`;
+  if(shopTab==='me'){
+    if(S.girl<4){h+=`<div class="card"><h3>🌱 Неделя 1: привожу себя в порядок</h3><div class="muted">Шаг за шагом. Платья откроются, когда будешь в своей одежде!</div></div><div class="grid">`;
+      CARE.forEach((c,i)=>{const own=S.girl>=c.stage,next=S.girl===c.stage-1;h+=`<button class="item ${own?'wearing':''}" ${own||!next?'':`onclick="buyCare(${i},this)"`} style="${!own&&!next?'opacity:.5':''}"><div class="pic">${c.e}</div><div class="nm">${c.nm}</div><div class="ds">${c.ds}</div>${own?'<span class="tag ok">Есть ✓</span>':next?`<span class="btn small gold">${c.price} 💎</span>`:'<span class="tag">🔒 Сначала предыдущее</span>'}</button>`});h+='</div>'}
+    h+=`<h2>👗 Гардероб</h2><div class="grid">`;const canWear=S.girl>=4;
+    h+=`<button class="item ${!S.outfit&&canWear?'wearing':''}" ${canWear?`onclick="wear(null)"`:''}><div class="pic"><img src="${IMG('girl_s4')}" style="${canWear?'':'filter:brightness(0) opacity(.22)'}"></div><div class="nm">Футболка и шорты</div><div class="ds">Мой любимый образ</div>${canWear?(S.outfit?'<span class="btn small ghost">Надеть</span>':'<span class="tag ok">Надето</span>'):'<span class="tag">🔒 Неделя 1</span>'}</button>`;
+    OUTFITS.forEach(o=>{const own=S.owned.includes(o.id)||(o.id==='princess'&&S.unlockedPrincess),lockLvl=level()<o.lvl,lockAch=o.ach&&!S.unlockedPrincess,blocked=!canWear||lockLvl||lockAch;let btn;
+      if(S.outfit===o.id)btn='<span class="tag ok">Надето</span>';else if(own)btn='<span class="btn small ghost">Надеть</span>';else if(!canWear)btn='<span class="tag">🔒 Неделя 1</span>';else if(lockAch)btn=`<span class="tag wait">🏆 ${o.ach}</span>`;else if(lockLvl)btn=`<span class="tag">🔒 Уровень ${o.lvl}</span>`;else btn=`<span class="btn small gold">${o.price} 💎</span>`;
+      h+=`<button class="item ${own||!blocked?'':'lockd'} ${S.outfit===o.id?'wearing':''}" onclick="outfitClick('${o.id}',this)"><span class="rib">${o.rare}</span><div class="pic"><img src="${IMG(o.img)}"></div><div class="nm">${o.nm}</div>${btn}</button>`});
+    h+=`</div><div class="card muted" style="margin-top:14px;text-align:center">Скоро: костюмы недели 🚀🤠 и аксессуары 👑🦊</div>`;
+  }else if(shopTab==='home'){
+    h+=`<div class="card"><h3>🧹 Чистота: ${cleanPct()}%</h3><div class="muted">${S.mess.length?`На полу: ${S.mess.map(k=>MESS_ITEMS[k][0]).join(' ')}. Носки и одежду уберёт «Отнести вещи в стирку», остальное — «Убрать комнату» вечером.`:'Идеальный порядок! ✨'}</div></div><div class="grid">`;
+    ROOMS.forEach(r=>{const own=S.rooms.includes(r.id),needGirl=r.id==='bedroom'&&S.girl<4,needLvl=r.lvl&&level()<r.lvl,blocked=needGirl||needLvl;let btn;
+      if(S.room===r.id)btn='<span class="tag ok">Я здесь</span>';else if(own)btn='<span class="btn small ghost">Перейти</span>';else if(needGirl)btn=`<span class="tag">🔒 ${r.need}</span>`;else if(needLvl)btn=`<span class="tag">🔒 Уровень ${r.lvl}</span>`;else btn=`<span class="btn small gold">${r.price} 💎</span>`;
+      h+=`<button class="item ${!own&&blocked?'lockd':''} ${S.room===r.id?'wearing':''}" onclick="roomClick('${r.id}',this)"><div class="pic">${roomSVG(r.id).replace('<img ','<img class="rimg" ')}</div><div class="nm">${r.e} ${r.nm}</div><div class="ds">${r.ds}</div>${btn}</button>`});
+    h+=`</div><div class="card muted" style="margin-top:14px;text-align:center">Скоро: мебель и декор для комнаты 🪴🛋️💡</div>`;
+  }else{
+    h+=`<div class="stats"><div class="stat food"><div class="l"><span>🍪 Сытость</span><span>${Math.round(S.food)}%</span></div><div class="bar"><i style="width:${S.food}%"></i></div></div><div class="stat joy"><div class="l"><span>💜 Радость</span><span>${Math.round(S.joy)}%</span></div><div class="bar"><i style="width:${S.joy}%"></i></div></div></div><div class="grid">`;
+    FOOD.forEach((f,i)=>{h+=`<button class="item" onclick="buyFood(${i},this)"><div class="pic">${f.e}</div><div class="nm">${f.nm}</div><div class="ds">${f.ds}</div><span class="btn small gold">${f.price} 💎</span></button>`});
+    h+=`</div><div class="card" style="margin-top:14px"><h3>🌱 Как растёт ${S.petName}</h3><div class="muted">Опыт: ${S.petXP}. ${PET_STAGES.slice(1).map((s,i)=>`${i+1===S.petStage?'<b style="color:var(--deep)">':''}${s.n} (${s.xp})${i+1===S.petStage?'</b>':''}`).join(' → ')}</div></div>`;
+  }
+  el.innerHTML=h;
+}
+function pay(n,el){if(S.crystals<n){toast(`Не хватает 💎 — нужно ${n}, у тебя ${S.crystals}. Выполняй режим дня!`);if(el)replay(el,'shake');return false}S.crystals-=n;return true}
+function buyCare(i,el){const c=CARE[i];if(!pay(c.price,el))return;S.girl=c.stage;S.xp+=15;save();renderTop();if(c.stage===4)setTimeout(()=>toast('🎉 Ты снова Августина! Открыты гардероб и Спальня'),1600);girlTransform()}
+function outfitClick(id,el){const o=OUTFITS.find(x=>x.id===id),own=S.owned.includes(id)||(id==='princess'&&S.unlockedPrincess);
+  if(S.girl<4){toast('Сначала закончи неделю 1 ✨');replay(el,'shake');return}if(own){wear(id);return}
+  if(o.ach&&!S.unlockedPrincess){toast('👑 Это платье нельзя купить — только заслужить!');replay(el,'shake');return}
+  if(level()<o.lvl){toast(`Откроется на уровне ${o.lvl}`);replay(el,'shake');return}if(!pay(o.price,el))return;S.owned.push(id);save();wear(id)}
+function wear(id){S.outfit=id;save();renderTop();girlTransform()}
+function roomClick(id,el){const r=ROOMS.find(x=>x.id===id);if(S.rooms.includes(id)){setRoom(id);go('home');return}
+  if(id==='bedroom'&&S.girl<4){toast(r.need+' ✨');replay(el,'shake');return}if(r.lvl&&level()<r.lvl){toast(`Откроется на уровне ${r.lvl}`);replay(el,'shake');return}
+  if(!pay(r.price,el))return;S.rooms.push(id);S.room=id;save();renderTop();go('home');setTimeout(()=>{flash();chime([523,659,784,1047]);toast(`🏠 Новая комната: ${r.nm}!`);say('Ух ты, какая красота! 😍');burst(innerWidth/2,innerHeight/3,['✨','🌟','💜'],20,200)},300)}
+function buyFood(i,el){const f=FOOD[i];if(f.med&&!S.sick){toast(`${S.petName} здоров, лекарство не нужно 💚`);return}if(!pay(f.price,el))return;
+  S.food=Math.min(100,S.food+f.food);S.joy=Math.min(100,S.joy+f.joy);if(f.med)S.sick=false;save();renderTop();feedAnim(f)}
+
+/* =================== ХОББИ: КНИГИ + НЕЙРО-МЯЧИКИ =================== */
+const NEURO=[
+  ['🎾','Подбрось и поймай правой рукой','10 раз'],
+  ['🎾','Подбрось и поймай левой рукой','10 раз'],
+  ['🔁','Перекидывай мячик из руки в руку над головой','20 раз'],
+  ['👏','Подбрось, хлопни в ладоши и поймай','10 раз'],
+  ['🧱','Брось о стену и поймай','15 раз'],
+  ['♾️','Восьмёрка: проводи мяч между ногами','10 раз'],
+  ['🦩','Стоя на одной ноге: подбрось и поймай','по 5 на каждой ноге'],
+  ['🎾🎾','Два мячика: подбрось оба и поймай','5 раз'],
+  ['🔄','Подбрось правой — поймай левой, и наоборот','10 раз'],
+  ['🙌','Подбрось, повернись кругом и поймай','5 раз'],
+];
+const NEURO_MIN=10;
+let htab='books',nInt;
+function neuroDaysThisWeek(){const wk=weekKey();return Object.keys(S.neuro||{}).filter(d=>d>=wk&&d<=today()).length}
+function renderHobby(){const el=$('#hobby');
+  let h=`<div class="tabs" style="margin-top:8px"><button class="${htab==='books'?'on':''}" onclick="htab='books';renderHobby()">📚 Мои книги</button><button class="${htab==='neuro'?'on':''}" onclick="htab='neuro';renderHobby()">🎾 Нейро-мячики${S.neuro&&S.neuro[today()]?' ✓':''}</button></div>`;
+  h+=htab==='books'?hobbyBooks():hobbyNeuro();el.innerHTML=h;
+  clearInterval(nInt);if(htab==='neuro'&&S.neuroRun)nInt=setInterval(neuroTick,1000)}
+/* ---- книги ---- */
+const SPINES=['#b89cf5','#ff9ec7','#7fd3ff','#ffd66b','#8ee6c8','#ffb38a','#c9a5f5','#9fdcff'];
+function hobbyBooks(){const B=S.books||[],reading=B.filter(b=>b.st==='reading'),want=B.filter(b=>b.st==='want'),done=B.filter(b=>b.st==='done');
+  const todayPages=B.reduce((a,b)=>a+((b.log||{})[today()]||0),0);
+  let h=`<div class="card" style="display:flex;gap:12px;align-items:center;background:linear-gradient(135deg,#fff,#f3ecff)"><div style="font-size:38px">📖</div><div style="flex:1"><h3 style="margin:0">Мои книги</h3><div class="muted">Сегодня прочитано: <b>${todayPages}</b> стр. · за неделю: <b>${weekPages()}</b> стр. · прочитано книг: <b>${done.length}</b></div></div><button class="btn small" onclick="addBook()">＋ Книга</button></div>`;
+  h+=`<h2>📖 Читаю сейчас ${reading.length>1?`<span class="tag wait">${reading.length} книги сразу!</span>`:''}</h2>`;
+  if(!reading.length)h+=`<div class="card muted" style="text-align:center">Сейчас ничего не читаешь. Добавь книгу или возьми из списка «Хочу прочитать» 👇</div>`;
+  reading.forEach(b=>{const pct=b.total?Math.min(100,Math.round(b.page/b.total*100)):0,last=lastRead(b);
+    h+=`<div class="card" style="border-left:8px solid ${b.c}"><div style="display:flex;justify-content:space-between;gap:8px"><div><b style="font-size:17px">${esc(b.title)}</b>${b.author?`<div class="muted">${esc(b.author)}</div>`:''}</div><span class="tag">${b.total?pct+'%':b.page+' стр.'}</span></div>
+      ${b.total?`<div class="bar" style="max-width:none;height:12px;margin:10px 0"><i style="width:${pct}%;background:${b.c}"></i></div><div class="muted">Страница ${b.page} из ${b.total}</div>`:''}
+      <div class="muted" style="margin-top:4px">${last?`Последний раз читала: ${last}`:'Ещё не начинала'}</div>
+      <div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap"><span style="font-weight:800">Дочитала до страницы:</span><input class="testin" type="number" min="0" id="bp_${b.id}" placeholder="${b.page||''}"><button class="btn small" onclick="logPages('${b.id}',this)">Записать</button><button class="btn small mint" onclick="finishBook('${b.id}',this)">Дочитала! 🎉</button></div></div>`});
+  h+=`<h2>⭐ Хочу прочитать</h2>`+(want.length?want.map(b=>`<div class="row"><span class="e">📕</span><span class="tx">${esc(b.title)}${b.author?`<small>${esc(b.author)}</small>`:''}</span><button class="btn small ghost" onclick="startBook('${b.id}')">Начать читать</button></div>`).join(''):`<div class="card muted">Сюда можно записать книги, которые хочется прочитать.</div>`);
+  if(done.length)h+=`<h2>🏆 Прочитано</h2><div class="card" style="display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;background:linear-gradient(180deg,#fff 85%,#e7d4c0 85%)">${done.map(b=>`<div title="${esc(b.title)}" style="width:34px;height:${110+(b.title.length%5)*10}px;background:${b.c};border-radius:6px 6px 2px 2px;writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;font-weight:900;color:#fff;padding:6px 0;overflow:hidden;text-shadow:0 1px 2px #0004">${esc(b.title)}</div>`).join('')}</div>`;
+  h+=`<div class="card muted" style="text-align:center">Читать не обязательно каждый день — но за каждый день чтения +1 ⭐, а за прочитанную книгу +5 ⭐!</div>`;
+  return h}
+const esc=t=>String(t||'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+function lastRead(b){const ds=Object.keys(b.log||{}).filter(d=>b.log[d]>0).sort();if(!ds.length)return'';const d=ds[ds.length-1];if(d===today())return'сегодня';const n=Math.round((new Date(today())-new Date(d))/864e5);return n===1?'вчера':n+' дн. назад'}
+function weekPages(){const wk=weekKey();return(S.books||[]).reduce((a,b)=>a+Object.entries(b.log||{}).filter(([d])=>d>=wk).reduce((x,[,p])=>x+p,0),0)}
+function addBook(){modal(`<h2>📚 Новая книга</h2><div class="left"><b>Название</b><input class="namein" id="bt" style="font-size:17px" placeholder="Например: Гарри Поттер"><b>Автор (если знаешь)</b><input class="namein" id="ba" style="font-size:16px"><b>Сколько страниц в книге</b><input class="namein" id="bn" type="number" style="font-size:16px" placeholder="можно не заполнять"></div>
+  <div class="chips" style="justify-content:center;margin:6px 0 12px"><button class="btn" onclick="saveBook('reading')">Читаю сейчас 📖</button><button class="btn ghost" onclick="saveBook('want')">Хочу прочитать ⭐</button></div><button class="btn ghost small" onclick="closeModal()">Отмена</button>`)}
+function saveBook(st){const t=$('#bt').value.trim();if(!t){toast('Напиши название книги');return}S.books=S.books||[];
+  S.books.push({id:'b'+Date.now(),title:t,author:$('#ba').value.trim(),total:+$('#bn').value||0,page:0,st,c:SPINES[S.books.length%SPINES.length],log:{},start:st==='reading'?today():null});save();closeModal();htab='books';go('hobby');toast(st==='reading'?'📖 Книга на полке «Читаю сейчас»':'⭐ Добавлено в «Хочу прочитать»')}
+function startBook(id){const b=S.books.find(x=>x.id===id);b.st='reading';b.start=today();save();renderHobby();toast('📖 Начинаем читать!')}
+function logPages(id,el){const b=S.books.find(x=>x.id===id),v=parseInt($('#bp_'+id).value);if(isNaN(v)||v<=b.page){toast('Напиши страницу, до которой дочитала');return}
+  if(b.total&&v>b.total){toast(`В книге всего ${b.total} стр.`);return}
+  const read=v-b.page;b.page=v;b.log=b.log||{};const first=!Object.values(S.books).some(x=>(x.log||{})[today()]>0);b.log[today()]=(b.log[today()]||0)+read;
+  if(first)earn({st:1,xp:6,pxp:6,count:false},el);else{const[x,y]=centerOf(el);floatUp(x,y,'+'+read+' стр.');chime([880])}
+  S.log.push({date:today(),act:'read',book:b.title,pages:read});save();
+  if(b.total&&v>=b.total){finishBook(id,el);return}renderHobby()}
+function finishBook(id,el){const b=S.books.find(x=>x.id===id);if(b.total)b.page=b.total;b.st='done';b.end=today();save();
+  earn({st:5,xp:30,pxp:25,count:false},el);flash();burst(innerWidth/2,innerHeight/3,['📚','🏆','⭐','✨'],26,220);toast(`🏆 Книга «${b.title}» прочитана! +5 ⭐`);renderHobby()}
+/* ---- нейро-мячики ---- */
+function hobbyNeuro(){const N=S.neuro||{},done=!!N[today()],wd=neuroDaysThisWeek(),run=S.neuroRun;
+  const wk=weekKey(),days=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map((t,i)=>{const d=new Date(wk+'T12:00:00');d.setDate(d.getDate()+i);const ds=dstr(d);return`<div style="text-align:center"><div style="width:38px;height:38px;border-radius:50%;margin:0 auto 4px;display:flex;align-items:center;justify-content:center;font-size:18px;background:${N[ds]?'#5fd3ad':ds===today()?'#e9e0ff':'#f3eefc'};${ds===today()?'box-shadow:0 0 0 3px #b89cf5':''}">${N[ds]?'🎾':''}</div><span class="muted" style="font-size:12px">${t}</span></div>`}).join('');
+  let h=`<div class="card"><div style="display:flex;gap:12px;align-items:center"><div style="font-size:40px">🎾</div><div style="flex:1"><h3 style="margin:0">Нейро-мячики</h3><div class="muted">${NEURO_MIN} минут каждый день — руки и голова работают вместе!</div></div></div>
+    <div style="display:flex;justify-content:space-between;margin:14px 0 6px">${days}</div>
+    <div class="muted" style="text-align:center">На этой неделе: <b>${wd}</b> из 5 дней · серия: <b>${neuroStreak()}</b> дн. подряд 🔥</div>
+    <div style="margin-top:10px;padding:12px;border-radius:16px;background:${wd>=5?'#e9fbf4':'#fff6e0'};font-weight:800;text-align:center">${wd>=5?'🎾 Падл на выходных заработан! Отправь заявку в «Наградах»':`🎾 Ещё ${5-wd} ${5-wd===1?'день':'дня'} — и на выходных поход на падл!`}</div></div>`;
+  if(run){const left=Math.max(0,run.end-Date.now()),idx=Math.min(NEURO.length-1,Math.floor((NEURO_MIN*60e3-left)/(NEURO_MIN*60e3/NEURO.length))),ex=NEURO[(idx+run.off)%NEURO.length];
+    h+=`<div class="card focus"><div class="tm" id="ntm" style="font-size:44px;font-weight:900">${fmt(left)}</div><div class="muted">упражнение ${idx+1} из ${NEURO.length}</div>
+      <div id="nex" style="margin:16px 0;padding:20px;border-radius:22px;background:linear-gradient(135deg,#f3ecff,#fff);width:100%"><div style="font-size:54px" class="bob">${ex[0]}</div><h3 style="font-size:20px">${ex[1]}</h3><div class="tag wait" style="display:inline-block">${ex[2]}</div></div>
+      <img src="${IMG(petImg('jump'))}" style="height:120px" class="bob"><div style="display:flex;gap:10px;margin-top:10px"><button class="btn ghost" onclick="S.neuroRun=null;save();renderHobby()">Остановить</button>${left<=2*60e3?`<button class="btn mint" onclick="finishNeuro(this)">Готово! 🎉</button>`:''}</div></div>`}
+  else if(done)h+=`<div class="card" style="text-align:center;background:#e9fbf4"><div style="font-size:46px">🏅</div><h3>Сегодня тренировка сделана!</h3><div class="muted">Завтра продолжаем серию 🔥</div></div>`;
+  else h+=`<div class="card" style="text-align:center"><button class="btn" style="padding:15px 36px;font-size:18px" onclick="startNeuro()">Начать тренировку ▶</button><div class="muted" style="margin-top:8px">Возьми 1–2 мячика и встань там, где ничего не разобьёшь 😉</div></div>`;
+  h+=`<h2>📋 Упражнения</h2>`+NEURO.map(e=>`<div class="row"><span class="e">${e[0]}</span><span class="tx">${e[1]}<small>${e[2]}</small></span></div>`).join('');
+  return h}
+function neuroStreak(){const N=S.neuro||{};let n=0,d=new Date();if(!N[dstr(d)])d.setDate(d.getDate()-1);while(N[dstr(d)]){n++;d.setDate(d.getDate()-1)}return n}
+function startNeuro(){S.neuroRun={end:Date.now()+NEURO_MIN*60e3,off:Math.floor(Math.random()*NEURO.length)};save();chime([523,784]);renderHobby()}
+let lastEx=-1;
+function neuroTick(){const run=S.neuroRun;if(!run){clearInterval(nInt);return}const left=run.end-Date.now(),t=$('#ntm');if(t)t.textContent=fmt(left);
+  const idx=Math.min(NEURO.length-1,Math.floor((NEURO_MIN*60e3-left)/(NEURO_MIN*60e3/NEURO.length)));if(idx!==lastEx){if(lastEx>=0){chime([660,880]);renderHobby()}lastEx=idx}
+  if(left<=0){clearInterval(nInt);finishNeuro(null)}}
+function finishNeuro(el){S.neuroRun=null;S.neuro=S.neuro||{};if(S.neuro[today()]){renderHobby();return}S.neuro[today()]=1;
+  const it=schedFor(S.day.date).find(x=>x.id==='neuro');let cr=3;if(it&&!S.day.r.neuro){const late=nowMin()>tmin(it.by);S.day.r.neuro={at:Date.now(),late};cr=late?2:it.cr}
+  earn({cr,xp:10,pxp:12,joy:6},el||$('#hobby .card'));S.log.push({date:today(),act:'neuro'});save();
+  toast(neuroDaysThisWeek()>=5?'🎾 5 дней! Падл на выходных заработан!':'🎾 Тренировка засчитана! +'+cr+' 💎');burst(innerWidth/2,innerHeight/3,['🎾','✨','🏅'],20,180);checkAllDay(el);renderHobby()}
+
+/* =================== НАГРАДЫ =================== */
+function renderRewards(){const el=$('#rewards'),wk=weekStats();
+  let h=`<div class="card" style="margin-top:8px;background:linear-gradient(135deg,#fff8e1,#ffe7a6)"><h3>⭐ Звёзды — на развлечения</h3><div style="font-weight:700;font-size:14px">Звёзды дают за уроки: урок проверен мамой — +5 ⭐, тест 95%+ — ещё +2 ⭐, урок с таймером — +1 ⭐.<br>Бонус недели (все уроки + режим без пропусков) — <b>+20 ⭐</b>.</div></div>`;
+  h+=`<div class="card"><h3>📅 Эта неделя</h3><div class="kpis"><div class="kpi"><b>${wk.lessons}/${wk.total}</b><span>уроков сдано</span></div><div class="kpi"><b>${wk.avg??'—'}${wk.avg!=null?'%':''}</b><span>средний тест</span></div><div class="kpi"><b>${wk.ontime}/${wk.sched}</b><span>дел режима вовремя</span></div><div class="kpi"><b>${wk.focus}</b><span>уроков с таймером</span></div></div></div>`;
+  REWARDS.forEach(r=>{const p=S.pendR.find(x=>x.id===r.id&&x.st==='wait');h+=`<div class="rew"><span class="e">${r.e}</span><span class="tx">${r.nm}<small>${p?'Ждёт подтверждения мамы':r.neuro?`Нейро-мячики ${neuroDaysThisWeek()}/5 дней на этой неделе`:r.price+' ⭐'}</small></span>${p?'<span class="tag wait">⏳</span>':`<button class="btn small gold" onclick="buyReward('${r.id}',this)">Хочу!</button>`}</div>`});
+  const got=S.pendR.filter(r=>r.st==='ok').slice(-5).reverse();if(got.length)h+=`<h2>🎉 Получено</h2>`+got.map(g=>{const r=REWARDS.find(x=>x.id===g.id);return`<div class="rew"><span class="e">${r.e}</span><span class="tx">${r.nm}<small>${g.date}</small></span><span class="tag ok">✓</span></div>`}).join('');
+  el.innerHTML=h}
+function buyReward(id,el){const r=REWARDS.find(x=>x.id===id);
+  if(r.neuro){if(neuroDaysThisWeek()<r.neuro){toast(`Падл откроется после ${r.neuro} дней нейро-мячиков. Сейчас: ${neuroDaysThisWeek()}`);replay(el,'shake');return}if(S.pendR.find(x=>x.id==='padel'&&x.date>=weekKey())){toast('Падл на этой неделе уже заказан 🎾');return}}
+  if(S.stars<r.price){toast(`Нужно ${r.price} ⭐, у тебя ${S.stars}. Делай уроки!`);replay(el,'shake');return}
+  S.stars-=r.price;S.pendR.push({id,st:'wait',date:today()});save();renderTop();const[x,y]=centerOf(el);burst(x,y,['⭐','🎉','✨'],16,130);chime([523,659,784,1047]);toast('📨 Заявка отправлена маме!');renderRewards()}
+function weekStats(){const now=new Date(),mon=new Date(now);mon.setDate(now.getDate()-((now.getDay()+6)%7));mon.setHours(0,0,0,0);
+  const L=schedFor(S.day.date);
+  const days=[...S.history.filter(h=>new Date(h.date+'T12:00:00')>=mon),{date:S.day.date,done:S.day.done,sched:L.length,ontime:L.filter(it=>S.day.r[it.id]&&!S.day.r[it.id].late).length,miss:0,lessons:S.day.did.length,total:S.day.lessons.length,focus:S.day.focus,tests:S.day.tests}];
+  const tests=days.flatMap(d=>d.tests||[]),sum=k=>days.reduce((a,d)=>a+(d[k]||0),0);
+  return{lessons:sum('lessons'),total:sum('total'),focus:sum('focus'),sched:sum('sched'),ontime:sum('ontime'),miss:sum('miss'),days:days.filter(d=>d.done>0).length,avg:tests.length?Math.round(tests.reduce((a,b)=>a+b,0)/tests.length):null,tests,list:days}}
+
+/* =================== РОДИТЕЛИ =================== */
+let pinBuf='',ptab='main';
+function openParent(){pinBuf='';modal(`<h2>🔒 Для мамы</h2><div class="dots" id="pdots">○○○○</div><div class="pin">${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(n=>n===''?'<span></span>':`<button onclick="pinKey('${n}')">${n}</button>`).join('')}</div><div class="muted" style="font-size:12px">PIN по умолчанию: 1234</div><button class="btn ghost" style="margin-top:12px" onclick="closeModal()">Закрыть</button>`)}
+function pinKey(n){if(n==='⌫')pinBuf=pinBuf.slice(0,-1);else pinBuf+=n;$('#pdots').textContent='●'.repeat(pinBuf.length)+'○'.repeat(4-pinBuf.length);
+  if(pinBuf.length===4){if(pinBuf===S.pin){ptab='main';renderParent()}else{replay($('#pdots'),'shake');pinBuf='';setTimeout(()=>$('#pdots').textContent='○○○○',400)}}}
+function renderParent(){const wk=weekStats();
+  let h=`<h2>👩 Для мамы</h2><div class="tabs" style="justify-content:center"><button class="${ptab==='main'?'on':''}" onclick="ptab='main';renderParent()">Проверка</button><button class="${ptab==='sched'?'on':''}" onclick="ptab='sched';renderParent()">Режим дня</button><button class="${ptab==='prog'?'on':''}" onclick="ptab='prog';renderParent()">Программа</button><button class="${ptab==='diary'?'on':''}" onclick="ptab='diary';renderParent()">Дневник</button><button class="${ptab==='test'?'on':''}" onclick="ptab='test';renderParent()">Тест</button></div><div class="left">`;
+  if(ptab==='main'){
+    const rcs=Object.entries(S.roomChecks||{}).sort().reverse().slice(0,3);if(rcs.length)h+=`<div class="card"><h3>🧹 Комната перед сном</h3>${rcs.map(([d,rc])=>`<div class="prow"><span class="tx">${d}<small>${rc.st==='ok'?'засчитано по фото':rc.st==='fail'?'не убралась — штраф':'мама не засчитала'}</small></span>${rc.st==='ok'?`<button class="btn small ghost" onclick="parentRejectRoom('${d}')">Не засчитать −5💎</button>`:''}<div style="width:100%;display:grid;grid-template-columns:repeat(4,1fr);gap:6px">${Object.values(rc.ph).map(src=>`<img src="${src}" style="width:100%;border-radius:10px">`).join('')}</div></div>`).join('')}</div>`;
+    h+=`<div class="card"><h3>📊 Неделя</h3><div class="kpis"><div class="kpi"><b>${wk.lessons}/${wk.total}</b><span>уроков сдано</span></div><div class="kpi"><b>${wk.avg??'—'}${wk.avg!=null?'%':''}</b><span>средний тест</span></div><div class="kpi"><b>${wk.ontime}/${wk.sched}</b><span>режим вовремя</span></div><div class="kpi"><b>${wk.miss}</b><span>пропущено дел</span></div><div class="kpi"><b>${weekPages()}</b><span>страниц прочитано</span></div><div class="kpi"><b>${neuroDaysThisWeek()}/5</b><span>нейро-мячики</span></div></div>
+      <div class="muted" style="font-size:13px">Тесты: ${wk.tests.length?wk.tests.join('%, ')+'%':'пока нет'}. Сводка в Telegram — в версии на сервере.</div><button class="btn small gold" style="margin-top:10px" onclick="S.stars+=20;save();renderTop();toast('⭐ Бонус недели +20');renderParent()">Выдать бонус недели +20 ⭐</button></div>`;
+    h+=`<div class="card"><h3>📝 Уроки на проверке (${S.pendL.length})</h3>`;if(!S.pendL.length)h+=`<div class="muted">Пока нечего проверять</div>`;
+    S.pendL.forEach((p,k)=>{const{s,n}=LP(p.k);h+=`<div class="prow"><span class="tx">${SUBJ[s].e} ${SUBJ[s].nm}, урок ${n}<small>${ltitle(s,n)} · ${p.date} · тест ${p.test}%</small></span><button class="btn small" onclick="approveL(${k})">✓ Принять</button><button class="btn small ghost" onclick="returnL(${k})">↩︎ Вернуть</button><div style="width:100%">${Object.entries(p.photos).map(([k,src])=>`<div class="muted" style="font-size:12px">${(STEPS.find(s=>s.k===k)||{t:k}).t}</div><img class="photo-big" src="${src}">`).join('')||'<small>Без фото</small>'}</div></div>`});
+    h+=`</div><div class="card"><h3>🎡 Заявки на награды</h3>`;const pr=S.pendR.map((r,k)=>({...r,k})).filter(r=>r.st==='wait');if(!pr.length)h+=`<div class="muted">Нет заявок</div>`;
+    pr.forEach(r=>{const R=REWARDS.find(x=>x.id===r.id);h+=`<div class="prow"><span class="tx">${R.e} ${R.nm}<small>${r.date}</small></span><button class="btn small" onclick="okR(${r.k})">Подтвердить</button><button class="btn small ghost" onclick="noR(${r.k})">Отказать</button></div>`});
+    h+=`</div><div class="card"><h3>📚 Уроки сегодня</h3>${S.day.lessons.length?S.day.lessons.map(k=>{const{s,n}=LP(k),x=lget(k);return`<div class="prow"><span class="tx">${SUBJ[s].e} ${ltitle(s,n)}<small>${SUBJ[s].nm}, урок ${n}${(S.day.carry||[]).includes(k)?' · долг':''}</small></span><span class="tag ${isDoneSt(x)?'ok':''}">${!x?'не начат':x.st==='done'?'принят':x.st==='review'?'сдан':'шаг '+((x.step||0)+1)+' из '+STEPS.length}</span></div>`}).join(''):'<div class="muted">Сегодня уроков нет</div>'}</div>`;
+    h+=`<div class="card"><h3>🗒️ Что сделала и повторила</h3>${S.log.slice(-12).reverse().map(e=>{if(e.act==='review')return`<div class="prow"><span class="tx">🧠 Повторение: ${e.score}/3<small>${e.date}${e.wrong.length?' · ошибки: '+e.wrong.map(k=>{const{s,n}=LP(k);return SUBJ[s].nm.split(' ')[0]+' '+n}).join(', '):''}</small></span></div>`;const{s,n}=LP(e.k);return`<div class="prow"><span class="tx">✅ ${ltitle(s,n)}<small>${e.date} · ${SUBJ[s].nm}, урок ${n} · тест ${e.test}%</small></span></div>`}).join('')||'<div class="muted">Пока пусто</div>'}
+      ${S.weak.length?`<div style="margin-top:8px"><b>Темы, где были ошибки:</b> ${S.weak.map(k=>{const{s,n}=LP(k);return SUBJ[s].e+' '+ltitle(s,n)}).join('; ')}</div>`:''}</div>`;
+  }else if(ptab==='sched'){
+    [['schedWD','📅 Будни'],['schedWE','🌈 Выходные']].forEach(([key,t])=>{h+=`<div class="card"><h3>${t}</h3><div class="muted" style="font-size:12px;margin-bottom:6px">Начало · успеть до · 💎</div>`;
+      S[key].forEach((it,i)=>{h+=`<div class="prow"><span class="tx">${it.e} ${it.nm}</span><input type="time" value="${it.at}" onchange="S.${key}[${i}].at=this.value;save()"><input type="time" value="${it.by}" onchange="S.${key}[${i}].by=this.value;save()"><input type="number" value="${it.cr}" min="0" max="20" style="width:52px;border:2px solid var(--lav2);border-radius:10px;padding:5px;font-weight:800" onchange="S.${key}[${i}].cr=+this.value;save()"></div>`});h+=`</div>`});
+    h+=`<button class="btn ghost small" onclick="S.schedWD=JSON.parse(JSON.stringify(SCHED_WD));S.schedWE=JSON.parse(JSON.stringify(SCHED_WE));save();renderParent()">Вернуть расписание по умолчанию</button>`;
+  }else if(ptab==='prog'){h+=studyMap(true);
+  }else if(ptab==='diary'){
+    const ks=Object.keys(S.diary).sort().reverse();if(!ks.length)h+=`<div class="card muted">Записей пока нет</div>`;
+    ks.forEach(k=>{h+=`<div class="card"><h3>${new Date(k+'T12:00:00').toLocaleDateString('ru-RU',{weekday:'short',day:'numeric',month:'long'})}</h3>${DQ.map((q,i)=>`<div class="muted" style="font-size:12px">${q}</div><div style="font-weight:700;margin-bottom:8px">${(S.diary[k][i]||'').replace(/</g,'&lt;')}</div>`).join('')}</div>`});
+  }else{
+    h+=`<div class="card"><h3>🧪 Проверить, как всё работает</h3><div class="chips">
+      <button class="chip" onclick="S.crystals+=30;save();renderTop();toast('+30 💎')">+30 💎</button>
+      <button class="chip" onclick="S.stars+=10;save();renderTop();toast('+10 ⭐')">+10 ⭐</button>
+      <button class="chip" onclick="addPetXP(200);save();closeModal()">+200 опыта питомцу</button>
+      <button class="chip" onclick="addMess(['sock','shirt','pants']);addMess(['toy','book','paper','crayon','peel','cup']);save();closeModal()">Беспорядок +4</button>
+      <button class="chip" onclick="S.food=10;S.joy=15;save();closeModal()">Питомец голоден</button>
+      <button class="chip" onclick="S.missed=2;S.sick=true;save();closeModal()">Заболел</button>
+      <button class="chip" onclick="S.missed=3;S.rescue=0;save();closeModal()">Убежал в лес</button>
+      <button class="chip" onclick="S.unlockedPrincess=true;save();toast('👑 Платье принцессы открыто')">Открыть платье принцессы</button>
+      <button class="chip" onclick="S.girl=0;S.outfit=null;S.room='attic';save();closeModal()">Снова растрёпка на чердаке</button>
+      <button class="chip" style="background:#ffe0e6" onclick="if(this.dataset.c){localStorage.removeItem(KEY);localStorage.removeItem('avgustina_world_v1');location.reload()}else{this.dataset.c=1;this.textContent='Точно? Нажми ещё раз'}">Сбросить всё</button></div></div>
+      <div class="card"><h3>🔑 PIN</h3><input class="namein" style="font-size:16px" maxlength="4" inputmode="numeric" placeholder="Новый PIN из 4 цифр" onchange="if(/^\\d{4}$/.test(this.value)){S.pin=this.value;save();toast('PIN изменён')}"></div>`;
+  }
+  h+=`</div><button class="btn" onclick="closeModal()">Готово</button>`;$('#modal').innerHTML=h}
+function approveL(k){const p=S.pendL.splice(k,1)[0];const x=lget(p.k);if(x)x.st='done';S.stars+=5+(p.test>=95?2:0);save();renderTop();chime([523,659,784,1047]);toast('⭐ +'+(5+(p.test>=95?2:0))+' звёзд');renderParent()}
+function returnL(k){const p=S.pendL.splice(k,1)[0];const x=lget(p.k);if(x){x.st='returned';x.step=2;x.photos={}}if(!S.day.lessons.includes(p.k))S.day.lessons.push(p.k);save();renderTop();renderParent()}
+function okR(k){S.pendR[k].st='ok';save();renderTop();renderParent()}
+function noR(k){const r=S.pendR[k];r.st='no';S.stars+=REWARDS.find(x=>x.id===r.id).price;save();renderTop();renderParent()}
+
+/* =================== МОДАЛКИ / ОНБОРДИНГ =================== */
+function modal(h){$('#modal').innerHTML=h;$('#ov').classList.add('on')}
+function closeModal(){$('#ov').classList.remove('on');rerender()}
+let eggSel=null;
+function onboarding(){modal(`<h2>Привет, Августина! 💜</h2><p class="muted">На старом чердаке нашлись три волшебных яйца. Кто-то из них станет твоим другом навсегда. Выбери одно!</p>
+  <div class="eggs">${Object.entries(PET_TYPES).map(([k,v])=>`<button data-k="${k}" onclick="pickEgg('${k}',this)"><img src="${IMG(v.egg)}"><div style="font-weight:900;font-size:13px">?</div></button>`).join('')}</div>
+  <button class="btn" id="hatchBtn" disabled onclick="hatch()" style="padding:14px 30px;font-size:17px">Высиживать! 🥚</button>`)}
+function pickEgg(k,b){eggSel=k;document.querySelectorAll('.eggs button').forEach(x=>x.classList.toggle('sel',x===b));$('#hatchBtn').disabled=false;chime([660])}
+function hatch(){const v=PET_TYPES[eggSel];modal(`<h2 id="hh">Тук-тук… кто там? 🥚</h2><div class="hatch"><img id="egg" src="${IMG(v.egg)}" class="egg-crazy" style="animation-duration:.4s"></div>`);
+  const egg=$('#egg');chime([440]);setTimeout(()=>{egg.style.animationDuration='.25s';chime([520])},900);setTimeout(()=>{egg.style.animationDuration='.12s';chime([620])},1800);
+  setTimeout(()=>{flash();chime([523,659,784,1047,1319]);egg.className='pop';egg.src=IMG(v.baby);const[x,y]=centerOf(egg);burst(x,y,['✨','⭐','💜','🌟'],26,200);$('#hh').textContent=`Это ${v.label.toLowerCase()}! 🎉`;
+    setTimeout(()=>{$('#modal').insertAdjacentHTML('beforeend',`<p style="font-weight:800">Придумай ему имя:</p><input class="namein" id="pname" value="${eggSel==='dragon'?'Искра':eggSel==='fox'?'Рыжик':'Радуга'}" maxlength="14"><button class="btn" onclick="finishHatch()" style="padding:12px 30px">Готово 💜</button>`)},900)},2700)}
+function finishHatch(){S.petName=($('#pname').value||'Искра').trim();S.petType=eggSel;S.petStage=1;S.started=true;S.lastTick=Date.now();save();closeModal();go('home');
+  setTimeout(()=>{say(`Привет! Я ${S.petName}! Тут так пыльно… давай наведём порядок? 🧹`);toast('Неделя 1: приведи себя в порядок ✨')},800)}
+
+/* =================== НАВИГАЦИЯ =================== */
+let cur='home';
+const PAGES={home:renderHome,day:renderDay,study:renderStudy,shop:renderShop,hobby:renderHobby,rewards:renderRewards};
+function go(p){cur=p;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('on',x.id===p));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));rerender();try{history.replaceState(null,'','#'+p)}catch(e){}}
+function rerender(){tick();rollDay();renderTop();PAGES[cur]();save()}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>go(b.dataset.p));
+$('#parentBtn').onclick=openParent;
+$('#ov').onclick=e=>{if(e.target.id==='ov'&&S.started)closeModal()};
+setInterval(()=>{if($('#ov').classList.contains('on'))return;tick();autoTidyPenalty();const d0=S.day.date;rollDay();save();
+  if(d0!==S.day.date){rerender();return}
+  if(cur==='home'){renderHomeStats()}if(cur==='day')renderDay();renderTop()},30000);
+setInterval(()=>{if(cur==='home'&&!petGone()&&Math.random()<.6)sayRandom(petMood())},15000);
+try{if(window.Telegram&&Telegram.WebApp){Telegram.WebApp.ready();Telegram.WebApp.expand()}}catch(e){}
+rollDay();
+const h0=(location.hash||'').slice(1);go(PAGES[h0]?h0:'home');
+if(!S.started)onboarding();
+</script>
+</body>
+</html>
