@@ -18,6 +18,7 @@ import os
 import sqlite3
 import threading
 import time
+import traceback
 from datetime import date, datetime, timedelta
 
 import httpx
@@ -63,7 +64,8 @@ def tg(method, **data):
         return None
     try:
         return httpx.post(f"https://api.telegram.org/bot{BOT}/{method}", json=data, timeout=40).json()
-    except Exception:
+    except Exception as e:
+        print("[bot] ошибка Telegram:", repr(e)[:200], flush=True)
         return None
 
 
@@ -253,31 +255,45 @@ async def check_room(req: Request):
 # ---------------- Бот и расписание ----------------
 def bot_loop():
     if not BOT:
+        print("[bot] KIDS_BOT_TOKEN пустой — бот выключен", flush=True)
         return
-    offset = kv_get("tg_offset", 0)
+    me = tg("getMe") or {}
+    print("[bot] getMe:", me.get("ok"), (me.get("result") or {}).get("username"), me.get("description", ""), flush=True)
+    tg("deleteWebhook")
     while True:
-        r = tg("getUpdates", offset=offset, timeout=30) or {}
-        for u in r.get("result", []):
-            offset = u["update_id"] + 1
-            kv_set("tg_offset", offset)
-            m = u.get("message") or {}
-            chat, text = (m.get("chat") or {}).get("id"), (m.get("text") or "").strip()
-            if not chat:
-                continue
-            parents = kv_get("parents", [])
-            if text.startswith("/start"):
-                code = text[6:].strip()
-                if code and KEY and hmac.compare_digest(code, KEY):
-                    if chat not in parents:
-                        parents.append(chat)
-                        kv_set("parents", parents)
-                    tg("sendMessage", chat_id=chat, text="✅ Готово! Сюда будут приходить уведомления и сводка по воскресеньям в 19:00.\n/svodka — сводка прямо сейчас.")
-                else:
-                    tg("sendMessage", chat_id=chat, text="Привет! Это бот «Мир Августины». Чтобы получать уведомления, отправь: /start СЕМЕЙНЫЙ_КОД")
-            elif chat in parents and text.startswith("/svodka"):
-                tg("sendMessage", chat_id=chat, text=summary(kv_get("state")), parse_mode="HTML", disable_web_page_preview=True)
-        if not r:
+        try:
+            bot_step()
+        except Exception:
+            traceback.print_exc()
             time.sleep(5)
+
+
+def bot_step():
+    offset = kv_get("tg_offset", 0)
+    r = tg("getUpdates", offset=offset, timeout=30) or {}
+    if not r.get("ok"):
+        print("[bot] getUpdates:", r, flush=True)
+        time.sleep(5)
+        return
+    for u in r.get("result", []):
+        kv_set("tg_offset", u["update_id"] + 1)
+        m = u.get("message") or {}
+        chat, text = (m.get("chat") or {}).get("id"), (m.get("text") or "").strip()
+        if not chat:
+            continue
+        print("[bot] message:", chat, text[:20], flush=True)
+        parents = kv_get("parents", [])
+        if text.startswith("/start"):
+            code = text[6:].strip()
+            if code and KEY and hmac.compare_digest(code, KEY):
+                if chat not in parents:
+                    parents.append(chat)
+                    kv_set("parents", parents)
+                tg("sendMessage", chat_id=chat, text="✅ Готово! Сюда будут приходить уведомления и сводка по воскресеньям в 19:00.\n/svodka — сводка прямо сейчас.")
+            else:
+                tg("sendMessage", chat_id=chat, text="Привет! Это бот «Мир Августины». Чтобы получать уведомления, отправь: /start СЕМЕЙНЫЙ_КОД")
+        elif chat in parents and text.startswith("/svodka"):
+            tg("sendMessage", chat_id=chat, text=summary(kv_get("state")), parse_mode="HTML", disable_web_page_preview=True)
 
 
 def scheduler():
