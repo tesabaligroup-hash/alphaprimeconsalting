@@ -12,11 +12,19 @@
 	reverse_proxy api:8000
 }
 
-# «Мир Августины» — детское приложение (статичные файлы из папки kids/)
+# «Мир Августины» — детское приложение (статичные файлы из kids/) + его сервер kids-api
 {$KIDS_DOMAIN:kids.alpha-prime.group} {
 	encode gzip
-	root * /srv/kids
-	file_server
-	@html path / /index.html
-	header @html Cache-Control "no-cache"
+	handle /api/* {
+		request_body {
+			max_size 25MB
+		}
+		reverse_proxy kids-api:8000
+	}
+	handle {
+		root * /srv/kids
+		file_server
+		@html path / /index.html
+		header @html Cache-Control "no-cache"
+	}
 }
