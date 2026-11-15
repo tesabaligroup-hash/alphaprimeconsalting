@@ -374,11 +374,11 @@ const SCHED_WD=[
   {id:'sleep',part:'e',at:'21:00',by:'21:10',e:'😴',nm:'Лечь спать',cr:3},
 ];
 const SCHED_WE=[
-  {id:'wake',part:'m',at:'08:30',by:'08:40',e:'⏰',nm:'Подъём',cr:2},
-  {id:'wash',part:'m',at:'08:30',by:'08:45',e:'🪥',nm:'Умыться и почистить зубы',cr:3},
-  {id:'dress',part:'m',at:'08:30',by:'08:50',e:'👕',nm:'Одеться и заправить кровать',cr:3},
-  {id:'breakfast',part:'m',at:'08:45',by:'09:15',e:'🥣',nm:'Завтрак',cr:2},
-  {id:'neuro',part:'d',at:'10:00',by:'13:00',e:'🎾',nm:'Нейро-мячики, 10 минут',cr:3},
+  {id:'wake',part:'m',at:'09:00',by:'09:15',e:'⏰',nm:'Подъём',cr:2},
+  {id:'wash',part:'m',at:'09:15',by:'09:30',e:'🪥',nm:'Умыться и почистить зубы',cr:3},
+  {id:'dress',part:'m',at:'09:30',by:'09:45',e:'👕',nm:'Одеться и заправить кровать',cr:3},
+  {id:'breakfast',part:'m',at:'09:45',by:'10:15',e:'🥣',nm:'Завтрак',cr:2},
+  {id:'neuro',part:'d',at:'10:30',by:'18:00',e:'🎾',nm:'Нейро-мячики (по желанию)',cr:3,opt:true},
   {id:'laundry',part:'e',at:'19:00',by:'20:15',e:'🧺',nm:'Отнести вещи в стирку',cr:4,clean:'laundry'},
   {id:'tidy',part:'e',at:'19:30',by:'20:30',e:'🧹',nm:'Убрать комнату',cr:6,clean:'tidy'},
   {id:'shower',part:'e',at:'20:15',by:'20:45',e:'🛁',nm:'Душ и зубы',cr:3},
@@ -597,6 +597,7 @@ function load(){try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
   if(!S.schedWD.find(x=>x.id==='neuro')){const i=S.schedWD.findIndex(x=>x.id==='bagpack');S.schedWD.splice(i<0?S.schedWD.length:i,0,{id:'neuro',part:'d',at:'17:00',by:'19:00',e:'🎾',nm:'Нейро-мячики, 10 минут',cr:3})}
   if(!S.schedWE.find(x=>x.id==='neuro')){const i=S.schedWE.findIndex(x=>x.part==='e');S.schedWE.splice(i<0?S.schedWE.length:i,0,{id:'neuro',part:'d',at:'10:00',by:'13:00',e:'🎾',nm:'Нейро-мячики, 10 минут',cr:3})}
   if(!S.books)S.books=[];if(!S.neuro)S.neuro={};
+  if((S.schedV||0)<2){S.schedWE=JSON.parse(JSON.stringify(SCHED_WE));S.schedV=2}
   const sw=S.schedWE.find(x=>x.id==='sleep');if(sw&&sw.at==='21:00'&&!S.sleepFix){sw.at='21:30';sw.by='22:00';S.sleepFix=1}
 }
 let mamaSchedT;
@@ -608,7 +609,13 @@ function schedFor(dateStr){const d=new Date(dateStr+'T12:00:00'),wd=d.getDay();l
   // отбой: пятница и суббота — до 22:00, воскресенье — в 21:00
   if(wd===5)L=L.map(x=>x.id==='sleep'?{...x,at:'21:30',by:'22:00'}:x);
   if(wd===0)L=L.map(x=>x.id==='sleep'?{...x,at:'21:00',by:'21:10'}:x);
+  // портфель: с воскресенья по четверг (в пятницу и субботу не собираем)
+  if(wd===5||wd===6)L=L.filter(x=>x.id!=='bagpack');
+  // стирка — 2 раза в неделю: среда и воскресенье
+  if(!LAUNDRY_DAYS.includes(wd))L=L.filter(x=>x.id!=='laundry');
   return L}
+const LAUNDRY_DAYS=[3,0];
+const req=L=>L.filter(x=>!x.opt);
 /* ---- уроки ---- */
 const LK=(s,n)=>s+':'+n, LP=k=>{const[s,n]=k.split(':');return{s,n:+n}};
 const OPEN=['prog','fix','returned'];
@@ -630,8 +637,8 @@ function rollDay(){
   if(!S.day.lessons){const d=S.day.date;S.day=Object.assign(S.day,newDay(),{date:d,r:S.day.r||{},sub:S.day.sub||{},done:S.day.done||0})}
   if(S.day.date===today())return;
   const prev=S.day,sch=schedFor(prev.date);
-  const miss=sch.filter(it=>!prev.r[it.id]).length,ontime=sch.filter(it=>prev.r[it.id]&&!prev.r[it.id].late).length;
-  S.history.push({date:prev.date,done:prev.done,sched:sch.length,ontime,miss,lessons:(prev.did||[]).length,total:prev.lessons.length,focus:prev.focus,tests:prev.tests});
+  const miss=req(sch).filter(it=>!prev.r[it.id]).length,ontime=sch.filter(it=>prev.r[it.id]&&!prev.r[it.id].late).length;
+  S.history.push({date:prev.date,done:prev.done,sched:req(sch).length,ontime,miss,lessons:(prev.did||[]).length,total:prev.lessons.length,focus:prev.focus,tests:prev.tests});
   if(S.history.length>60)S.history.shift();
   updateStreak(S.history[S.history.length-1]);
   if(!prev.r.laundry)addMess(['sock','shirt','pants']);
@@ -700,6 +707,7 @@ function addPetXP(n){if(!S.petStage)return;S.petXP+=n;const next=PET_STAGES[S.pe
 function itemState(it){
   const r=S.day.r[it.id],n=nowMin(),at=tmin(it.at),by=tmin(it.by);
   if(r)return r.late?'lateok':'ok';
+  if(it.opt)return nowMin()<=tmin(it.by)&&nowMin()>=tmin(it.at)-30?'cur':nowMin()<tmin(it.at)-30?'wait':'optskip';
   if(n<at-30)return'wait';
   if(n<=by)return n>=at?'cur':'soon';
   if(n<=by+120)return'late';
@@ -707,7 +715,7 @@ function itemState(it){
 }
 function currentItem(){
   const L=schedFor(S.day.date);let lateOne=null,cur=null,next=null;
-  for(const it of L){const s=itemState(it);if(s==='late'&&!lateOne)lateOne=it;if(s==='cur'&&!cur)cur=it;if((s==='soon'||s==='wait')&&!next)next=it}
+  for(const it of req(L)){const s=itemState(it);if(s==='late'&&!lateOne)lateOne=it;if(s==='cur'&&!cur)cur=it;if((s==='soon'||s==='wait')&&!next)next=it}
   return{lateOne,cur,next};
 }
 function leftTxt(it){const d=Math.round(tmin(it.by)-nowMin());if(d>0)return`осталось ${d} мин`;return`опоздание ${-d} мин`}
@@ -725,7 +733,7 @@ function completeItem(id,el){
   if(it.clean)doClean(it.clean);
   checkAllDay(el);rerender();
 }
-function checkAllDay(el){const L=schedFor(S.day.date);if(L.every(it=>S.day.r[it.id])&&!S.day.allBonus){S.day.allBonus=1;setTimeout(()=>{earn({cr:10,xp:20,pxp:25,count:false},el);toast('🌟 Весь режим дня выполнен! +10 💎');burst(innerWidth/2,innerHeight/3,['🌟','💎','🎉','✨'],26,220)},900)}}
+function checkAllDay(el){const L=req(schedFor(S.day.date));if(L.every(it=>S.day.r[it.id])&&!S.day.allBonus){S.day.allBonus=1;setTimeout(()=>{earn({cr:10,xp:20,pxp:25,count:false},el);toast('🌟 Весь режим дня выполнен! +10 💎');burst(innerWidth/2,innerHeight/3,['🌟','💎','🎉','✨'],26,220)},900)}}
 function toggleSub(id,i,el){const sb=S.day.sub[id]=S.day.sub[id]||{};sb[i]=!sb[i];save();el.classList.toggle('done',!!sb[i]);if(sb[i]){chime([880]);const[x,y]=centerOf(el);burst(x,y,['✨'],4,40)}}
 /* ===== Проверка комнаты перед сном ===== */
 const ROOM_SPOTS=[['bed','🛏️','Кровать'],['floor','🧹','Пол'],['toys','🧸','Место для игрушек'],['closet','🚪','Шкаф']];
@@ -785,7 +793,7 @@ function renderHome(){
   if(m==='forest'){el.innerHTML=`<div class="wrap"><div><div class="forest"><img src="${IMG('forest')}" alt=""><div class="msg"><div style="font-size:18px">${S.petName} убежал в лес 😢</div><div style="margin:6px 0 10px;color:var(--soft)">Он ждал тебя 3 дня. Выполни 3 любых дела — и он вернётся!</div><div class="bar" style="max-width:none;height:14px"><i style="width:${Math.min(100,S.rescue/3*100)}%;background:linear-gradient(90deg,var(--mint),#3fbf95)"></i></div><div style="margin-top:6px">${S.rescue} / 3</div></div></div></div><div><button class="btn" style="width:100%;margin-top:14px;padding:14px" onclick="go('day')">Спасательный квест 🗺️</button></div></div>`;return}
   const hr=new Date().getHours(),night=hr>=20||hr<7;
   const {lateOne,cur,next}=currentItem(),show=lateOne||cur;
-  const L=schedFor(S.day.date),doneN=L.filter(it=>S.day.r[it.id]).length,pct=L.length?doneN/L.length:1;
+  const L=req(schedFor(S.day.date)),doneN=L.filter(it=>S.day.r[it.id]).length,pct=L.length?doneN/L.length:1;
   const sp=Array.from({length:night?14:6},(_,i)=>`<i class="sparkle" style="left:${8+Math.random()*84}%;top:${4+Math.random()*44}%;animation-delay:${i*.4}s"></i>`).join('');
   const R=sceneRoom('home'),away=R!==S.room;
   const dust=R==='attic'?Array.from({length:6},(_,i)=>`<i class="dust" style="left:${35+Math.random()*30}%;top:${20+Math.random()*30}%;animation-delay:${i*1.5}s"></i>`).join(''):'';
@@ -860,8 +868,8 @@ function petReturns(){setTimeout(()=>{const p=$('#pet');if(!p)return;flash();rep
 function renderDay(){
   const el=$('#day'),L=schedFor(S.day.date);let h='';
   if(petGone())h+=`<div class="card" style="background:#e6faf2;margin-top:8px"><h3>🗺️ Спасательный квест</h3><div style="font-weight:700">Сделай 3 любых дела, чтобы ${S.petName} вернулся: ${S.rescue}/3</div></div>`;
-  const ok=L.filter(it=>S.day.r[it.id]&&!S.day.r[it.id].late).length,lt=L.filter(it=>S.day.r[it.id]&&S.day.r[it.id].late).length;
-  h+=`<div class="card" style="margin-top:8px;display:flex;gap:10px;align-items:center"><div style="flex:1"><h3 style="margin:0">🗓️ ${isWeekend()?'Выходной':'Учебный день'}</h3><div class="muted">⚡ вовремя ${ok} · ⏰ с опозданием ${lt} · всего ${L.length}</div></div><div class="muted" style="text-align:right">Вовремя — 💎 полностью<br>Опоздала — половина</div></div>`;
+  const ok=req(L).filter(it=>S.day.r[it.id]&&!S.day.r[it.id].late).length,lt=L.filter(it=>S.day.r[it.id]&&S.day.r[it.id].late).length;
+  h+=`<div class="card" style="margin-top:8px;display:flex;gap:10px;align-items:center"><div style="flex:1"><h3 style="margin:0">🗓️ ${isWeekend()?'Выходной':'Учебный день'}</h3><div class="muted">⚡ вовремя ${ok} · ⏰ с опозданием ${lt} · всего ${req(L).length}</div></div><div class="muted" style="text-align:right">Вовремя — 💎 полностью<br>Опоздала — половина</div></div>`;
   ['m','d','e'].forEach(p=>{const items=L.filter(it=>it.part===p);if(!items.length)return;
     h+=`<div class="part">${PARTS[p][0]}<small>${items[0].at}–${items[items.length-1].by}</small></div>`;
     items.forEach(it=>{const s=itemState(it),r=S.day.r[it.id];
@@ -870,6 +878,7 @@ function renderDay(){
       else if(s==='ok')right=`<span class="tag ok">⚡ Вовремя</span>`;
       else if(s==='lateok')right=`<span class="tag wait">⏰ Позже</span>`;
       else if(s==='miss')right=`<span class="tag bad">Пропущено</span>`;
+      else if(s==='optskip')right=`<span class="tag">по желанию</span>`;
       else if(s==='wait')right=`<span class="tag">в ${it.at}</span>`;
       else right=`<button class="btn small ${s==='late'?'gold':''}" onclick="completeItem('${it.id}',this)">${it.diary?'Написать':it.id==='tidy'?'Проверка 📷':it.id==='neuro'?'Тренировка ▶':'Сделала ✓'}</button>`;
       const sub=s==='cur'||s==='late'||s==='soon'?(s==='late'?`<small style="color:var(--red)">${leftTxt(it)}</small>`:s==='cur'?`<small>до ${it.by} · ${leftTxt(it)}</small>`:`<small>с ${it.at} до ${it.by}</small>`):r?`<small>в ${new Date(r.at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</small>`:'';
