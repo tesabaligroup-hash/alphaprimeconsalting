@@ -85,6 +85,10 @@ nav button .dot{position:absolute;top:4px;right:22%;width:10px;height:10px;borde
 .mess{position:absolute;font-size:clamp(46px,8vw,78px);line-height:1;z-index:1;transform:rotate(var(--r,0deg));filter:drop-shadow(0 3px 2px #0003);transition:transform .5s,opacity .5s}
 .mess.gone{transform:scale(0) rotate(90deg)!important;opacity:0}
 .mess.stain{width:clamp(70px,13vw,130px);height:clamp(26px,4.5vw,46px);border-radius:50%;background:radial-gradient(ellipse at 40% 40%,#8a6a4a 0,#6e5034 55%,transparent 72%);opacity:.75;filter:blur(1px)}
+.scene.mini{height:min(34vh,320px);min-height:220px;margin:8px 0 12px}
+.walkin{animation:walkIn 1.1s cubic-bezier(.3,.9,.4,1)}
+.walkin2{animation:walkIn 1.3s .15s cubic-bezier(.3,.9,.4,1) both}
+@keyframes walkIn{0%{transform:translateX(-140%)}20%{transform:translateX(-100%) translateY(-4%)}40%{transform:translateX(-60%)}60%{transform:translateX(-30%) translateY(-4%)}80%{transform:translateX(-8%)}100%{transform:none}}
 .mess.drop{animation:dropIn .6s cubic-bezier(.3,1.6,.5,1)}
 @keyframes dropIn{0%{transform:translateY(-200px) rotate(var(--r,0deg));opacity:0}100%{transform:rotate(var(--r,0deg));opacity:1}}
 .slots{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
@@ -302,11 +306,30 @@ const OUTFITS=[
   {id:'princess',img:'outfit_princess',nm:'Платье принцессы',price:0,lvl:1,rare:'Легенда',ach:'4 недели подряд всё выполнено'},
 ];
 const ROOMS=[
-  {id:'attic',nm:'Чердак',e:'🏚️',price:0,ds:'Отсюда всё начинается'},
-  {id:'bedroom',nm:'Спальня',e:'🛏️',price:60,ds:'Уютная комната со звёздами',need:'Сначала приведи себя в порядок'},
-  {id:'playroom',nm:'Игровая',e:'🧸',price:90,lvl:3,ds:'Полки, игрушки и доска для рисования'},
+  {id:'attic',nm:'Чердак',e:'🏚️',price:0,ds:'Отсюда всё начинается',home:1},
+  {id:'bedroom',nm:'Спальня',e:'🛏️',price:60,ds:'Уютная комната со звёздами',need:'Сначала приведи себя в порядок',home:1},
+  {id:'playroom',nm:'Игровая',e:'🧸',price:90,lvl:3,ds:'Полки, игрушки и доска для рисования',home:1},
+  {id:'study',nm:'Волшебная классная',e:'📚',price:0,ds:'Здесь проходят уроки',unlock:'Откроется после первого сданного урока'},
+  {id:'garden',nm:'Сад у замка',e:'🌸',price:0,ds:'Здесь тренировки с мячиками',unlock:'Откроется после первой тренировки с мячиками'},
+  {id:'cave',nm:'Пещера Искры',e:'💎',price:0,ds:'Домик дракончика с кристаллами',unlock:'Откроется, когда дракончик подрастёт'},
   {id:'terrace',nm:'Терраса на Бали',e:'🌴',price:120,lvl:4,ds:'Пальмы и океан'},
+  {id:'newyear',nm:'Новогодняя гостиная',e:'🎄',price:0,ds:'Только с 1 декабря по 10 января',unlock:'Откроется 1 декабря',season:1},
 ];
+const INDOOR=['attic','bedroom','playroom'];
+function checkUnlocks(){const add=(id,msg)=>{if(!S.rooms.includes(id)){S.rooms.push(id);if(S.started)setTimeout(()=>{flash();chime([523,659,784,1047]);toast(msg)},900)}};
+  if(S.log.some(e=>e.act==='done'))add('study','📚 Открыта Волшебная классная! Теперь уроки проходят там');
+  if(Object.keys(S.neuro||{}).length)add('garden','🌸 Открыт Сад у замка! Тренировки теперь там');
+  if(S.petStage>=2)add('cave','💎 '+S.petName+' подрос и открыл свою пещеру!');
+  const d=new Date(),ny=d.getMonth()===11||(d.getMonth()===0&&d.getDate()<=10);
+  if(ny)add('newyear','🎄 Открыта Новогодняя гостиная!');else{S.rooms=S.rooms.filter(r=>r!=='newyear');if(S.room==='newyear')S.room='attic'}}
+// где сейчас персонажи: на уроке — в классной, на тренировке — в саду, иначе — в своей комнате
+function sceneRoom(ctx){const working=S.focus&&S.focus.mode==='work'&&S.focus.end>Date.now();
+  if(ctx==='neuro'&&S.rooms.includes('garden'))return'garden';
+  if(ctx==='study'&&S.rooms.includes('study'))return'study';
+  if(S.neuroRun&&S.rooms.includes('garden'))return'garden';
+  if(working&&S.rooms.includes('study'))return'study';
+  return S.room}
+
 const FOOD=[
   {e:'🍪',nm:'Печенька',ds:'+30 сытости',price:5,food:30,joy:5},
   {e:'🥧',nm:'Ягодный пирог',ds:'+70 сытости, +15 радости',price:12,food:70,joy:15},
@@ -467,9 +490,10 @@ const PHRASES={
 };
 
 /* =================== КАРТИНКИ КОМНАТ (код) =================== */
-const ROOM_IMG={attic:'room_attic',bedroom:'room_bedroom',terrace:'room_terrace',playroom:'room_playroom'};
+const ROOM_IMG={attic:'room_attic',bedroom:'room_bedroom',terrace:'room_terrace',playroom:'room_playroom',study:'room_study',cave:'room_cave',newyear:'room_newyear',garden:'room_garden'};
+const roomImg=id=>id==='attic'&&S.mess.length>=5?'room_attic_dark':ROOM_IMG[id];
 function roomSVG(id){
-  if(ROOM_IMG[id])return`<img src="${IMG(ROOM_IMG[id])}" style="width:100%;height:100%;object-fit:cover;object-position:50% 70%;display:block" alt="">`;
+  if(ROOM_IMG[id])return`<img src="${IMG(roomImg(id))}" style="width:100%;height:100%;object-fit:cover;object-position:50% 70%;display:block" alt="">`;
   const planks=(y0,y1,step,c)=>{let s='';for(let x=0;x<=400;x+=step)s+=`<line x1="${x}" y1="${y0}" x2="${x}" y2="${y1}" stroke="${c}" stroke-width="1.5"/>`;return s};
   if(id==='attic')return`<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice">
   <defs><linearGradient id="aw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1dfc5"/><stop offset="1" stop-color="#dcbc93"/></linearGradient>
@@ -746,13 +770,14 @@ function renderHome(){
   const {lateOne,cur,next}=currentItem(),show=lateOne||cur;
   const L=schedFor(S.day.date),doneN=L.filter(it=>S.day.r[it.id]).length,pct=L.length?doneN/L.length:1;
   const sp=Array.from({length:night?14:6},(_,i)=>`<i class="sparkle" style="left:${8+Math.random()*84}%;top:${4+Math.random()*44}%;animation-delay:${i*.4}s"></i>`).join('');
-  const dust=S.room==='attic'?Array.from({length:6},(_,i)=>`<i class="dust" style="left:${35+Math.random()*30}%;top:${20+Math.random()*30}%;animation-delay:${i*1.5}s"></i>`).join(''):'';
-  const mess=S.mess.map((k,i)=>`<span class="mess ${k==='stain'?'stain':''} ${i>=S.mess.length-(S.newMess||0)?'drop':''}" data-k="${k}" style="left:${MESS_POS[i][0]}%;bottom:${MESS_POS[i][1]}%;--r:${MESS_POS[i][2]}deg;animation-delay:${(i%4)*.15}s">${MESS_ITEMS[k][0]}</span>`).join('');S.newMess=0;
+  const R=sceneRoom('home'),away=R!==S.room;
+  const dust=R==='attic'?Array.from({length:6},(_,i)=>`<i class="dust" style="left:${35+Math.random()*30}%;top:${20+Math.random()*30}%;animation-delay:${i*1.5}s"></i>`).join(''):'';
+  const mess=(away||!INDOOR.includes(R))?'':S.mess.map((k,i)=>`<span class="mess ${k==='stain'?'stain':''} ${i>=S.mess.length-(S.newMess||0)?'drop':''}" data-k="${k}" style="left:${MESS_POS[i][0]}%;bottom:${MESS_POS[i][1]}%;--r:${MESS_POS[i][2]}deg;animation-delay:${(i%4)*.15}s">${MESS_ITEMS[k][0]}</span>`).join('');S.newMess=0;
   el.innerHTML=`<div class="wrap"><div>
    <div class="scene ${night?'night':''}" id="scene">
-     <div class="bg">${roomSVG(S.room)}</div><div class="nightsky"></div>${sp}${dust}${mess}
-     <div class="stitle">${ROOMS.find(r=>r.id===S.room).e} ${ROOMS.find(r=>r.id===S.room).nm}</div>
-     ${S.rooms.length>1?`<div class="rooms">${S.rooms.map(r=>`<button class="${r===S.room?'on':''}" onclick="setRoom('${r}')">${ROOMS.find(x=>x.id===r).e}</button>`).join('')}</div>`:''}
+     <div class="bg">${roomSVG(R)}</div><div class="nightsky"></div>${sp}${dust}${mess}
+     <div class="stitle">${ROOMS.find(r=>r.id===R).e} ${ROOMS.find(r=>r.id===R).nm}${away?' · идёт урок':''}${!INDOOR.includes(R)&&S.mess.length>=3?' · 🧹 дома беспорядок':''}</div>
+     ${S.rooms.length>1&&!away?`<div class="rooms">${S.rooms.map(r=>`<button class="${r===S.room?'on':''}" onclick="setRoom('${r}')">${ROOMS.find(x=>x.id===r).e}</button>`).join('')}</div>`:''}
      <div class="actor" id="girl"><div class="shadow"></div><div class="stack breathe"><img><img></div></div>
      <div class="actor" id="pet"><div class="shadow"></div><div class="stack bob"><img><img></div><div class="badge" id="pbadge"></div></div>
      <div class="bubble" id="bubble"></div>
@@ -777,6 +802,7 @@ function renderHome(){
    ${S.girl<4?`<div class="card" onclick="openShop('me')" style="background:linear-gradient(135deg,#fff,#fff6e0)"><h3>✨ Приведи себя в порядок</h3><div class="muted">Неделя 1: ${S.girl}/4. Следующее — ${CARE[S.girl].e} ${CARE[S.girl].nm} за ${CARE[S.girl].price} 💎</div></div>`:''}
    </div></div>`;
   setImg($('#girl .stack'),girlImg());setPetVisual(m);
+  if(S.lastScene&&S.lastScene!==R){$('#girl').classList.add('walkin');$('#pet').classList.add('walkin2');toast(`${ROOMS.find(r=>r.id===R).e} Переходим: ${ROOMS.find(r=>r.id===R).nm}`)}S.lastScene=R;
   $('#girl').onclick=girlTap;$('#pet').onclick=()=>petTap();$('#petBtn').onclick=()=>petTap();
   document.querySelectorAll('.mess').forEach(x=>x.onclick=()=>{replay(x,'shake');say('Это уберём вечером на «Убрать комнату» 🧹')});
   sayRandom(m);
@@ -839,9 +865,15 @@ function renderDay(){
 
 /* =================== СТРАНИЦА: УРОКИ =================== */
 let fMode=45,fInt,stab='today',mapSubj='rus';
+function miniScene(R,petM,caption,girlAlt){const night=new Date().getHours()>=20||new Date().getHours()<7;const moved=S.lastMini&&S.lastMini!==R;S.lastMini=R;
+  return`<div class="scene mini ${night?'night':''}"><div class="bg">${roomSVG(R)}</div><div class="nightsky"></div>
+   <div class="stitle">${ROOMS.find(r=>r.id===R).e} ${ROOMS.find(r=>r.id===R).nm}${caption?' · '+caption:''}</div>
+   <div class="actor ${moved?'walkin':''}" style="left:14%;height:84%;width:34%"><div class="shadow"></div><div class="stack breathe"><img src="${IMG(girlAlt||girlImg())}" style="opacity:1"></div></div>
+   <div class="actor ${moved?'walkin2':''}" style="right:10%;height:44%;width:32%"><div class="shadow"></div><div class="stack bob"><img src="${IMG(petImg(petM))}" style="opacity:1"></div></div></div>`}
 function renderStudy(){
   const el=$('#study');
   let h=`<div class="tabs" style="margin-top:8px"><button class="${stab==='today'?'on':''}" onclick="stab='today';renderStudy()">📌 Сегодня</button><button class="${stab==='map'?'on':''}" onclick="stab='map';renderStudy()">🗺️ Программа</button><button class="${stab==='review'?'on':''}" onclick="stab='review';renderStudy()">🧠 Повторение${needReview()?' •':''}</button><button class="${stab==='timer'?'on':''}" onclick="stab='timer';renderStudy()">⏳ Таймер</button></div>`;
+  const sr=sceneRoom('study');h+=miniScene(sr,'study',sr==='study'?'учимся вместе':'')+(S.rooms.includes('study')?'':`<div class="muted" style="text-align:center;margin:-6px 0 10px">📚 Сдай первый урок — и откроется Волшебная классная</div>`);
   if(stab==='today')h+=studyToday();else if(stab==='map')h+=studyMap(false);else if(stab==='review')h+=studyReview();else h+=studyTimer();
   el.innerHTML=h;clearInterval(fInt);if(stab==='timer'&&S.focus&&S.focus.end>Date.now())fInt=setInterval(focusTick,1000);
 }
@@ -974,8 +1006,9 @@ function renderShop(){
     h+=`</div><div class="card muted" style="margin-top:14px;text-align:center">Скоро: костюмы недели 🚀🤠 и аксессуары 👑🦊</div>`;
   }else if(shopTab==='home'){
     h+=`<div class="card"><h3>🧹 Чистота: ${cleanPct()}%</h3><div class="muted">${S.mess.length?`На полу: ${S.mess.map(k=>MESS_ITEMS[k][0]).join(' ')}. Носки и одежду уберёт «Отнести вещи в стирку», остальное — «Убрать комнату» вечером.`:'Идеальный порядок! ✨'}</div></div><div class="grid">`;
-    ROOMS.forEach(r=>{const own=S.rooms.includes(r.id),needGirl=r.id==='bedroom'&&S.girl<4,needLvl=r.lvl&&level()<r.lvl,blocked=needGirl||needLvl;let btn;
-      if(S.room===r.id)btn='<span class="tag ok">Я здесь</span>';else if(own)btn='<span class="btn small ghost">Перейти</span>';else if(needGirl)btn=`<span class="tag">🔒 ${r.need}</span>`;else if(needLvl)btn=`<span class="tag">🔒 Уровень ${r.lvl}</span>`;else btn=`<span class="btn small gold">${r.price} 💎</span>`;
+    ROOMS.forEach(r=>{const own=S.rooms.includes(r.id),needGirl=r.id==='bedroom'&&S.girl<4,needLvl=r.lvl&&level()<r.lvl,blocked=needGirl||needLvl||(r.unlock&&!own);let btn;
+      if(r.unlock&&!own){h+=`<button class="item lockd" onclick="toast('${r.unlock} ✨')"><div class="pic">${roomSVG(r.id).replace('<img ','<img class="rimg" ')}</div><div class="nm">${r.e} ${r.nm}</div><div class="ds">${r.ds}</div><span class="tag">🔒 ${r.unlock}</span></button>`;return}
+      if(S.room===r.id)btn='<span class="tag ok">Я здесь</span>';else if(own&&r.unlock)btn='<span class="btn small ghost">Сделать домом</span>';else if(own)btn='<span class="btn small ghost">Перейти</span>';else if(needGirl)btn=`<span class="tag">🔒 ${r.need}</span>`;else if(needLvl)btn=`<span class="tag">🔒 Уровень ${r.lvl}</span>`;else btn=`<span class="btn small gold">${r.price} 💎</span>`;
       h+=`<button class="item ${!own&&blocked?'lockd':''} ${S.room===r.id?'wearing':''}" onclick="roomClick('${r.id}',this)"><div class="pic">${roomSVG(r.id).replace('<img ','<img class="rimg" ')}</div><div class="nm">${r.e} ${r.nm}</div><div class="ds">${r.ds}</div>${btn}</button>`});
     h+=`</div><div class="card muted" style="margin-top:14px;text-align:center">Скоро: мебель и декор для комнаты 🪴🛋️💡</div>`;
   }else{
@@ -1016,6 +1049,7 @@ let htab='books',nInt;
 function neuroDaysThisWeek(){const wk=weekKey();return Object.keys(S.neuro||{}).filter(d=>d>=wk&&d<=today()).length}
 function renderHobby(){const el=$('#hobby');
   let h=`<div class="tabs" style="margin-top:8px"><button class="${htab==='books'?'on':''}" onclick="htab='books';renderHobby()">📚 Мои книги</button><button class="${htab==='neuro'?'on':''}" onclick="htab='neuro';renderHobby()">🎾 Нейро-мячики${S.neuro&&S.neuro[today()]?' ✓':''}</button></div>`;
+  if(htab==='neuro'){const gr=sceneRoom('neuro');h+=miniScene(gr,S.neuroRun?'jump':'happy',S.neuroRun?'тренировка':'',S.neuroRun&&S.girl>=4&&!S.outfit?'gpose_jump':null)}
   h+=htab==='books'?hobbyBooks():hobbyNeuro();el.innerHTML=h;
   clearInterval(nInt);if(htab==='neuro'&&S.neuroRun)nInt=setInterval(neuroTick,1000)}
 /* ---- книги ---- */
@@ -1158,7 +1192,7 @@ function finishHatch(){S.petName=($('#pname').value||'Искра').trim();S.petT
 let cur='home';
 const PAGES={home:renderHome,day:renderDay,study:renderStudy,shop:renderShop,hobby:renderHobby,rewards:renderRewards};
 function go(p){cur=p;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('on',x.id===p));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));rerender();try{history.replaceState(null,'','#'+p)}catch(e){}}
-function rerender(){tick();rollDay();renderTop();PAGES[cur]();save()}
+function rerender(){tick();rollDay();checkUnlocks();renderTop();PAGES[cur]();save()}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>go(b.dataset.p));
 $('#parentBtn').onclick=openParent;
 $('#ov').onclick=e=>{if(e.target.id==='ov'&&S.started)closeModal()};
