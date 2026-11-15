@@ -20,6 +20,7 @@ A=$(printf %s "$A" | sed 's/\x1b\[20[01]~//g' | tr -cd 'A-Za-z0-9_-'); [ -n "$A"
 
 echo "→ Собираю и запускаю (1–3 минуты)…"
 docker compose up -d --build kids-api caddy
+docker compose restart caddy >/dev/null  # перечитать Caddyfile
 sleep 3
 BOTNAME=""
 T=$(getv KIDS_BOT_TOKEN | tr -cd 'A-Za-z0-9:_-'); [ -n "$T" ] && setv KIDS_BOT_TOKEN "$T"
