@@ -10,11 +10,6 @@ from .tariffs import Tariff
 
 # Значения по умолчанию. Админка может переопределить их (таблица program_settings).
 DEFAULTS: dict = {
-    "discount_pct": 0.05,  # скидка клиенту, доля маржи
-    "plan_a_pct": 0.15,  # план A «Друзья» — партнёру
-    "plan_b_l1_pct": 0.10,  # план B «Бизнес» — 1-й уровень
-    "plan_b_l2_pct": 0.05,  # план B — 2-й уровень
-    "discount_step": 5000,  # скидка округляется вниз до 5 000
     "payout_step": 1000,  # выплаты округляются вниз до 1 000
     "min_payout": 300_000,
     "hold_days": 7,
@@ -48,32 +43,29 @@ class Payouts:
     margin: int
     discount: int
     client_price: int
-    plan_a: int
-    plan_b_l1: int
-    plan_b_l2: int
+    level1: int  # «партнер» — тот, кто привёл клиента (одинаково для всех партнёров)
+    level2: int  # «партнер 2ур» — тот, кто привёл к нам этого партнёра
+    known: bool = True  # False — выплаты по услуге не заданы в таблице, решает менеджер
 
 
 def calc_payouts(tariff: Tariff, s: dict = DEFAULTS, deal_price: int | None = None) -> Payouts:
-    """Скидка клиенту и выплаты партнёрам по услуге.
+    """Выплаты по услуге — фиксированные суммы из таблицы (колонки «партнер» и «партнер 2ур»).
 
-    deal_price — фактический бюджет сделки в Kommo. Если менеджер дал скидку больше
-    стандартной (бюджет ниже «цены для клиента партнёра»), выплаты считаются от
-    фактической маржи: бюджет − себестоимость для партнёров.
+    Клиент партнёра платит «Цену для парт.». Если менеджер дал скидку больше (бюджет ниже этой цены)
+    и маржи не хватает на обе выплаты, они уменьшаются пропорционально — больше маржи не платим.
     """
+    client_price = tariff.partner_price or tariff.price
     margin = tariff.price - tariff.partner_cost
-    discount = floor_to(margin * s["discount_pct"], s["discount_step"])
-    client_price = tariff.price - discount
+    if tariff.l1 is None:
+        return Payouts(margin, tariff.price - client_price, client_price, 0, 0, known=False)
+    l1, l2 = tariff.l1, tariff.l2 or 0
     if deal_price is not None and deal_price < client_price:
-        margin = max(deal_price - tariff.partner_cost, 0)
-    step = s["payout_step"]
-    return Payouts(
-        margin=margin,
-        discount=discount,
-        client_price=client_price,
-        plan_a=floor_to(margin * s["plan_a_pct"], step),
-        plan_b_l1=floor_to(margin * s["plan_b_l1_pct"], step),
-        plan_b_l2=floor_to(margin * s["plan_b_l2_pct"], step),
-    )
+        real = max(deal_price - tariff.partner_cost, 0)
+        if l1 + l2 > real:
+            step = s["payout_step"]
+            k = real / (l1 + l2)
+            l1, l2 = floor_to(l1 * k, step), floor_to(l2 * k, step)
+    return Payouts(margin, tariff.price - client_price, client_price, l1, l2)
 
 
 # ---------- Кодовое слово ----------

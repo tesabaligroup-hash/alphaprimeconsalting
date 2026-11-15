@@ -2,7 +2,7 @@ import { useState } from "react";
 import { api, type PartnerData } from "../api";
 import { dateLong, money, plural } from "../format";
 import { IAddUser, IQr } from "../icons";
-import { haptic } from "../tg";
+import { haptic, openExternal } from "../tg";
 import { Accordion, ErrorBox, Loading, useApp, useLoad } from "../ui";
 
 export default function Partner() {
@@ -134,8 +134,53 @@ function Dashboard() {
             <span className="small">Без них мы не сможем перевести вознаграждение. Это можно сделать в профиле.</span>
           </button>
         )}
+
+        <SupportCard />
       </main>
     </>
+  );
+}
+
+/** «Связаться с менеджером»: вопрос по партнёрке уходит прямо в группу менеджеров. */
+function SupportCard() {
+  const { me, toast } = useApp();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [state, setState] = useState<"idle" | "busy" | "sent">("idle");
+  const send = async () => {
+    setState("busy");
+    try {
+      await api.post("/api/partner/support", { text });
+      haptic();
+      setState("sent");
+      setText("");
+      toast("Отправили менеджеру — ответим в Telegram");
+    } catch (e) {
+      setState("idle");
+      toast((e as Error).message);
+    }
+  };
+  return (
+    <section className="card" style={{ gap: 10 }}>
+      <span className="b">Не видите друга или сумма не та?</span>
+      <span className="small">Напишите менеджеру — проверим и ответим вам в Telegram.</span>
+      {state === "sent" ? (
+        <span className="small" style={{ color: "#3D6B2E" }}>Сообщение отправлено ✓ Менеджер скоро свяжется с вами.</span>
+      ) : open ? (
+        <>
+          <textarea className="input" rows={3} value={text} maxLength={1000} placeholder="Например: не вижу друга Ивана, он оплатил KITAS 10 ноября"
+            onChange={(e) => setText(e.target.value)} style={{ resize: "vertical", fontFamily: "inherit" }} />
+          <button className="btn gold block" disabled={state === "busy" || text.trim().length < 3} onClick={send}>
+            {state === "busy" ? "Отправляем…" : "Отправить менеджеру"}
+          </button>
+        </>
+      ) : (
+        <button className="btn gold block" onClick={() => setOpen(true)}>Связаться с менеджером</button>
+      )}
+      {me?.company?.whatsapp && (
+        <button className="btn line block" onClick={() => openExternal(`https://wa.me/${me.company.whatsapp}`)}>Или написать в WhatsApp</button>
+      )}
+    </section>
   );
 }
 

@@ -1,346 +1,352 @@
 [
  {
-  "code": "VOA",
-  "price": 750000,
-  "partner_cost": 500000,
-  "plan_a": 37000,
-  "plan_b1": 25000,
-  "plan_b2": 12000
- },
- {
-  "code": "VOA-EXT",
-  "price": 1200000,
-  "partner_cost": 850000,
-  "plan_a": 52000,
-  "plan_b1": 35000,
-  "plan_b2": 17000
- },
- {
-  "code": "BRIDGE",
-  "price": 5000000,
-  "partner_cost": 3500000,
-  "plan_a": 225000,
-  "plan_b1": 150000,
-  "plan_b2": 75000
- },
- {
-  "code": "C1",
-  "price": 2000000,
-  "partner_cost": 1000000,
-  "plan_a": 150000,
-  "plan_b1": 100000,
-  "plan_b2": 50000
- },
- {
-  "code": "C1-EXT",
-  "price": 2500000,
-  "partner_cost": 1500000,
-  "plan_a": 150000,
-  "plan_b1": 100000,
-  "plan_b2": 50000
- },
- {
-  "code": "C7 (АРТИСТА)",
-  "price": 3500000,
-  "partner_cost": 1500000,
-  "plan_a": 300000,
-  "plan_b1": 200000,
-  "plan_b2": 100000
- },
- {
-  "code": "C18",
-  "price": 5500000,
-  "partner_cost": 3500000,
-  "plan_a": 300000,
-  "plan_b1": 200000,
-  "plan_b2": 100000
- },
- {
-  "code": "D12-1",
-  "price": 7000000,
-  "partner_cost": 6000000,
-  "plan_a": 150000,
-  "plan_b1": 100000,
-  "plan_b2": 50000
- },
- {
-  "code": "D12-2",
-  "price": 10500000,
-  "partner_cost": 8000000,
-  "plan_a": 375000,
-  "plan_b1": 250000,
-  "plan_b2": 125000
- },
- {
-  "code": "D12-EXT",
-  "price": 4500000,
-  "partner_cost": 3300000,
-  "plan_a": 180000,
-  "plan_b1": 120000,
-  "plan_b2": 60000
- },
- {
-  "code": "E28A-2-P",
-  "price": 18000000,
-  "partner_cost": 9500000,
-  "plan_a": 1275000,
-  "plan_b1": 850000,
-  "plan_b2": 425000
- },
- {
-  "code": "E28A-1-P",
-  "price": 13000000,
-  "partner_cost": 7000000,
-  "plan_a": 900000,
-  "plan_b1": 600000,
-  "plan_b2": 300000
- },
- {
-  "code": "E31B/E-1",
-  "price": 13000000,
-  "partner_cost": 6000000,
-  "plan_a": 1050000,
-  "plan_b1": 700000,
-  "plan_b2": 350000
- },
- {
-  "code": "E31B/E-2",
-  "price": 18000000,
-  "partner_cost": 8500000,
-  "plan_a": 1425000,
-  "plan_b1": 950000,
-  "plan_b2": 475000
- },
- {
-  "code": "E33F",
-  "price": 12500000,
-  "partner_cost": 7000000,
-  "plan_a": 825000,
-  "plan_b1": 550000,
-  "plan_b2": 275000
- },
- {
-  "code": "STUDY-1",
-  "price": 13000000,
-  "partner_cost": 7000000,
-  "plan_a": 900000,
-  "plan_b1": 600000,
-  "plan_b2": 300000
- },
- {
-  "code": "STUDY-2",
-  "price": 18000000,
-  "partner_cost": 9500000,
-  "plan_a": 1275000,
-  "plan_b1": 850000,
-  "plan_b2": 425000
- },
- {
-  "code": "E33G",
-  "price": 10900000,
-  "partner_cost": 7000000,
-  "plan_a": 585000,
-  "plan_b1": 390000,
-  "plan_b2": 195000
- },
- {
-  "code": "E33G-EXT",
-  "price": 12500000,
-  "partner_cost": 10000000,
-  "plan_a": 375000,
-  "plan_b1": 250000,
-  "plan_b2": 125000
- },
- {
-  "code": "DRIVER",
-  "price": 2000000,
-  "partner_cost": 1500000,
-  "plan_a": 75000,
-  "plan_b1": 50000,
-  "plan_b2": 25000
- },
- {
-  "code": "WORK-PT-05",
-  "price": 34000000,
-  "partner_cost": 28000000,
-  "plan_a": 900000,
-  "plan_b1": 600000,
-  "plan_b2": 300000
- },
- {
-  "code": "WORK-PT-1",
-  "price": 44000000,
-  "partner_cost": 38000000,
-  "plan_a": 900000,
-  "plan_b1": 600000,
-  "plan_b2": 300000
- },
- {
-  "code": "PMA-1",
-  "price": 19900000,
-  "partner_cost": 13000000,
-  "plan_a": 1035000,
-  "plan_b1": 690000,
-  "plan_b2": 345000
- },
- {
-  "code": "PMA-2",
-  "price": 24900000,
-  "partner_cost": 16000000,
-  "plan_a": 1335000,
-  "plan_b1": 890000,
-  "plan_b2": 445000
- },
- {
-  "code": "ADR",
-  "price": 5000000,
-  "partner_cost": 3000000,
-  "plan_a": 300000,
-  "plan_b1": 200000,
-  "plan_b2": 100000
- },
- {
-  "code": "PT",
-  "price": 13000000,
-  "partner_cost": 7500000,
-  "plan_a": 825000,
-  "plan_b1": 550000,
-  "plan_b2": 275000
- },
- {
-  "code": "CHANGE-KBLI",
-  "price": 1000000,
-  "partner_cost": 500000,
-  "plan_a": 75000,
-  "plan_b1": 50000,
-  "plan_b2": 25000
- },
- {
-  "code": "CHANGE-PMA-N",
-  "price": 12000000,
-  "partner_cost": 9000000,
-  "plan_a": 450000,
-  "plan_b1": 300000,
-  "plan_b2": 150000
- },
- {
-  "code": "COUNT-PT-1",
-  "price": 2500000,
-  "partner_cost": 1500000,
-  "plan_a": 150000,
-  "plan_b1": 100000,
-  "plan_b2": 50000
- },
- {
-  "code": "COUNT-PT-2",
-  "price": 3500000,
-  "partner_cost": 2500000,
-  "plan_a": 150000,
-  "plan_b1": 100000,
-  "plan_b2": 50000
- },
- {
-  "code": "COUNT-PT-3",
-  "price": 4500000,
-  "partner_cost": 3500000,
-  "plan_a": 150000,
-  "plan_b1": 100000,
-  "plan_b2": 50000
- },
- {
-  "code": "BUH-M",
-  "price": 1000000,
-  "partner_cost": 500000,
-  "plan_a": 75000,
-  "plan_b1": 50000,
-  "plan_b2": 25000
- },
- {
-  "code": "BUH-Q",
-  "price": 2000000,
-  "partner_cost": 1000000,
-  "plan_a": 150000,
-  "plan_b1": 100000,
-  "plan_b2": 50000
- },
- {
-  "code": "BUH-Y",
-  "price": 3000000,
-  "partner_cost": 2000000,
-  "plan_a": 150000,
-  "plan_b1": 100000,
-  "plan_b2": 50000
- },
- {
-  "code": "BUH-STAMP",
-  "price": 400000,
-  "partner_cost": 200000,
-  "plan_a": 30000,
-  "plan_b1": 20000,
-  "plan_b2": 10000
- },
- {
-  "code": "SKTT-1",
-  "price": 2500000,
-  "partner_cost": 1800000,
-  "plan_a": 105000,
-  "plan_b1": 70000,
-  "plan_b2": 35000
- },
- {
-  "code": "SKTT-2",
-  "price": 3800000,
-  "partner_cost": 3000000,
-  "plan_a": 120000,
-  "plan_b1": 80000,
-  "plan_b2": 40000
- },
- {
-  "code": "BD",
-  "price": 2000000,
-  "partner_cost": 1500000,
-  "plan_a": 75000,
-  "plan_b1": 50000,
-  "plan_b2": 25000
- },
- {
-  "code": "KITAS-CHANGE",
-  "price": 1500000,
-  "partner_cost": 850000,
-  "plan_a": 97000,
-  "plan_b1": 65000,
-  "plan_b2": 32000
- },
- {
-  "code": "MUT-KITAS",
-  "price": 1500000,
-  "partner_cost": 850000,
-  "plan_a": 97000,
-  "plan_b1": 65000,
-  "plan_b2": 32000
- },
- {
-  "code": "EPO",
-  "price": 1500000,
-  "partner_cost": 850000,
-  "plan_a": 97000,
-  "plan_b1": 65000,
-  "plan_b2": 32000
- },
- {
-  "code": "ETK-OUT",
-  "price": 2500000,
-  "partner_cost": 1500000,
-  "plan_a": 150000,
-  "plan_b1": 100000,
-  "plan_b2": 50000
- },
- {
+  "sheet_code": "PERSONAL",
   "code": "PERSONAL-COUNT",
+  "category": "other",
+  "name": "Открытие банковской карты (без KITAS)",
+  "cost": 50000,
+  "market": 2000000,
   "price": 1500000,
-  "partner_cost": 500000,
-  "plan_a": 150000,
-  "plan_b1": 100000,
-  "plan_b2": 50000
+  "partner_price": 950000,
+  "white_label": 775000,
+  "left": 1450000,
+  "l1": 450000,
+  "l2": 90000
+ },
+ {
+  "sheet_code": "PMA",
+  "code": "PMA-1",
+  "category": "co",
+  "name": "Регистрация компании PT PMA",
+  "cost": 15000000,
+  "market": 25000000,
+  "price": 19900000,
+  "partner_price": 18905000,
+  "white_label": 17450000,
+  "left": 4900000,
+  "l1": 1000000,
+  "l2": 200000
+ },
+ {
+  "sheet_code": "PT",
+  "code": "PT",
+  "category": "co",
+  "name": "Регистрация компании PT PMDN",
+  "cost": 10000000,
+  "market": 15000000,
+  "price": 13000000,
+  "partner_price": 12350000,
+  "white_label": 11500000,
+  "left": 3000000,
+  "l1": 500000,
+  "l2": 100000
+ },
+ {
+  "sheet_code": "BRIDGE",
+  "code": "BRIDGE",
+  "category": "visa",
+  "name": "Bridge Visa",
+  "cost": 2500000,
+  "market": 4000000,
+  "price": 3500000,
+  "partner_price": 3325000,
+  "white_label": 3000000,
+  "left": 1000000,
+  "l1": 250000,
+  "l2": 50000
+ },
+ {
+  "sheet_code": "C1",
+  "code": "C1",
+  "category": "visa",
+  "name": "Виза C1 (на 2 мес)",
+  "cost": 1000000,
+  "market": 2700000,
+  "price": 2000000,
+  "partner_price": 1900000,
+  "white_label": 1500000,
+  "left": 1000000,
+  "l1": 200000,
+  "l2": 40000
+ },
+ {
+  "sheet_code": "C1-EXT",
+  "code": "C1-EXT",
+  "category": "ext",
+  "name": "C1 (продление)",
+  "cost": 1500000,
+  "market": 2800000,
+  "price": 2500000,
+  "partner_price": 2375000,
+  "white_label": 2000000,
+  "left": 1000000,
+  "l1": 200000,
+  "l2": 40000
+ },
+ {
+  "sheet_code": "D1-1",
+  "code": "D1-1",
+  "category": "visa",
+  "name": "D1 - 1 год (туристическая мульти виза)",
+  "cost": 3000000,
+  "market": 6500000,
+  "price": 5000000,
+  "partner_price": 4750000,
+  "white_label": 4000000,
+  "left": 2000000,
+  "l1": 200000,
+  "l2": 40000
+ },
+ {
+  "sheet_code": "D1-2",
+  "code": "D1-2",
+  "category": "visa",
+  "name": "D1 - 2 года",
+  "cost": 5000000,
+  "market": 10500000,
+  "price": 8000000,
+  "partner_price": 7600000,
+  "white_label": 6500000,
+  "left": 3000000,
+  "l1": 200000,
+  "l2": 40000
+ },
+ {
+  "sheet_code": "D1-5",
+  "code": "D1-5",
+  "category": "visa",
+  "name": "D1 - 5 лет",
+  "cost": 10000000,
+  "market": 20000000,
+  "price": 18000000,
+  "partner_price": 17100000,
+  "white_label": 14000000,
+  "left": 8000000,
+  "l1": 200000,
+  "l2": 40000
+ },
+ {
+  "sheet_code": "D12-1",
+  "code": "D12-1",
+  "category": "visa",
+  "name": "Виза D12 (на 1 год)",
+  "cost": 5000000,
+  "market": 7500000,
+  "price": 7200000,
+  "partner_price": 6840000,
+  "white_label": 6100000,
+  "left": 2200000,
+  "l1": 350000,
+  "l2": 70000
+ },
+ {
+  "sheet_code": "D12-2",
+  "code": "D12-2",
+  "category": "visa",
+  "name": "Виза D12 (на 2 года)",
+  "cost": 7000000,
+  "market": 11500000,
+  "price": 10900000,
+  "partner_price": 10355000,
+  "white_label": 8950000,
+  "left": 3900000,
+  "l1": 400000,
+  "l2": 80000
+ },
+ {
+  "sheet_code": "D12-EXT",
+  "code": "D12-EXT",
+  "category": "ext",
+  "name": "D12 (продление без вылета)",
+  "cost": 3500000,
+  "market": 7000000,
+  "price": 5000000,
+  "partner_price": 4750000,
+  "white_label": 4250000,
+  "left": 1500000,
+  "l1": 250000,
+  "l2": 50000
+ },
+ {
+  "sheet_code": "E28A-1-P",
+  "code": "E28A-1-P",
+  "category": "kitas",
+  "name": "KITAS Investor (1 год)",
+  "cost": 7000000,
+  "market": 13500000,
+  "price": 11900000,
+  "partner_price": 11305000,
+  "white_label": 9450000,
+  "left": 4900000,
+  "l1": 1000000,
+  "l2": 200000
+ },
+ {
+  "sheet_code": "E28A-2-P",
+  "code": "E28A-2-P",
+  "category": "kitas",
+  "name": "KITAS Investor (2 года)",
+  "cost": 9500000,
+  "market": 20000000,
+  "price": 17900000,
+  "partner_price": 17005000,
+  "white_label": 13700000,
+  "left": 8400000,
+  "l1": 1000000,
+  "l2": 200000
+ },
+ {
+  "sheet_code": "E31-EXT-1",
+  "code": "E31-EXT-1",
+  "category": "ext",
+  "name": "Продление KITASа присоединения (на 1 год)",
+  "cost": 7000000,
+  "market": 13500000,
+  "price": 12500000,
+  "partner_price": 11875000,
+  "white_label": 9750000,
+  "left": 5500000,
+  "l1": 1000000,
+  "l2": 200000
+ },
+ {
+  "sheet_code": "E31-EXT-2",
+  "code": "E31-EXT-2",
+  "category": "ext",
+  "name": "Продление KITASа присоединения (на 2 года)",
+  "cost": 9500000,
+  "market": 19500000,
+  "price": 16000000,
+  "partner_price": 15200000,
+  "white_label": 12750000,
+  "left": 6500000,
+  "l1": 1000000,
+  "l2": 200000
+ },
+ {
+  "sheet_code": "E31B/E-1",
+  "code": "E31B/E-1",
+  "category": "kitas",
+  "name": "Family KITAS (1 год)",
+  "cost": 6000000,
+  "market": 13000000,
+  "price": 11900000,
+  "partner_price": 11305000,
+  "white_label": 8950000,
+  "left": 5900000,
+  "l1": 1000000,
+  "l2": 200000
+ },
+ {
+  "sheet_code": "E31B/E-2",
+  "code": "E31B/E-2",
+  "category": "kitas",
+  "name": "Family KITAS (2 года)",
+  "cost": 8500000,
+  "market": 18000000,
+  "price": 16000000,
+  "partner_price": 15200000,
+  "white_label": 12250000,
+  "left": 7500000,
+  "l1": 1000000,
+  "l2": 200000
+ },
+ {
+  "sheet_code": "DRIVER",
+  "code": "DRIVER",
+  "category": "other",
+  "name": "Водительские права (за 1 категорию)",
+  "cost": 1500000,
+  "market": 2500000,
+  "price": 2000000,
+  "partner_price": null,
+  "white_label": 1750000,
+  "left": 500000,
+  "l1": 100000,
+  "l2": 20000
+ },
+ {
+  "sheet_code": "E33F",
+  "code": "E33F",
+  "category": "kitas",
+  "name": "Пенсионный KITAS на 1 год",
+  "cost": 7000000,
+  "market": 13000000,
+  "price": 11900000,
+  "partner_price": 11305000,
+  "white_label": 9450000,
+  "left": 4900000,
+  "l1": 1000000,
+  "l2": 200000
+ },
+ {
+  "sheet_code": "E33F-EXT",
+  "code": "E33F-EXT",
+  "category": "ext",
+  "name": "Продление пенсионного KITASа на 1 год",
+  "cost": 8000000,
+  "market": 13500000,
+  "price": 12500000,
+  "partner_price": 11875000,
+  "white_label": 10250000,
+  "left": 4500000,
+  "l1": 1000000,
+  "l2": 200000
+ },
+ {
+  "sheet_code": "E33G",
+  "code": "E33G",
+  "category": "kitas",
+  "name": "KITAS удалёнщика E33G (1 год)",
+  "cost": 7000000,
+  "market": 13500000,
+  "price": 11900000,
+  "partner_price": 11305000,
+  "white_label": 9450000,
+  "left": 4900000,
+  "l1": 1000000,
+  "l2": 200000
+ },
+ {
+  "sheet_code": "E33G-EXT",
+  "code": "E33G-EXT",
+  "category": "ext",
+  "name": "Продление KITAS E33G (удалёнщика)",
+  "cost": 8000000,
+  "market": 13000000,
+  "price": 12500000,
+  "partner_price": 11875000,
+  "white_label": 10250000,
+  "left": 4500000,
+  "l1": 1000000,
+  "l2": 200000
+ },
+ {
+  "sheet_code": "VOA",
+  "code": "VOA",
+  "category": "visa",
+  "name": "Виза по прилету - VoA",
+  "cost": 530000,
+  "market": 900000,
+  "price": 750000,
+  "partner_price": 712500,
+  "white_label": 640000,
+  "left": 220000,
+  "l1": 50000,
+  "l2": 10000
+ },
+ {
+  "sheet_code": "VOA-EXT",
+  "code": "VOA-EXT",
+  "category": "ext",
+  "name": "Продление визы по прилету (VoA)",
+  "cost": 500000,
+  "market": 1200000,
+  "price": 950000,
+  "partner_price": 902500,
+  "white_label": 725000,
+  "left": 450000,
+  "l1": 50000,
+  "l2": 10000
  }
 ]

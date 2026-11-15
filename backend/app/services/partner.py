@@ -127,15 +127,14 @@ def sync_lead(db: Session, kommo: KommoClient, lead: KommoLead, now: datetime | 
     display = short_name(str(raw_name) if raw_name else lead.name)
 
     targets: list[tuple[Partner, int, int]] = []
-    if partner.kind == "private":
-        targets.append((partner, 1, pay.plan_a if pay else 0))
-    else:
-        targets.append((partner, 1, pay.plan_b_l1 if pay else 0))
-        link = db.scalar(select(Level2Link).where(Level2Link.business_partner_id == partner.id))
-        if link and link.contract_date <= now.date() <= link.end_date:
-            l2 = db.get(Partner, link.level2_partner_id)
-            if l2 and l2.status != "blocked":
-                targets.append((l2, 2, pay.plan_b_l2 if pay else 0))
+    # 1-й уровень — тот, кто привёл клиента («партнер», одинаково для всех).
+    # 2-й уровень — тот, кто привёл к нам этого партнёра (главу кафе, спортзала…): «партнер 2ур» с каждого клиента.
+    targets.append((partner, 1, pay.level1 if pay else 0))
+    link = db.scalar(select(Level2Link).where(Level2Link.business_partner_id == partner.id))
+    if link and link.contract_date <= now.date() <= link.end_date:
+        l2 = db.get(Partner, link.level2_partner_id)
+        if l2 and l2.status != "blocked" and l2.id != partner.id:
+            targets.append((l2, 2, pay.level2 if pay else 0))
 
     result = []
     for p, level, amount in targets:
@@ -156,7 +155,7 @@ def sync_lead(db: Session, kommo: KommoClient, lead: KommoLead, now: datetime | 
         old_deal = bool(done_at and done_at < joined)  # оплачено или выдано ещё до вступления партнёра
         if acc.decision == "rejected":
             status, hold_until = "cancelled", None
-        elif not acc.decision and status not in ("cancelled", "paid") and (old_deal or (tariff is None and in_payment)):
+        elif not acc.decision and status not in ("cancelled", "paid") and (old_deal or ((tariff is None or tariff.l1 is None) and in_payment)):
             status, hold_until = "review", None
         # Заработанное не откатывается: менеджер мог вытащить закрытую сделку назад по воронке,
         # чтобы прочитать старую переписку. Отменяет начисление только «Закрыто и не реализовано» (возврат).

@@ -10,36 +10,38 @@ from app.tariffs import TARIFFS, find_tariff
 EXPECTED = json.loads((Path(__file__).parent / "data" / "tariffs_expected.json").read_text())
 
 
-def test_all_43_services_loaded():
-    assert len(TARIFFS) == 43
-    assert {t.code for t in TARIFFS} == {e["code"] for e in EXPECTED}
+def test_all_services_from_table_15_11_loaded():
+    codes = {t.code for t in TARIFFS}
+    assert {e["code"] for e in EXPECTED} <= codes
 
 
 @pytest.mark.parametrize("row", EXPECTED, ids=[e["code"] for e in EXPECTED])
-def test_payouts_match_spreadsheet(row):
-    """Выплаты по формулам совпадают с таблицей «Тарифы партнёрской программы» по всем услугам."""
-    t = find_tariff(row["code"])
-    assert t.price == row["price"] and t.partner_cost == row["partner_cost"]
+def test_prices_and_payouts_match_table(row):
+    """Цены и выплаты совпадают с таблицей «Тарифы партнёрской программы» (15.11.2026) по каждой услуге."""
+    t = find_tariff(row["sheet_code"])
+    assert t.code == row["code"]
+    assert (t.price, t.partner_cost, t.market, t.white_label) == (row["price"], row["cost"], row["market"], row["white_label"])
     p = calc_payouts(t)
-    assert (p.plan_a, p.plan_b_l1, p.plan_b_l2) == (row["plan_a"], row["plan_b1"], row["plan_b2"])
+    assert p.client_price == (row["partner_price"] or row["price"])
+    assert (p.level1, p.level2) == (row["l1"], row["l2"])
+    assert p.level2 * 5 == p.level1  # 2-й уровень — 20% от 1-го, одинаково для всех услуг
 
 
-def test_example_from_spec_kitas_investor_plan_b():
-    p = calc_payouts(find_tariff("E28A-2-P"))
-    assert p.margin == 8_500_000
-    assert p.discount == 425_000 and p.client_price == 17_575_000
-    assert p.plan_b_l1 == 850_000 and p.plan_b_l2 == 425_000
-
-
-def test_bigger_manager_discount_uses_actual_margin():
-    t = find_tariff("E33G")  # 10 900 000, себестоимость 7 000 000
-    p = calc_payouts(t, deal_price=10_000_000)
-    assert p.margin == 3_000_000 and p.plan_a == 450_000
-
-
-def test_standard_discount_keeps_nominal_margin():
+def test_payout_does_not_depend_on_budget_when_standard_discount():
     t = find_tariff("E33G")
-    assert calc_payouts(t, deal_price=10_705_000).plan_a == 585_000
+    assert calc_payouts(t, deal_price=11_305_000).level1 == 1_000_000
+    assert calc_payouts(t, deal_price=None).level1 == 1_000_000
+
+
+def test_huge_manager_discount_never_pays_more_than_margin():
+    t = find_tariff("C1")  # себестоимость 1 000 000, выплаты 200 000 + 40 000
+    p = calc_payouts(t, deal_price=1_120_000)  # маржа 120 000
+    assert p.level1 + p.level2 <= 120_000 and p.level1 == 100_000 and p.level2 == 20_000
+
+
+def test_service_without_payouts_goes_to_manager():
+    t = find_tariff("ADR")
+    assert t.l1 is None and calc_payouts(t).known is False
 
 
 @pytest.mark.parametrize("word,ok", [

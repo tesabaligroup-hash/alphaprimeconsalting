@@ -366,6 +366,25 @@ def payout_details(body: PayoutDetailsIn, user: User = Depends(current_user), db
     return {"ok": True}
 
 
+class PartnerSupportIn(BaseModel):
+    text: str = Field(min_length=3, max_length=1000)
+
+
+@router.post("/partner/support")
+def partner_support(body: PartnerSupportIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """«Написать менеджеру» в партнёрке: вопрос сразу в группу менеджеров (не видно друга, не та сумма и т.п.)."""
+    p = _partner(user)
+    tg = f"@{user.telegram_username}" if user.telegram_username else f"id {user.telegram_id}"
+    word = p.kommo_partner_value or p.codeword or "—"
+    notify_managers("🆘 Вопрос по партнёрской программе", [
+        f"Партнёр: {p.display_name} · {tg}" + (f" · {user.phone}" if user.phone else ""),
+        f"В поле «Партнёр» в Kommo: {word}",
+        f"Сообщение: {body.text.strip()}",
+        f"Проверка на сервере: docker compose exec api python -m app.diag_partner {word}",
+    ], 0)
+    return {"ok": True}
+
+
 @router.get("/health", include_in_schema=False)
 def health():
     return {"ok": True}

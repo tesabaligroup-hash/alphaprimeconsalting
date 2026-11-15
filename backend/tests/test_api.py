@@ -40,7 +40,7 @@ def test_real_telegram_signature(client):
 def test_home_has_family_dates_and_news(client):
     d = client.get("/api/home", headers=DEV).json()
     titles = [s["title"] for s in d["services"]]
-    assert "Китас удаленщика E33G" in titles
+    assert "KITAS удалёнщика E33G (1 год)" in titles
     assert any(x["person"] == "Миша" for x in d["dates"])
     assert d["banners"] and d["news"] and d["partner_news"]
     e33g = next(s for s in d["services"] if s["code"] == "E33G")
@@ -78,10 +78,10 @@ def test_order_creates_kommo_lead(client):
 def test_partner_dashboard(client):
     d = client.get("/api/partner", headers=DEV).json()
     names = {f["name"]: f for f in d["friends"]}
-    assert names["Denis R."]["status"] == "to_payout" and names["Denis R."]["amount"] == 1_275_000
-    assert names["Maria K."]["status"] == "in_work" and names["Maria K."]["amount"] == 585_000
+    assert names["Denis R."]["status"] == "to_payout" and names["Denis R."]["amount"] == 1_000_000
+    assert names["Maria K."]["status"] == "in_work" and names["Maria K."]["amount"] == 1_000_000
     assert names["@olga_bali"]["status"] == "awaiting_payment"
-    assert d["balance"]["to_payout"] == 1_275_000
+    assert d["balance"]["to_payout"] == 1_000_000
     assert d["links"]["tg"].endswith("start=ANNABALI")
     assert any(r["status"] == "pending" for r in d["referrals"])
     # партнёр не видит услуги и цены
@@ -197,3 +197,10 @@ def test_admin_accrual_buttons(client):
     assert r.status_code == 303
     with SessionLocal() as db:
         assert db.get(Accrual, aid).status == "paid"
+
+
+def test_partner_support_goes_to_managers(client, monkeypatch):
+    sent = []
+    monkeypatch.setattr("app.api.notify_managers", lambda title, lines, lead_id=None: sent.append((title, lines)))
+    r = client.post("/api/partner/support", headers=DEV, json={"text": "Не вижу друга Ивана"})
+    assert r.status_code == 200 and sent and "Не вижу друга Ивана" in sent[0][1][2]
