@@ -55,6 +55,19 @@ services:
     depends_on:
       - api
 
+  # «Мир Августины»: синхронизация iPad ↔ мама, Telegram-бот, ИИ-проверка комнаты
+  kids-api:
+    build: ./kids-api
+    restart: unless-stopped
+    environment:
+      KIDS_KEY: ${KIDS_KEY:-}
+      KIDS_BOT_TOKEN: ${KIDS_BOT_TOKEN:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      KIDS_AI_MODEL: ${KIDS_AI_MODEL:-claude-sonnet-5-5}
+      KIDS_URL: https://${KIDS_DOMAIN:-kids.alpha-prime.group}
+    volumes:
+      - kids_data:/data
+
   backup:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -75,6 +88,7 @@ services:
         condition: service_healthy
 
 volumes:
+  kids_data:
   pgdata:
   uploads:
   caddy_data:
