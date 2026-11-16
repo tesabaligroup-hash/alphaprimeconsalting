@@ -43,7 +43,7 @@ export async function openDocument(leadId: number, uuid: string) {
 }
 
 /** PNG с QR-кодом кодового слова: в Telegram — штатное скачивание файла, в браузере — открываем картинку. */
-export async function downloadQr(word: string, channel: "tg" | "wa") {
+export async function downloadQr(word: string, channel: "tg" | "wa" | "ig") {
   const { url, name } = await request<{ url: string; name: string }>("POST", "/api/partner/qr-link", { word, channel });
   const w = tg as unknown as { downloadFile?: (p: { url: string; file_name: string }) => void } | undefined;
   if (w?.downloadFile) w.downloadFile({ url, file_name: name });

@@ -119,6 +119,10 @@ def test_several_codewords_and_qr_download(client):
     assert "attachment" in png.headers["content-disposition"]
     bad = link["url"].rsplit("/", 1)[1][:-3] + "AAA"
     assert client.get(f"/api/qr/{bad}").status_code in (403, 404)
+    ig = client.post("/api/partner/qr-link", json={"word": "topgym", "channel": "ig"}, headers=DEV).json()
+    assert ig["name"].endswith("-Instagram.png")
+    r = client.get("/" + ig["url"].split("/", 3)[3])
+    assert r.status_code == 200 and r.content[:4] == b"\x89PNG"
 
 
 def test_kommo_value_matches_any_codeword(client):

@@ -19,7 +19,7 @@ from .kommo import get_kommo
 from .kommo.base import KommoClient
 from .links import partner_links
 from .models import News, Partner, PartnerCodeword, Referral, ServiceOrder, User
-from .qr import partner_qr_png
+from .qr import CHANNELS, partner_qr_png
 from .services import cabinet, partner as partner_svc
 from .services.interest import register_interest
 from .services.linking import link_user
@@ -358,7 +358,7 @@ def _qr_token(partner_id: int, word: str, channel: str, exp: int) -> str:
 
 class QrIn(BaseModel):
     word: str = Field(max_length=32)
-    channel: str = Field(pattern="^(tg|wa)$")
+    channel: str = Field(pattern="^(tg|wa|ig)$")
 
 
 @router.post("/partner/qr-link")
@@ -371,7 +371,7 @@ def qr_link(body: QrIn, user: User = Depends(current_user), db: Session = Depend
         raise HTTPException(404, "Это не ваше кодовое слово")
     exp = int(time.time()) + QR_TTL
     return {"url": f"{get_settings().public_url.rstrip('/')}/api/qr/{_qr_token(p.id, word, body.channel, exp)}",
-            "name": f"AlphaPrime-QR-{word}-{'Telegram' if body.channel == 'tg' else 'WhatsApp'}.png"}
+            "name": f"AlphaPrime-QR-{word}-{CHANNELS[body.channel]}.png"}
 
 
 @router.get("/qr/{token}")
@@ -385,10 +385,10 @@ def qr_png(token: str, db: Session = Depends(get_db)):
     if not hmac.compare_digest(_qr_token(pid, word, channel, exp), token) or exp < time.time():
         raise HTTPException(403, "Ссылка устарела — нажмите «Скачать QR-код» в приложении ещё раз")
     p = db.get(Partner, pid)
-    if not p or channel not in ("tg", "wa"):
+    link = partner_links(p, word).get(channel) if p and channel in CHANNELS else None
+    if not link:
         raise HTTPException(404)
-    link = partner_links(p, word)[channel]
-    name = f"AlphaPrime-QR-{word}-{'Telegram' if channel == 'tg' else 'WhatsApp'}.png"
+    name = f"AlphaPrime-QR-{word}-{CHANNELS[channel]}.png"
     return Response(partner_qr_png(link, word, channel), media_type="image/png",
                     headers={"Content-Disposition": f"attachment; filename=\"AlphaPrime-QR.png\"; filename*=UTF-8''{quote(name)}",
                              "Cache-Control": "no-store"})

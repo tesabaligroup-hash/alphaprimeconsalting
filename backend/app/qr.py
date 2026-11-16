@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 ASSETS = Path(__file__).parent / "assets"
 INK, GOLD, GOLD_INK, MUTED = "#1C1A16", "#C9A24B", "#7A5C17", "#6B655A"
-CHANNELS = {"tg": "Telegram", "wa": "WhatsApp"}
+CHANNELS = {"tg": "Telegram", "wa": "WhatsApp", "ig": "Instagram"}
 
 
 @lru_cache
@@ -39,9 +39,10 @@ def partner_qr_png(link: str, word: str, channel: str) -> bytes:
     img.paste(code, ((W - 960) // 2, 230))
 
     _center(d, 1215, f"Я от {word}", _font("Manrope-ExtraBold.ttf", 84), INK, W)
-    hint = f"Наведите камеру — откроется {CHANNELS.get(channel, channel)} менеджеров Alpha Prime"
+    hint = ("Наведите камеру — откроется Direct Alpha Prime в Instagram" if channel == "ig"
+            else f"Наведите камеру — откроется {CHANNELS.get(channel, channel)} менеджеров Alpha Prime")
     _center(d, 1335, hint, _font("Manrope-SemiBold.ttf", 32), GOLD_INK, W)
-    _center(d, 1395, "или напишите нам эти слова в любой мессенджер", _font("Manrope-SemiBold.ttf", 28), MUTED, W)
+    _center(d, 1395, "Напишите эти слова в Direct" if channel == "ig" else "или напишите нам эти слова в любой мессенджер", _font("Manrope-SemiBold.ttf", 28), MUTED, W)
     d.rectangle([0, H - 14, W, H], fill=GOLD)
 
     buf = BytesIO()

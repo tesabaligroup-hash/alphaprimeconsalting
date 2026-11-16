@@ -140,11 +140,11 @@ function Channels({ c }: { c: Codeword }) {
   const share = {
     tg: { label: "Telegram", link: links.tg, hint: `QR открывает Telegram менеджеров Alpha Prime с готовым сообщением «${links.text}».`, cta: "Отправить ссылку в Telegram" },
     wa: { label: "WhatsApp", link: links.wa, hint: `QR открывает WhatsApp менеджеров Alpha Prime с готовым сообщением «${links.text}».`, cta: "Отправить ссылку в WhatsApp" },
-    ig: { label: "Instagram", link: links.ig, hint: `В Instagram ссылки не закрепляют автоматически: друг должен написать в Direct «${links.text}».`, cta: "Скопировать текст для Direct" },
+    ig: { label: "Instagram", link: links.ig, hint: `QR открывает Direct Alpha Prime в Instagram. Готовый текст Instagram не подставляет — друг пишет «${links.text}» сам.`, cta: "Скопировать текст для Direct" },
   }[ch];
 
   useEffect(() => {
-    if (!share.link || ch === "ig") { setQr(null); return; }
+    if (!share.link) { setQr(null); return; }
     QRCode.toDataURL(share.link, { margin: 1, width: 360, color: { dark: "#1C1A16", light: "#FFFFFF" } }).then(setQr).catch(() => setQr(null));
   }, [share.link, ch]);
 
@@ -156,7 +156,6 @@ function Channels({ c }: { c: Codeword }) {
     else copy(msg, "Текст");
   };
   const download = async () => {
-    if (ch === "ig") return;
     setBusy(true);
     try {
       await downloadQr(c.word, ch);
@@ -181,16 +180,16 @@ function Channels({ c }: { c: Codeword }) {
         ))}
       </div>
       <div className="card" style={{ alignItems: "center", gap: 14, borderRadius: 20, padding: 20 }}>
-        {qr ? <img className="qr" src={qr} alt={`QR-код: ${share.label}, слово ${c.word}`} /> : <div className="qr" style={{ display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }} ><span className="small">Для Instagram QR не нужен — друг пишет слово в Direct</span></div>}
+        {qr ? <img className="qr" src={qr} alt={`QR-код: ${share.label}, слово ${c.word}`} /> : <div className="qr" style={{ display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }} ><span className="small">Instagram не подключён</span></div>}
         <span className="small" style={{ textAlign: "center", fontSize: 13 }}>{share.hint}</span>
-        {ch !== "ig" && (
+        {share.link && (
           <button className="btn gold block" disabled={busy} onClick={download}><IDownload /> {busy ? "Готовим файл…" : "Скачать QR-код"}</button>
         )}
         {share.link && (
           <div className="copy-row"><span>{share.link.replace("https://", "")}</span><button className="icon-btn" aria-label="Скопировать ссылку" onClick={() => copy(share.link!, "Ссылка")}><ICopy /></button></div>
         )}
         <button className="btn block" onClick={send}>{share.cta}</button>
-        {ch !== "ig" && <span className="small" style={{ textAlign: "center" }}>Файл подходит для печати: QR, «{links.text}» и логотип Alpha Prime.</span>}
+        {share.link && <span className="small" style={{ textAlign: "center" }}>Файл подходит для печати: QR, «{links.text}» и логотип Alpha Prime.</span>}
       </div>
     </section>
   );
