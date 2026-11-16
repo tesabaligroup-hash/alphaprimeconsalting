@@ -82,7 +82,8 @@ def test_partner_dashboard(client):
     assert names["Maria K."]["status"] == "in_work" and names["Maria K."]["amount"] == 1_000_000
     assert names["@olga_bali"]["status"] == "awaiting_payment"
     assert d["balance"]["to_payout"] == 1_000_000
-    assert d["links"]["tg"].endswith("start=ANNABALI")
+    assert d["links"]["tg"].startswith("https://t.me/alpha_prime_id?text=") and d["links"]["tg"].endswith("ANNABALI")
+    assert d["links"]["bot"].endswith("start=ANNABALI")
     assert any(r["status"] == "pending" for r in d["referrals"])
     # партнёр не видит услуги и цены
     assert "service_code" not in d["friends"][0] and "price" not in d["friends"][0]
@@ -91,7 +92,42 @@ def test_partner_dashboard(client):
 def test_codeword_check(client):
     r = client.post("/api/partner/codeword/check", json={"word": "виза"}, headers=DEV).json()
     assert not r["ok"]
-    assert client.post("/api/partner/codeword", json={"word": "NEWWORD1"}, headers=DEV).status_code == 409  # уже закреплено
+    # своё же слово ещё раз не добавить
+    assert "уже есть в вашем списке" in client.post("/api/partner/codeword/check", json={"word": "annabali"}, headers=DEV).json()["problems"][0]
+
+
+def test_several_codewords_and_qr_download(client):
+    r = client.post("/api/partner/codeword", json={"word": "topgym", "label": "Top Gym"}, headers=DEV)
+    assert r.status_code == 200 and r.json()["codeword"] == "TOPGYM"
+    d = client.get("/api/partner", headers=DEV).json()
+    words = {w["word"]: w for w in d["codewords"]}
+    assert set(words) == {"ANNABALI", "TOPGYM"}
+    assert words["ANNABALI"]["main"] and not words["TOPGYM"]["main"] and words["TOPGYM"]["label"] == "Top Gym"
+    assert words["TOPGYM"]["links"]["tg"].endswith("TOPGYM") and "?text=" in words["TOPGYM"]["links"]["tg"] and "TOPGYM" in words["TOPGYM"]["links"]["wa"]
+    assert d["partner"]["codeword"] == "ANNABALI"  # основное слово не меняется
+    # слово занято для других партнёров
+    init = sign_init_data({"auth_date": "9999999999", "user": {"id": 889, "first_name": "Гоша"}}, "123:TEST")
+    h = {"X-Telegram-Init-Data": init}
+    client.post("/api/partner/join", json={"accept_terms": True}, headers=h)
+    assert client.post("/api/partner/codeword", json={"word": "TOPGYM"}, headers=h).status_code == 400
+    assert client.post("/api/partner/qr-link", json={"word": "TOPGYM", "channel": "tg"}, headers=h).status_code == 404
+    # скачивание QR: временная ссылка → PNG без авторизации
+    link = client.post("/api/partner/qr-link", json={"word": "topgym", "channel": "wa"}, headers=DEV).json()
+    assert link["name"] == "AlphaPrime-QR-TOPGYM-WhatsApp.png"
+    png = client.get(link["url"].replace("http://localhost:8000", ""))
+    assert png.status_code == 200 and png.headers["content-type"] == "image/png" and png.content[:4] == b"\x89PNG"
+    assert "attachment" in png.headers["content-disposition"]
+    bad = link["url"].rsplit("/", 1)[1][:-3] + "AAA"
+    assert client.get(f"/api/qr/{bad}").status_code in (403, 404)
+
+
+def test_kommo_value_matches_any_codeword(client):
+    from app.db import SessionLocal
+    from app.services.partner import partner_by_codeword
+
+    with SessionLocal() as db:
+        assert partner_by_codeword(db, "topgym").codeword == "ANNABALI"
+        assert partner_by_codeword(db, "nosuchword") is None
 
 
 def test_add_referral(client):

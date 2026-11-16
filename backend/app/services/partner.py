@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..kommo.base import KommoClient, KommoLead
 from ..kommo.mapping import (CANCEL_STATUSES, CLIENT_PIPELINE_IDS, CONTACT_FIELDS, FULLY_PAID_STATUSES, LEAD_FIELDS, NO_PARTNER_VALUES,
                              RESULT_ISSUED_STATUSES, STATUS_LOST, STATUS_TO_STEP, STATUS_WON, norm)
-from ..models import Accrual, Level2Link, Partner, ProgramSetting, Referral, StopWord, User
+from ..models import Accrual, Level2Link, Partner, PartnerCodeword, ProgramSetting, Referral, StopWord, User
 from ..partner_rules import (ACCRUAL_LABELS, DEFAULTS, accrual_status, calc_payouts, codeword_problems, next_payout_date,
                              normalize_codeword, payout_date_for, short_name)
 from ..tariffs import combined_tariff, find_tariff
@@ -30,13 +30,40 @@ def stop_words(db: Session) -> set[str]:
     return {w.word.upper() for w in db.scalars(select(StopWord))}
 
 
+MAX_CODEWORDS = 10
+
+
+def partner_by_codeword(db: Session, word: str | None) -> Partner | None:
+    """Партнёр по любому своему кодовому слову — основному или дополнительному."""
+    w = normalize_codeword(word or "")
+    if not w:
+        return None
+    p = db.scalar(select(Partner).where(Partner.codeword == w))
+    if p:
+        return p
+    row = db.scalar(select(PartnerCodeword).where(PartnerCodeword.word == w))
+    return db.get(Partner, row.partner_id) if row else None
+
+
+def partner_codewords(db: Session, p: Partner) -> list[PartnerCodeword]:
+    rows = list(db.scalars(select(PartnerCodeword).where(PartnerCodeword.partner_id == p.id).order_by(PartnerCodeword.created_at, PartnerCodeword.id)))
+    if p.codeword and all(r.word != p.codeword for r in rows):  # старый партнёр, ещё без строки в списке
+        row = PartnerCodeword(partner_id=p.id, word=p.codeword, created_at=p.created_at)
+        db.add(row)
+        db.commit()
+        rows.insert(0, row)
+    return rows
+
+
 def check_codeword(db: Session, word: str, partner_id: int | None = None) -> dict:
     s = program_settings(db)
     w = normalize_codeword(word)
     problems = codeword_problems(w, stop_words(db), s["codeword_min_len"])
-    taken = db.scalar(select(Partner).where(Partner.codeword == w))
+    taken = partner_by_codeword(db, w) if w else None
     if taken and taken.id != partner_id:
         problems.append("Это слово уже занято другим партнёром")
+    elif taken and taken.id == partner_id:
+        problems.append("Это слово уже есть в вашем списке")
     return {"word": w, "ok": not problems, "problems": problems}
 
 
@@ -48,13 +75,16 @@ def find_partner_for_lead(db: Session, lead: KommoLead) -> Partner | None:
     v = str(value).strip().lstrip("@")
     p = db.scalar(select(Partner).where(Partner.kommo_partner_value.ilike(v)))
     if not p:
-        p = db.scalar(select(Partner).where(Partner.codeword == normalize_codeword(v)))
+        p = partner_by_codeword(db, v)
     if not p:
         p = db.scalar(select(Partner).join(User, Partner.user_id == User.id).where(User.telegram_username.ilike(v)))
     if not p:  # «Кицунес» в Kommo ↔ kitsunes в Telegram / кодовом слове
         key = loose_key(v)
+        extra: dict[int, list[str]] = {}
+        for row in db.scalars(select(PartnerCodeword)):
+            extra.setdefault(row.partner_id, []).append(row.word)
         for cand in db.scalars(select(Partner)):
-            names = [cand.kommo_partner_value, cand.codeword, cand.user.telegram_username if cand.user else None]
+            names = [cand.kommo_partner_value, cand.codeword, cand.user.telegram_username if cand.user else None, *extra.get(cand.id, [])]
             if key and any(loose_key(x) == key for x in names if x):
                 return cand
     return p

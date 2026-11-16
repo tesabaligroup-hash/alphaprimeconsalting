@@ -20,6 +20,7 @@ from .kommo import get_kommo
 from .models import ProgramSetting, Partner, Referral, User
 from .partner_rules import DEFAULTS, normalize_codeword
 from .services.linking import find_contact, link_user, relink_unlinked
+from .services import partner as partner_svc
 from .services.partner import sync_all
 from .services.quality import weekly_report
 from .notify import notify_managers
@@ -48,7 +49,7 @@ def resolve_partner(db, payload: str | None) -> Partner | None:
         return None
     if re.fullmatch(r"p\d{1,9}", payload):
         return db.get(Partner, int(payload[1:]))
-    return db.scalar(select(Partner).where(Partner.codeword == normalize_codeword(payload)))
+    return partner_svc.partner_by_codeword(db, payload)
 
 
 @dp.message(CommandStart())
@@ -64,7 +65,8 @@ async def start(message: Message, command: CommandObject):
         if partner and partner.user_id != user.id and partner.status == "active" and not user.kommo_contact_id:
             already = db.scalar(select(Referral).where(Referral.friend_user_id == user.id))
             if not already:
-                user.came_with_codeword = partner.codeword
+                word = normalize_codeword(command.args or "")
+                user.came_with_codeword = word if getattr(partner_svc.partner_by_codeword(db, word), "id", None) == partner.id else partner.codeword
                 db.add(Referral(partner_id=partner.id, friend_name=" ".join(x for x in [tg.first_name, tg.last_name] if x),
                                 channel="tg", contact=f"@{tg.username}" if tg.username else f"id {tg.id}", who_writes="us",
                                 source="link", status="pending", friend_user_id=user.id,
@@ -102,7 +104,7 @@ async def check_codeword(message: Message, command: CommandObject):
         return
     with SessionLocal() as db:
         code = normalize_codeword(word)
-        p = db.scalar(select(Partner).where(Partner.codeword == code)) or \
+        p = partner_svc.partner_by_codeword(db, code) or \
             db.scalar(select(Partner).where(Partner.kommo_partner_value.ilike(word))) or \
             db.scalar(select(Partner).join(User, Partner.user_id == User.id).where(User.telegram_username.ilike(word)))
         if not p:

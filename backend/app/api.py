@@ -4,12 +4,13 @@ import logging
 import hashlib
 import hmac
 import time
+from urllib.parse import quote
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .config import get_settings
@@ -17,7 +18,8 @@ from .db import get_db
 from .kommo import get_kommo
 from .kommo.base import KommoClient
 from .links import partner_links
-from .models import News, Partner, Referral, ServiceOrder, User
+from .models import News, Partner, PartnerCodeword, Referral, ServiceOrder, User
+from .qr import partner_qr_png
 from .services import cabinet, partner as partner_svc
 from .services.interest import register_interest
 from .services.linking import link_user
@@ -299,12 +301,24 @@ def partner_home(user: User = Depends(current_user), db: Session = Depends(get_d
                            .order_by(Referral.created_at.desc()).limit(50)))
     data["referrals"] = [partner_svc.referral_view(r) for r in refs]
     data["links"] = partner_links(p) if p.codeword else None
+    data["codewords"] = _codewords_view(db, p)
+    data["max_codewords"] = partner_svc.MAX_CODEWORDS
     data["has_payout_details"] = bool(p.payout_details)
     return data
 
 
+def _codewords_view(db: Session, p: Partner) -> list[dict]:
+    rows = partner_svc.partner_codewords(db, p)
+    counts = dict(db.execute(select(User.came_with_codeword, func.count()).where(User.came_with_codeword.in_([r.word for r in rows]))
+                             .group_by(User.came_with_codeword)).all()) if rows else {}
+    return [{"word": r.word, "label": r.label, "main": r.word == p.codeword,
+             "created_at": r.created_at.date().isoformat() if r.created_at else None,
+             "came": counts.get(r.word, 0), "links": partner_links(p, r.word)} for r in rows]
+
+
 class WordIn(BaseModel):
     word: str = Field(max_length=32)
+    label: str | None = Field(default=None, max_length=64)
 
 
 @router.post("/partner/codeword/check")
@@ -314,18 +328,70 @@ def codeword_check(body: WordIn, user: User = Depends(current_user), db: Session
 
 
 @router.post("/partner/codeword")
-def codeword_set(body: WordIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def codeword_add(body: WordIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Новое кодовое слово партнёра (первое становится основным). Слова не удаляются — клиенты по ним закреплены."""
     p = _partner(user)
-    if p.codeword:
-        raise HTTPException(409, "Кодовое слово уже закреплено. Сменить его можно через менеджера.")
+    rows = partner_svc.partner_codewords(db, p)
+    if len(rows) >= partner_svc.MAX_CODEWORDS:
+        raise HTTPException(409, f"Можно завести до {partner_svc.MAX_CODEWORDS} кодовых слов. Нужно больше — напишите менеджеру.")
     res = partner_svc.check_codeword(db, body.word, p.id)
     if not res["ok"]:
         raise HTTPException(400, "; ".join(res["problems"]))
-    p.codeword = res["word"]
+    label = (body.label or "").strip() or None
+    db.add(PartnerCodeword(partner_id=p.id, word=res["word"], label=label))
+    if not p.codeword:
+        p.codeword = res["word"]
     if not p.kommo_partner_value:
-        p.kommo_partner_value = res["word"]
+        p.kommo_partner_value = p.codeword
     db.commit()
-    return {"ok": True, "codeword": p.codeword, "links": partner_links(p)}
+    return {"ok": True, "codeword": res["word"], "links": partner_links(p, res["word"]), "codewords": _codewords_view(db, p)}
+
+
+QR_TTL = 600
+
+
+def _qr_token(partner_id: int, word: str, channel: str, exp: int) -> str:
+    msg = f"qr:{partner_id}:{word}:{channel}:{exp}"
+    sig = hmac.new(get_settings().secret_key.encode(), msg.encode(), hashlib.sha256).hexdigest()[:32]
+    return base64.urlsafe_b64encode(f"{msg}:{sig}".encode()).decode().rstrip("=")
+
+
+class QrIn(BaseModel):
+    word: str = Field(max_length=32)
+    channel: str = Field(pattern="^(tg|wa)$")
+
+
+@router.post("/partner/qr-link")
+def qr_link(body: QrIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Временная ссылка на PNG с QR-кодом: Telegram скачивает файл без заголовков авторизации."""
+    p = _partner(user)
+    word = partner_svc.normalize_codeword(body.word)
+    owner = partner_svc.partner_by_codeword(db, word)
+    if not owner or owner.id != p.id:
+        raise HTTPException(404, "Это не ваше кодовое слово")
+    exp = int(time.time()) + QR_TTL
+    return {"url": f"{get_settings().public_url.rstrip('/')}/api/qr/{_qr_token(p.id, word, body.channel, exp)}",
+            "name": f"AlphaPrime-QR-{word}-{'Telegram' if body.channel == 'tg' else 'WhatsApp'}.png"}
+
+
+@router.get("/qr/{token}")
+def qr_png(token: str, db: Session = Depends(get_db)):
+    try:
+        raw = base64.urlsafe_b64decode(token + "=" * (-len(token) % 4)).decode()
+        _, pid_s, word, channel, exp_s, _sig = raw.split(":")
+        pid, exp = int(pid_s), int(exp_s)
+    except (ValueError, UnicodeDecodeError):
+        raise HTTPException(404)
+    if not hmac.compare_digest(_qr_token(pid, word, channel, exp), token) or exp < time.time():
+        raise HTTPException(403, "Ссылка устарела — нажмите «Скачать QR-код» в приложении ещё раз")
+    p = db.get(Partner, pid)
+    if not p or channel not in ("tg", "wa"):
+        raise HTTPException(404)
+    link = partner_links(p, word)[channel]
+    name = f"AlphaPrime-QR-{word}-{'Telegram' if channel == 'tg' else 'WhatsApp'}.png"
+    return Response(partner_qr_png(link, word, channel), media_type="image/png",
+                    headers={"Content-Disposition": f"attachment; filename=\"AlphaPrime-QR.png\"; filename*=UTF-8''{quote(name)}",
+                             "Cache-Control": "no-store"})
 
 
 class ReferralIn(BaseModel):

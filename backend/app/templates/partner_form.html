@@ -21,7 +21,9 @@
       </select></div>
   </div>
   <div class="row">
-    <div><label for="codeword">Кодовое слово (смена — только здесь)</label><input id="codeword" type="text" name="codeword" value="{{ p.codeword or '' }}"></div>
+    <div><label for="codeword">Основное кодовое слово (смена — только здесь)</label><input id="codeword" type="text" name="codeword" value="{{ p.codeword or '' }}"></div>
+    <div><label>Все кодовые слова партнёра</label>
+      <div class="muted">{% for w in words %}{{ w.word }}{% if w.label %} ({{ w.label }}){% endif %} · {{ w.created_at.strftime('%d.%m.%Y') if w.created_at else '' }}{% if not loop.last %}<br>{% endif %}{% else %}—{% endfor %}</div></div>
     <div><label for="kpv">Как записан в поле «Партнёр» в Kommo</label><input id="kpv" type="text" name="kommo_partner_value" value="{{ p.kommo_partner_value or '' }}"></div>
     <div><label for="gold">Gold до (пусто — нет)</label><input id="gold" type="date" name="gold_until" value="{{ p.gold_until.isoformat() if p.gold_until else '' }}"></div>
   </div>

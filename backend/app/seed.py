@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .kommo import get_kommo
-from .models import News, Partner, Referral, User
+from .models import News, Partner, PartnerCodeword, Referral, User
 from .services.partner import sync_all
 from .timeutil import utcnow
 
@@ -21,6 +21,7 @@ def seed_dev(db: Session) -> None:
                     accepted_terms_at=utcnow(), created_at=datetime(2025, 1, 1))
         db.add(p)
         db.flush()
+        db.add(PartnerCodeword(partner_id=p.id, word="ANNABALI", created_at=datetime(2025, 1, 1)))
         now = utcnow()
         db.add_all([
             Referral(partner_id=p.id, friend_name="Иван Васильев", channel="tg", contact="@ivan_v", who_writes="us", status="pending",

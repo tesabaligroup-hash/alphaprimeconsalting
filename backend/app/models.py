@@ -68,6 +68,19 @@ class Partner(Base):
         return bool(self.gold_until and self.gold_until >= today)
 
 
+class PartnerCodeword(Base):
+    """Все кодовые слова партнёра (у каждого свой QR и ссылка): основное — Partner.codeword, плюс дополнительные,
+    например отдельное слово для спортзала или Instagram. Слово навсегда закреплено за партнёром."""
+
+    __tablename__ = "partner_codewords"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    partner_id: Mapped[int] = mapped_column(ForeignKey("partners.id"), index=True)
+    word: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    label: Mapped[str | None] = mapped_column(String(64))  # для себя: «Top Gym», «Instagram»
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 class Level2Link(Base):
     """Партнёр 2-го уровня ↔ бизнес-партнёр, с которым он познакомил Alpha Prime (24 мес.)."""
 

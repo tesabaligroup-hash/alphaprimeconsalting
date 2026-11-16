@@ -28,6 +28,7 @@ def init_db() -> None:
     from . import models  # noqa: F401  — регистрирует таблицы
 
     Base.metadata.create_all(engine)
+    _backfill_codewords()
     # Лёгкие миграции для уже существующей базы (новые колонки)
     if engine.dialect.name == "postgresql":
         from sqlalchemy import text
@@ -38,3 +39,17 @@ def init_db() -> None:
             conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS cta_lead BOOLEAN DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE accruals ADD COLUMN IF NOT EXISTS manual_code VARCHAR(32)"))
             conn.execute(text("ALTER TABLE accruals ADD COLUMN IF NOT EXISTS decision VARCHAR(16)"))
+
+
+def _backfill_codewords() -> None:
+    """Основное кодовое слово каждого партнёра — тоже в списке его слов (для старых партнёров)."""
+    from sqlalchemy import select
+
+    from .models import Partner, PartnerCodeword
+
+    with SessionLocal() as db:
+        have = set(db.scalars(select(PartnerCodeword.word)))
+        for p in db.scalars(select(Partner).where(Partner.codeword.is_not(None))):
+            if p.codeword not in have:
+                db.add(PartnerCodeword(partner_id=p.id, word=p.codeword, created_at=p.created_at))
+        db.commit()

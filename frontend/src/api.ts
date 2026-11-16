@@ -42,6 +42,19 @@ export async function openDocument(leadId: number, uuid: string) {
   else window.open(url, "_blank", "noopener");
 }
 
+/** PNG с QR-кодом кодового слова: в Telegram — штатное скачивание файла, в браузере — открываем картинку. */
+export async function downloadQr(word: string, channel: "tg" | "wa") {
+  const { url, name } = await request<{ url: string; name: string }>("POST", "/api/partner/qr-link", { word, channel });
+  const w = tg as unknown as { downloadFile?: (p: { url: string; file_name: string }) => void } | undefined;
+  if (w?.downloadFile) w.downloadFile({ url, file_name: name });
+  else if (tg) tg.openLink(url);
+  else {
+    const a = document.createElement("a");
+    a.href = url; a.download = name; a.rel = "noopener";
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+}
+
 // ---------- Типы ответов ----------
 export type Step = { title: string; state: "done" | "current" | "todo"; at: string | null };
 export type Service = {
@@ -67,6 +80,9 @@ export type PartnerData = {
   bonuses: { top_month: { have: number; need: number; amount: number }; gold: { have: number; need: number; amount: number; days_left: number } };
   rules: { hold_days: number; hold_days_gold: number; min_payout: number };
   friends: Friend[]; referrals: ReferralItem[];
-  links: { tg: string; wa: string; ig: string | null; text: string } | null;
+  links: PartnerLinks | null;
+  codewords: Codeword[]; max_codewords: number;
   has_payout_details: boolean;
 };
+export type PartnerLinks = { tg: string; wa: string; bot: string; ig: string | null; text: string };
+export type Codeword = { word: string; label: string | null; main: boolean; created_at: string | null; came: number; links: PartnerLinks };

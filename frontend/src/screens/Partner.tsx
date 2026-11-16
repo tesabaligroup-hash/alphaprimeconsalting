@@ -93,7 +93,7 @@ function Dashboard() {
         </div>
 
         <section className="grid2">
-          <button className="btn gold" onClick={() => go({ name: "share" })}><IQr /> Моя ссылка и код</button>
+          <button className="btn gold" onClick={() => go({ name: "share" })}><IQr /> Мои ссылки и QR-коды</button>
           <button className="btn line" onClick={() => go({ name: "referrals" })}><IAddUser /> Добавить друга</button>
         </section>
 

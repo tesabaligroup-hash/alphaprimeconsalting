@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from .config import get_settings
 from .db import get_db
 from .kommo import get_kommo
-from .models import Accrual, AuditLog, Level2Link, News, Partner, Referral, StopWord, User
+from .models import Accrual, AuditLog, Level2Link, News, Partner, PartnerCodeword, Referral, StopWord, User
 from .notify import notify_user
 from .partner_rules import ACCRUAL_LABELS, normalize_codeword
 from .services import partner as partner_svc
@@ -233,7 +233,8 @@ def partner_form(pid: int, request: Request, db: Session = Depends(get_db), admi
     link = db.scalar(select(Level2Link).where(Level2Link.business_partner_id == pid))
     others = list(db.scalars(select(Partner).where(Partner.id != pid).order_by(Partner.display_name)))
     accs = list(db.scalars(select(Accrual).where(Accrual.partner_id == pid).order_by(Accrual.updated_at.desc()).limit(100)))
-    return render(request, "partner_form.html", p=p, link=link, others=others, accs=accs)
+    words = partner_svc.partner_codewords(db, p)
+    return render(request, "partner_form.html", p=p, link=link, others=others, accs=accs, words=words)
 
 
 @router.post("/partners/{pid}")
@@ -250,11 +251,16 @@ def partner_save(pid: int, request: Request, csrf: str = Form(""), display_name:
     p.status = status if status in ("active", "inactive", "blocked") else p.status
     new_word = normalize_codeword(codeword)
     if new_word and new_word != p.codeword:
-        res = partner_svc.check_codeword(db, new_word, p.id)
-        if not res["ok"]:
-            raise HTTPException(400, "Кодовое слово: " + "; ".join(res["problems"]))
+        own = partner_svc.partner_by_codeword(db, new_word)
+        if not (own and own.id == p.id):  # слово из своего же списка можно сделать основным без проверок
+            res = partner_svc.check_codeword(db, new_word, p.id)
+            if not res["ok"]:
+                raise HTTPException(400, "Кодовое слово: " + "; ".join(res["problems"]))
         audit(db, admin, "codeword_change", partner=p.id, old=p.codeword, new=new_word)
+        partner_svc.partner_codewords(db, p)  # старое основное слово остаётся в списке — клиенты по нему не теряются
         p.codeword = new_word
+        if not own:
+            db.add(PartnerCodeword(partner_id=p.id, word=new_word, label="Основное"))
     p.kommo_partner_value = kommo_partner_value.strip() or None
     p.gold_until = date.fromisoformat(gold_until) if gold_until else None
     link = db.scalar(select(Level2Link).where(Level2Link.business_partner_id == pid))
