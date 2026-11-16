@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from .config import get_settings
 from .db import get_db
 from .kommo import get_kommo
+from .models import UserVisa
 from .models import Accrual, AuditLog, Level2Link, News, Partner, PartnerCodeword, Referral, StopWord, User
 from .notify import notify_user
 from .partner_rules import ACCRUAL_LABELS, normalize_codeword
@@ -284,6 +285,18 @@ def partner_save(pid: int, request: Request, csrf: str = Form(""), display_name:
 def users(request: Request, db: Session = Depends(get_db), admin: str = Depends(require_admin)):
     items = list(db.scalars(select(User).order_by(User.kommo_contact_id.is_not(None), User.created_at.desc()).limit(300)))
     return render(request, "users.html", items=items)
+
+
+@router.get("/visas", response_class=HTMLResponse)
+def visas_page(request: Request, db: Session = Depends(get_db), admin: str = Depends(require_admin)):
+    """Визы, которые люди вписали сами: кто не наш клиент — тёплый контакт на продление."""
+    today = date.today()
+    rows = []
+    for v in db.scalars(select(UserVisa).where(UserVisa.expires_on >= today).order_by(UserVisa.expires_on).limit(500)):
+        u = db.get(User, v.user_id)
+        if u:
+            rows.append({"v": v, "u": u, "left": (v.expires_on - today).days})
+    return render(request, "visas.html", rows=rows)
 
 
 @router.post("/users/{uid}")

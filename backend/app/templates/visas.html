@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Визы{% endblock %}
+{% block content %}
+<h1>Визы, которые вписали сами</h1>
+<p class="muted">Люди добавляют визу в приложении («Мои визы»), даже если они не наши клиенты. Бот напоминает им за 20, 15 и 7 дней, а за 20 дней присылает сигнал в группу менеджеров. «Не наш клиент» — тёплый контакт: предложите продление.</p>
+<div class="card table-wrap">
+<table>
+  <thead><tr><th>Окончание</th><th>Осталось</th><th>Виза</th><th>Чья</th><th>Человек</th><th>Телефон</th><th>Клиент?</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.v.expires_on.strftime('%d.%m.%Y') }}</td>
+    <td>{% if r.left <= 20 %}<b>{{ r.left }} дн.</b>{% else %}{{ r.left }} дн.{% endif %}</td>
+    <td>{{ r.v.visa_type }}</td>
+    <td>{{ r.v.person or 'сам' }}</td>
+    <td>{{ r.u.first_name or '—' }} {{ '@' ~ r.u.telegram_username if r.u.telegram_username else '' }}</td>
+    <td>{{ r.u.phone or '—' }}</td>
+    <td>{{ 'наш клиент' if r.u.kommo_contact_id else 'не наш клиент' }}</td>
+  </tr>
+  {% else %}<tr><td colspan="7" class="muted">Пока никто не добавил визу.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

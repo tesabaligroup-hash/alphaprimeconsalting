@@ -5,7 +5,7 @@ import hashlib
 import hmac
 import time
 from urllib.parse import quote
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import Response
@@ -18,9 +18,10 @@ from .db import get_db
 from .kommo import get_kommo
 from .kommo.base import KommoClient
 from .links import partner_links
-from .models import News, Partner, PartnerCodeword, Referral, ServiceOrder, User
+from .models import News, Partner, PartnerCodeword, Referral, ServiceOrder, User, UserVisa
 from .qr import CHANNELS, partner_qr_png
 from .services import cabinet, partner as partner_svc
+from .services import visas as visas_svc
 from .services.interest import register_interest
 from .services.linking import link_user
 from .notify import notify_managers
@@ -104,12 +105,51 @@ def home(user: User = Depends(current_user), db: Session = Depends(get_db), komm
     if user.kommo_contact_id:
         data = cabinet.load_client(kommo, user.contact_ids, with_history=False)
     return {
-        "dates": data["dates"],
+        "dates": visas_svc.merge_dates(data["dates"], visas_svc.manual_dates(db, user)),
         "services": data["services"],
         "banners": [_news_view(n) for n in news if n.kind == "company" and n.is_banner],
         "news": [_news_view(n) for n in news if n.kind == "company" and not n.is_banner][:10],
         "partner_news": [_news_view(n) for n in news if n.kind == "partner"][:10],
     }
+
+
+# ---------- Мои визы (вписывает сам человек, даже если он не наш клиент) ----------
+
+class VisaIn(BaseModel):
+    visa_type: str = Field(min_length=2, max_length=60)
+    expires_on: date
+    person: str | None = Field(default=None, max_length=80)
+
+
+@router.get("/my-visas")
+def my_visas(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    items = list(db.scalars(select(UserVisa).where(UserVisa.user_id == user.id).order_by(UserVisa.expires_on)))
+    today = date.today()
+    return {"types": visas_svc.VISA_TYPES, "reminders": list(visas_svc.THRESHOLDS),
+            "items": [{"id": v.id, "visa_type": v.visa_type, "person": v.person, "expires_on": v.expires_on.isoformat(),
+                       "days_left": (v.expires_on - today).days} for v in items]}
+
+
+@router.post("/my-visas")
+def add_visa(body: VisaIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    if body.expires_on < date.today():
+        raise HTTPException(400, "Эта дата уже прошла — укажите дату окончания визы")
+    if db.query(UserVisa).filter(UserVisa.user_id == user.id).count() >= 15:
+        raise HTTPException(400, "Можно добавить до 15 виз")
+    db.add(UserVisa(user_id=user.id, visa_type=body.visa_type.strip(), expires_on=body.expires_on,
+                    person=(body.person or "").strip() or None))
+    db.commit()
+    return my_visas(user, db)
+
+
+@router.delete("/my-visas/{visa_id}")
+def delete_visa(visa_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    v = db.get(UserVisa, visa_id)
+    if not v or v.user_id != user.id:
+        raise HTTPException(404)
+    db.delete(v)
+    db.commit()
+    return my_visas(user, db)
 
 
 # ---------- Услуги ----------

@@ -45,6 +45,11 @@ export default function Home() {
           </section>
         )}
 
+        <button className="card cream" style={{ textAlign: "left" }} onClick={() => go({ name: "visas" })}>
+          <span className="b">{data.dates.some((d) => d.kind === "expiry") ? "Мои визы и напоминания" : "Напомнить о продлении визы"}</span>
+          <span className="small">Впишите свою визу или KITAS — бот напомнит за 20, 15 и 7 дней до окончания.</span>
+        </button>
+
         {data.services.length > 0 && (
           <section className="section">
             <div className="section-head"><h2 className="h2">Мои услуги</h2><button className="link-btn" onClick={() => go({ name: "services", tab: "mine" })}>Все</button></div>

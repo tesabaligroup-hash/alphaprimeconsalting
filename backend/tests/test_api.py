@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 import os
 import tempfile
 
@@ -244,3 +245,15 @@ def test_partner_support_goes_to_managers(client, monkeypatch):
     monkeypatch.setattr("app.api.notify_managers", lambda title, lines, lead_id=None: sent.append((title, lines)))
     r = client.post("/api/partner/support", headers=DEV, json={"text": "Не вижу друга Ивана"})
     assert r.status_code == 200 and sent and "Не вижу друга Ивана" in sent[0][1][2]
+
+
+def test_my_visas_add_list_delete_and_home(client):
+    soon = (date.today() + timedelta(days=40)).isoformat()
+    r = client.post("/api/my-visas", headers=DEV, json={"visa_type": "C1 (туристическая 60 дней)", "expires_on": soon, "person": "Муж"})
+    assert r.status_code == 200 and r.json()["items"][0]["days_left"] == 40
+    home = client.get("/api/home", headers=DEV).json()
+    assert any(d["title"].startswith("Окончание: C1") and d["person"] == "Муж" for d in home["dates"])
+    vid = r.json()["items"][0]["id"]
+    assert client.delete(f"/api/my-visas/{vid}", headers=DEV).json()["items"] == []
+    past = (date.today() - timedelta(days=1)).isoformat()
+    assert client.post("/api/my-visas", headers=DEV, json={"visa_type": "VOA", "expires_on": past}).status_code == 400

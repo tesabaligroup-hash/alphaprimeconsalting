@@ -31,6 +31,7 @@ export const api = {
   post: <T,>(p: string, b?: unknown) => request<T>("POST", p, b),
   put: <T,>(p: string, b?: unknown) => request<T>("PUT", p, b),
   patch: <T,>(p: string, b?: unknown) => request<T>("PATCH", p, b),
+  del: <T,>(p: string) => request<T>("DELETE", p),
 };
 
 /** Получает временную ссылку на файл и открывает/скачивает его средствами Telegram. */
@@ -63,6 +64,7 @@ export type Service = {
   price: number; paid: number | null; remaining: number | null; started_at: string | null;
   expected_at: string | null; issued_at: string | null; valid_until: string | null;
 };
+export type MyVisas = { types: string[]; reminders: number[]; items: { id: number; visa_type: string; person: string | null; expires_on: string; days_left: number }[] };
 export type ImportantDate = { date: string; title: string; person: string; lead_id: number | null; days_left: number; kind: string };
 export type NewsItem = { id: number; kind: string; is_banner: boolean; title: string; body: string | null; partner_name: string | null; image: string | null; link: string | null; cta: boolean; date: string | null };
 export type Me = {

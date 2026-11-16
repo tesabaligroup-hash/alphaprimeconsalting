@@ -26,6 +26,9 @@ from .services.quality import weekly_report
 from .notify import notify_managers
 from .timeutil import utcnow
 from . import widgets
+from .models import UserVisa
+from .services import visas as visas_svc
+from aiogram.types import CallbackQuery
 
 log = logging.getLogger("worker")
 settings = get_settings()
@@ -127,6 +130,85 @@ async def crm_check(message: Message):
     await message.answer("Проверяю сделки, минуту…")
     text = await asyncio.to_thread(weekly_report, get_kommo())
     await message.answer(text or "✅ Всё заполнено.", parse_mode="HTML", disable_web_page_preview=True)
+
+
+async def visa_reminders(bot: Bot, kommo) -> None:
+    """Раз в день после 10:00 (Бали): напоминания о конце визы за 20/15/7 дней + сигнал менеджерам за 20 дней."""
+    now = datetime.now(ZoneInfo(settings.timezone))
+    if now.hour < 10:
+        return
+    today = now.date().isoformat()
+    with SessionLocal() as db:
+        row = db.get(ProgramSetting, "visa_reminders")
+        if row and (row.value or {}).get("date") == today:
+            return
+        due = await asyncio.to_thread(visas_svc.upcoming, db, kommo, now.date())
+        sent = 0
+        for d in due:
+            t = visas_svc.threshold_for(d.days_left)
+            key = f"{d.key}:{t}"
+            if t is None or visas_svc.was_sent(db, key):
+                continue
+            kb = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Продлить с Alpha Prime", callback_data=f"renew:{d.manual_id or 0}:{d.days_left}")],
+                [InlineKeyboardButton(text="Открыть кабинет", web_app=WebAppInfo(url=settings.public_url))],
+            ])
+            try:
+                await bot.send_message(d.user.telegram_id, visas_svc.reminder_text(d), reply_markup=kb)
+                sent += 1
+            except Exception as exc:
+                log.warning("Напоминание %s не отправлено: %s", d.key, exc)
+            for th in visas_svc.THRESHOLDS:  # пороги шире текущего тоже считаем пройденными
+                if th >= t:
+                    visas_svc.mark_sent(db, f"{d.key}:{th}")
+            if t == visas_svc.MANAGERS_AT or (t < visas_svc.MANAGERS_AT and not visas_svc.was_sent(db, f"{d.key}:mgr")):
+                u = d.user
+                tg = f"@{u.telegram_username}" if u.telegram_username else f"id {u.telegram_id}"
+                notify_managers("⏰ Скоро заканчивается виза", [
+                    f"{d.title}" + (f" · {d.person}" if d.person else "") + f" — до {d.expires_on:%d.%m.%Y} ({d.days_left} дн.)",
+                    f"Человек: {u.first_name or '—'} · {tg}" + (f" · {u.phone}" if u.phone else ""),
+                    "Наш клиент (есть в Kommo)" if d.is_client else "НЕ наш клиент — вписал визу сам в приложении. Предложите продление!",
+                ], 0)
+                visas_svc.mark_sent(db, f"{d.key}:mgr")
+        if row:
+            row.value = {"date": today}
+        else:
+            db.add(ProgramSetting(key="visa_reminders", value={"date": today}))
+        db.commit()
+        log.info("Напоминания о визах: отправлено %s", sent)
+
+
+@dp.callback_query(F.data.startswith("renew:"))
+async def renew_click(cb: CallbackQuery):
+    """«Продлить с Alpha Prime» в напоминании → сделка в Kommo (Consulting → Распределение) + сообщение менеджерам."""
+    _, vid, left = (cb.data.split(":") + ["0", "0"])[:3]
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.telegram_id == cb.from_user.id))
+        v = db.get(UserVisa, int(vid)) if vid.isdigit() and int(vid) else None
+        what = v.visa_type if v else "виза / KITAS"
+        until = f" до {v.expires_on:%d.%m.%Y}" if v else ""
+        key = f"renew-click:{cb.from_user.id}:{vid}"
+        if visas_svc.was_sent(db, key):
+            await cb.answer("Заявка уже у менеджера — он скоро напишет", show_alert=False)
+            return
+        tg = f"@{cb.from_user.username}" if cb.from_user.username else f"id {cb.from_user.id}"
+        lead_id = None
+        try:
+            lead_id = get_kommo().create_lead(
+                title=f"Продление: {what}", contact_name=(user.first_name if user else None) or cb.from_user.first_name or "Клиент",
+                phone=user.phone if user else None, telegram=tg, contact_id=user.kommo_contact_id if user else None,
+                note=f"Нажал «Продлить с Alpha Prime» в напоминании бота: {what}{until}, осталось {left} дн.",
+                tags=["Приложение", "Напоминание о визе"])
+        except Exception:
+            log.exception("Kommo: сделка на продление не создана")
+        notify_managers("🔁 Хочет продлить визу", [
+            f"{what}{until} · осталось {left} дн.",
+            f"Человек: {cb.from_user.first_name or '—'} · {tg}" + (f" · {user.phone}" if user and user.phone else ""),
+        ], lead_id)
+        visas_svc.mark_sent(db, key)
+        db.commit()
+    await cb.answer("Отправили менеджеру ✓")
+    await cb.message.answer("Спасибо! Менеджер Alpha Prime напишет вам в ближайшее время и расскажет о продлении.")
 
 
 async def weekly_check(bot: Bot, kommo) -> None:
@@ -287,6 +369,7 @@ async def sync_loop(bot: Bot):
             last = started
             log.info("Синхронизация: %s уведомлений", len(notes))
             await weekly_check(bot, kommo)
+            await visa_reminders(bot, kommo)
             if full_hour:  # виджеты — раз в час (визы, мероприятия, партнёрка)
                 with SessionLocal() as db:
                     n = await widgets.refresh_all(db, kommo)

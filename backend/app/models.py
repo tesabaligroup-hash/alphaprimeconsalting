@@ -231,3 +231,25 @@ class WidgetMessage(Base):
     message_id: Mapped[int] = mapped_column(Integer)
     state_hash: Mapped[str | None] = mapped_column(String(64))
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class UserVisa(Base):
+    """Виза/KITAS, которую человек сам добавил в приложении (в т.ч. не наш клиент) — для напоминаний о продлении."""
+
+    __tablename__ = "user_visas"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    person: Mapped[str | None] = mapped_column(String(80))  # пусто — сам пользователь
+    visa_type: Mapped[str] = mapped_column(String(60))
+    expires_on: Mapped[date] = mapped_column(Date, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class ReminderSent(Base):
+    """Какие напоминания уже отправлены (чтобы не слать дважды)."""
+
+    __tablename__ = "reminders_sent"
+
+    key: Mapped[str] = mapped_column(String(160), primary_key=True)
+    sent_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
