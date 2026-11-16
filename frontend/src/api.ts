@@ -84,5 +84,5 @@ export type PartnerData = {
   codewords: Codeword[]; max_codewords: number;
   has_payout_details: boolean;
 };
-export type PartnerLinks = { tg: string; wa: string; bot: string; ig: string | null; text: string };
+export type PartnerLinks = { tg: string; wa: string; ig: string | null; text: string };
 export type Codeword = { word: string; label: string | null; main: boolean; created_at: string | null; came: number; links: PartnerLinks };

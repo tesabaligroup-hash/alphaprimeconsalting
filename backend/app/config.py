@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     # Контакты компании (показываются в приложении)
     company_whatsapp: str = "6281519845777"
-    company_telegram: str = ""
+    company_telegram: str = "alpha_prime_id"
     company_instagram: str = "alpha_prime_id"
     company_address: str = "Jl. Pantai Berawa No.13, Canggu, Kuta Utara, Badung, Bali 80361"
     company_maps_query: str = "Alpha Prime Bali, Jl. Pantai Berawa No.13, Canggu"  # что ищем в Google Maps по кнопке «Офис»

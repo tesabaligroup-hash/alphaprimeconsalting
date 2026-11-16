@@ -83,7 +83,7 @@ def test_partner_dashboard(client):
     assert names["@olga_bali"]["status"] == "awaiting_payment"
     assert d["balance"]["to_payout"] == 1_000_000
     assert d["links"]["tg"].startswith("https://t.me/alpha_prime_id?text=") and d["links"]["tg"].endswith("ANNABALI")
-    assert d["links"]["bot"].endswith("start=ANNABALI")
+    assert d["links"]["wa"].startswith("https://wa.me/6281519845777?text=") and "bot" not in d["links"]
     assert any(r["status"] == "pending" for r in d["referrals"])
     # партнёр не видит услуги и цены
     assert "service_code" not in d["friends"][0] and "price" not in d["friends"][0]

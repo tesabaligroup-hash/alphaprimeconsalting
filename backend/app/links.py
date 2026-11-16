@@ -16,7 +16,10 @@ def start_payload(p: Partner, word: str | None = None) -> str:
     return f"p{p.id}"
 
 
-MANAGERS_TELEGRAM = "alpha_prime_id"  # если в .env не задан COMPANY_TELEGRAM
+# Менеджеры Alpha Prime: WhatsApp +62 815-1984-5777 (COMPANY_WHATSAPP) и Telegram @alpha_prime_id.
+# Партнёрские ссылки и QR ведут только сюда — не в бота и не на настройки из .env.
+MANAGERS_TELEGRAM = "alpha_prime_id"
+MANAGERS_WHATSAPP = "6281519845777"
 
 
 def partner_links(p: Partner, word: str | None = None) -> dict:
@@ -25,11 +28,9 @@ def partner_links(p: Partner, word: str | None = None) -> dict:
     s = get_settings()
     w = word or p.codeword or ""
     hello = quote("Здравствуйте! Я от " + w)
-    tg_user = (s.company_telegram or MANAGERS_TELEGRAM).lstrip("@")
     return {
-        "tg": f"https://t.me/{tg_user}?text={hello}",
-        "wa": f"https://wa.me/{s.company_whatsapp}?text={hello}",
-        "bot": f"https://t.me/{s.bot_username}?start={start_payload(p, w)}",
+        "tg": f"https://t.me/{MANAGERS_TELEGRAM}?text={hello}",
+        "wa": f"https://wa.me/{MANAGERS_WHATSAPP}?text={hello}",
         "ig": f"https://ig.me/m/{s.company_instagram}" if s.company_instagram else None,
         "text": f"Я от {w}",
     }
