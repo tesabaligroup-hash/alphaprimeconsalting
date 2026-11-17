@@ -41,7 +41,8 @@ class Settings(BaseSettings):
     intake_script_secret: str = ""
     # Таблица производства — источник статусов услуг и начислений партнёрам (тот же Apps Script, doGet)
     table_sync: bool = False
-    table_move_stages: bool = False  # двигать сделку в «Услуга готова», когда в таблице услуга выполнена
+    table_move_stages: bool = False
+    table_sync_partners: bool = False  # начисления партнёрам по таблице (включить, когда имена партнёров выверены)  # двигать сделку в «Услуга готова», когда в таблице услуга выполнена
 
     # Админка
     admin_password: str = "change-me"

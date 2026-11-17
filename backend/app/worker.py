@@ -349,7 +349,7 @@ async def sync_loop(bot: Bot):
     last = utcnow() - timedelta(days=400)  # первый запуск — за всё время
     full_at = utcnow()
     intake_since = utcnow() - timedelta(days=2)
-    first_table = True
+    last_table_day = ""
     while True:
         started = utcnow()
         full_hour = started - full_at > timedelta(hours=1)
@@ -380,11 +380,14 @@ async def sync_loop(bot: Bot):
             log.info("Синхронизация: %s уведомлений", len(notes))
             await weekly_check(bot, kommo)
             await visa_reminders(bot, kommo)
-            if settings.table_sync and (full_hour or first_table):  # таблица производства — раз в час
-                first_table = False
+            bali_now = datetime.now(ZoneInfo(settings.timezone))
+            table_day = bali_now.date().isoformat()
+            if settings.table_sync and bali_now.hour >= 3 and table_day != last_table_day:  # таблица — раз в сутки, ночью
+                last_table_day = table_day
                 try:
                     with SessionLocal() as db:
-                        r = await asyncio.to_thread(table_svc.run, db, kommo, True, settings.table_move_stages)
+                        r = await asyncio.to_thread(table_svc.run, db, kommo, True, settings.table_move_stages, True,
+                                                    settings.table_sync_partners)
                         partners = {p.id: p.user.telegram_id for p in db.scalars(select(Partner))}
                     for partner_id, text in r.get("notes", []):
                         if partners.get(partner_id):

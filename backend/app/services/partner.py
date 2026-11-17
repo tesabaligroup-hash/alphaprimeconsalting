@@ -273,7 +273,8 @@ def sync_all(db: Session, kommo: KommoClient, since: datetime) -> list[tuple[int
     """Обновляет начисления. Возвращает уведомления для партнёров: [(partner_id, текст)]."""
     notes: list[tuple[int, str]] = []
     from ..config import get_settings
-    table_mode = get_settings().table_sync  # начисления считаются по таблице производства (services/table_sync.py)
+    s_ = get_settings()
+    table_mode = s_.table_sync and s_.table_sync_partners  # начисления считаются по таблице производства (services/table_sync.py)
     for lead in kommo.get_leads_updated_since(since):
         try:
             autofill_partner(db, kommo, lead)
