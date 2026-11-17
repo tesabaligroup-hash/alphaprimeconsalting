@@ -215,8 +215,10 @@ def sync_lead(db: Session, kommo: KommoClient, lead: KommoLead, now: datetime | 
 
 
 NOTIFY_TEXT = {
-    "awaiting_payment": "Ваш друг {name} закреплён за вами. Вознаграждение {amount} IDR начислим, когда он оплатит услугу.",
-    "in_work": "{name} оплатил услугу полностью 🎉 Вознаграждение {amount} IDR — в работе.",
+    "awaiting_payment": "За вами закреплён клиент {name}. Вознаграждение{amount_part} начислим, когда услуга будет оплачена "
+                        "и полностью выполнена (виза или KITAS готовы).",
+    "in_work": "Клиент {name} оплатил услугу 🎉 Мы приступили к работе. Вознаграждение{amount_part} станет доступно, "
+               "когда услуга будет выполнена.",
     "confirmed": "Услуга для {name} выполнена. {amount} IDR станут доступны к выплате после проверки.",
     "to_payout": "{amount} IDR за {name} — к выплате. Деньги придут {date}.",
     "paid": "Выплата {amount} IDR за {name} отправлена.",
@@ -274,7 +276,9 @@ def sync_all(db: Session, kommo: KommoClient, since: datetime) -> list[tuple[int
                     if new == "review" or (old is None and new not in ("awaiting_payment", "in_work")):
                         continue  # при первой синхронизации старых сделок не засыпаем партнёра сообщениями
                     when = payout_date_for((acc.to_payout_at or utcnow()).date()).strftime("%d.%m")
-                    text = NOTIFY_TEXT[new].format(name=acc.client_display, amount=f"{acc.amount:,}".replace(",", " "),
+                    amount = f"{acc.amount:,}".replace(",", " ")
+                    text = NOTIFY_TEXT[new].format(name=acc.client_display, amount=amount,
+                                                   amount_part=f" {amount} IDR" if acc.amount else "",
                                                    date=when, reason=acc.cancel_reason or "")
                     notes.append((acc.partner_id, text))
         except Exception:  # одна сломанная сделка не должна останавливать синхронизацию

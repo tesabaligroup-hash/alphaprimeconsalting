@@ -33,14 +33,14 @@ function Join() {
       <main className="screen">
         <section className="dark">
           <span className="serif" style={{ fontSize: 24, color: "#E3C77F", lineHeight: 1.2 }}>Друг получает скидку, вы — вознаграждение</span>
-          <span className="muted" style={{ fontSize: 14, lineHeight: 1.5 }}>За каждую услугу, которую ваш друг закажет и оплатит в течение 12 месяцев: визы, KITAS, продления, компании, бухгалтерия.</span>
+          <span className="muted" style={{ fontSize: 14, lineHeight: 1.5 }}>За каждую услугу, которую ваш друг закажет и оплатит в течение 12 месяцев, — после того как мы её выполним: визы, KITAS, продления, компании, бухгалтерия.</span>
         </section>
         <section className="section" style={{ gap: 10, fontSize: 14, lineHeight: 1.5 }}>
           <h2 className="h2">Как это работает</h2>
           <div className="legend"><i style={{ background: "#C9A24B" }} /><span>Придумайте своё кодовое слово и получите личную ссылку и QR-код.</span></div>
           <div className="legend"><i style={{ background: "#C9A24B" }} /><span>Друг пишет нам «Я от вашего слова» или приходит по ссылке — и закрепляется за вами.</span></div>
-          <div className="legend"><i style={{ background: "#C9A24B" }} /><span>Когда друг оплатит услугу и получит результат, вознаграждение станет доступно к выплате. Выплаты — 10 и 25 числа.</span></div>
-          <div className="note-warn">Вознаграждение — только за друзей, которые заказали и оплатили услугу. За саму рекомендацию ничего не начисляется.</div>
+          <div className="legend"><i style={{ background: "#C9A24B" }} /><span>Когда друг оплатит услугу и мы её полностью выполним (виза или KITAS готовы), вознаграждение станет доступно к выплате. Выплаты — 10 и 25 числа.</span></div>
+          <div className="note-warn">Вознаграждение — только за друзей, которые заказали и оплатили услугу, и только после того, как услуга выполнена. За саму рекомендацию ничего не начисляется.</div>
         </section>
         <label className="tos">
           <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
@@ -84,8 +84,8 @@ function Dashboard() {
 
         <div style={{ marginTop: -12 }}>
           <Accordion title="Как считается баланс?" open remember="partner-balance">
-            <div className="note-warn">Вознаграждение начисляется только за друзей, которые заказали и оплатили услугу Alpha Prime. За саму рекомендацию, без заказа и оплаты, ничего не начисляется.</div>
-            <div className="legend"><i style={{ background: "#B5AE9E" }} /><span><b>Ожидается</b> — друг заказал услугу, но ещё не оплатил её полностью или услуга в работе. Сумма показана заранее.</span></div>
+            <div className="note-warn">Вознаграждение начисляется только за друзей, которые заказали и оплатили услугу Alpha Prime, — после того как услуга выполнена. За саму рекомендацию, без заказа и оплаты, ничего не начисляется.</div>
+            <div className="legend"><i style={{ background: "#B5AE9E" }} /><span><b>Ожидается</b> — друг заказал услугу, но ещё не оплатил её полностью или мы её ещё выполняем. Сумма показана заранее.</span></div>
             <div className="legend"><i style={{ background: "#3D6B2E" }} /><span><b>К выплате</b> — друг оплатил 100%, результат выдан и прошло {rules.hold_days} {plural(rules.hold_days, "день", "дня", "дней")} проверки (для Gold — {rules.hold_days_gold}).</span></div>
             <div className="legend"><i style={{ background: "#C9A24B" }} /><span><b>Выплачено</b> — деньги отправлены 10 или 25 числа.</span></div>
             <span className="muted">Выплаты от {money(rules.min_payout)} IDR, меньшая сумма копится и не сгорает. При возврате денег клиенту сумма вычитается из следующих начислений.</span>
