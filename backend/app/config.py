@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     intake_enabled: bool = False  # пока False — работает только ручная проверка: python -m app.intake --lead ID
     intake_script_url: str = ""
     intake_script_secret: str = ""
+    # Таблица производства — источник статусов услуг и начислений партнёрам (тот же Apps Script, doGet)
+    table_sync: bool = False
+    table_move_stages: bool = False  # двигать сделку в «Услуга готова», когда в таблице услуга выполнена
 
     # Админка
     admin_password: str = "change-me"

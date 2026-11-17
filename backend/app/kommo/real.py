@@ -275,6 +275,29 @@ class RealKommo:
         self._patch("/leads", [{"id": lead_id, "custom_fields_values": [{"field_id": field["id"], "values": values}]}])
         return True
 
+    def all_contacts(self) -> list[KommoContact]:
+        """Все контакты (для сверки с таблицей производства по имени)."""
+        out, page = [], 1
+        while page <= 200:
+            data = self._get("/contacts", params={"limit": 250, "page": page, "with": "leads"})
+            items = (data.get("_embedded") or {}).get("contacts", [])
+            out += [self._contact(x) for x in items]
+            if len(items) < 250:
+                break
+            page += 1
+        return out
+
+    def status_id(self, pipeline_id: int, name: str) -> int | None:
+        for p in self.pipelines():
+            if int(p["id"]) == int(pipeline_id):
+                for st in (p.get("_embedded") or {}).get("statuses", []):
+                    if norm(st.get("name")) == norm(name):
+                        return int(st["id"])
+        return None
+
+    def move_lead(self, lead_id: int, status_id: int) -> None:
+        self._patch("/leads", [{"id": lead_id, "status_id": status_id}])
+
     def user_name(self, user_id: int | None) -> str:
         if not user_id:
             return ""

@@ -69,7 +69,11 @@ def check_codeword(db: Session, word: str, partner_id: int | None = None) -> dic
 
 def find_partner_for_lead(db: Session, lead: KommoLead) -> Partner | None:
     """Партнёр из поля «Партнёр» сделки: как записан в Kommo, кодовое слово или ник в Telegram."""
-    value = field_value(lead.fields, LEAD_FIELDS["partner"])
+    return find_partner_by_value(db, field_value(lead.fields, LEAD_FIELDS["partner"]))
+
+
+def find_partner_by_value(db: Session, value) -> Partner | None:
+    """Партнёр по записи «как у нас пишут»: значение Kommo, кодовое слово, ник Telegram, похожее написание."""
     if not value or norm(str(value)) in NO_PARTNER_VALUES:
         return None
     v = str(value).strip().lstrip("@")
@@ -268,9 +272,13 @@ def autofill_partner(db: Session, kommo: KommoClient, lead: KommoLead) -> Partne
 def sync_all(db: Session, kommo: KommoClient, since: datetime) -> list[tuple[int, str]]:
     """Обновляет начисления. Возвращает уведомления для партнёров: [(partner_id, текст)]."""
     notes: list[tuple[int, str]] = []
+    from ..config import get_settings
+    table_mode = get_settings().table_sync  # начисления считаются по таблице производства (services/table_sync.py)
     for lead in kommo.get_leads_updated_since(since):
         try:
             autofill_partner(db, kommo, lead)
+            if table_mode:
+                continue
             for acc in sync_lead(db, kommo, lead):
                 for old, new in acc.__dict__.pop("_events", []):
                     if new == "review" or (old is None and new not in ("awaiting_payment", "in_work")):
@@ -302,7 +310,7 @@ def dashboard(db: Session, partner: Partner, today: date | None = None) -> dict:
     quarter_end = next_q - timedelta(days=1)
 
     def clients_since(start: date) -> int:
-        return len({a.kommo_lead_id for a in accs if a.level == 1 and a.status != "cancelled"
+        return len({(a.kommo_lead_id, a.period) for a in accs if a.level == 1 and a.status != "cancelled"
                     and a.fully_paid_at and a.fully_paid_at.date() >= start})
 
     month_clients = clients_since(month_start)

@@ -111,6 +111,16 @@ class MockKommo:
         self.partner_set[lead_id] = value
         return True
 
+    def all_contacts(self):
+        return list(CONTACTS.values())
+
+    def status_id(self, pipeline_id, name):
+        return 777
+
+    def move_lead(self, lead_id, status_id):
+        self.moved = getattr(self, "moved", [])
+        self.moved.append((lead_id, status_id))
+
     def user_name(self, user_id):
         return "Оксана" if user_id else ""
 

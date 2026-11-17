@@ -27,6 +27,7 @@ from .notify import notify_managers
 from .timeutil import utcnow
 from . import widgets
 from .services import intake as intake_svc
+from .services import table_sync as table_svc
 from .models import UserVisa
 from .services import visas as visas_svc
 from aiogram.types import CallbackQuery
@@ -348,6 +349,7 @@ async def sync_loop(bot: Bot):
     last = utcnow() - timedelta(days=400)  # первый запуск — за всё время
     full_at = utcnow()
     intake_since = utcnow() - timedelta(days=2)
+    first_table = True
     while True:
         started = utcnow()
         full_hour = started - full_at > timedelta(hours=1)
@@ -378,6 +380,22 @@ async def sync_loop(bot: Bot):
             log.info("Синхронизация: %s уведомлений", len(notes))
             await weekly_check(bot, kommo)
             await visa_reminders(bot, kommo)
+            if settings.table_sync and (full_hour or first_table):  # таблица производства — раз в час
+                first_table = False
+                try:
+                    with SessionLocal() as db:
+                        r = await asyncio.to_thread(table_svc.run, db, kommo, True, settings.table_move_stages)
+                        partners = {p.id: p.user.telegram_id for p in db.scalars(select(Partner))}
+                    for partner_id, text in r.get("notes", []):
+                        if partners.get(partner_id):
+                            try:
+                                await bot.send_message(partners[partner_id], text, reply_markup=app_keyboard())
+                            except Exception:
+                                log.warning("Не удалось отправить уведомление партнёру %s", partner_id)
+                    log.info("Таблица: начислений %s, контактов с датами %s, сделок переведено %s",
+                             r["partners"].get("accruals"), r.get("contacts_updated"), r.get("moved"))
+                except Exception:
+                    log.exception("Таблица производства не прочиталась")
             if full_hour:  # виджеты — раз в час (визы, мероприятия, партнёрка)
                 with SessionLocal() as db:
                     n = await widgets.refresh_all(db, kommo)
