@@ -85,3 +85,11 @@ def test_stage_moves_only_single_open_lead(monkeypatch):
     contacts[0].lead_ids = [1001, 1003]  # две открытые сделки — не трогаем
     moves, doubts = ts.stage_moves(k, t, contacts)
     assert not moves and doubts
+
+
+def test_stage_moves_skip_waiting_for_money():
+    k = MockKommo()
+    contacts = [KommoContact(900, "Olga", [], {"Имя Фамилия": "KYZLASOVA OLGA"}, [1001])]  # 1001 — «Ждем доплату»
+    t = ts.parse_table({"production": [DATA["production"][0][:7] + ["KYZLASOVA OLGA"] + DATA["production"][0][8:]]})
+    moves, doubts = ts.stage_moves(k, t, contacts)
+    assert not moves and "проверьте оплату" in doubts[0]

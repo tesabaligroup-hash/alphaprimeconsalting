@@ -311,6 +311,13 @@ def stage_moves(kommo: KommoClient, table: Table, contacts: list[KommoContact]) 
             done_clients.append((rows, lead_ids))
     all_ids = sorted({i for _, ids in done_clients for i in ids})
     leads_by_id = {l.id: l for l in kommo.get_leads(all_ids)} if all_ids else {}
+    # клиенты, у которых в таблице есть НЕ выполненные строки, — их сделки (семейные тоже) не трогаем
+    busy_ids: set[int] = set()
+    for rows in by_client.values():
+        if any(r.status not in DONE for r in rows):
+            for c in match_contacts(rows[0].client, contacts, idx):
+                busy_ids.update(c.lead_ids)
+    cand: dict[int, dict] = {}
     for rows, lead_ids in done_clients:
         last = max((r.start for r in rows if r.start), default=None)
         leads = [leads_by_id[i] for i in lead_ids if i in leads_by_id]
@@ -322,17 +329,30 @@ def stage_moves(kommo: KommoClient, table: Table, contacts: list[KommoContact]) 
             doubts.append(f"{rows[0].client}: несколько открытых сделок — не трогаем")
             continue
         lead = early[0]
+        if STATUS_TO_STEP.get(norm(lead.status_name), (0, ""))[1] == "wait_payment":
+            doubts.append(f"{rows[0].client}: в таблице выполнено, а в Kommo «{lead.status_name}» — проверьте оплату, не трогаем")
+            continue
+        if lead.id in busy_ids:
+            doubts.append(f"{rows[0].client}: в этой сделке есть человек с невыполненной услугой — не трогаем")
+            continue
+        c = cand.setdefault(lead.id, {"lead": lead, "clients": [], "last": last})
+        c["clients"].append(rows[0].client)
+        if last and (not c["last"] or last > c["last"]):
+            c["last"] = last
+    for lead_id, c in cand.items():
+        lead = c["lead"]
         try:
-            hist = [h.at for h in kommo.get_status_history(lead.id) if h.status_id == lead.status_id]
+            hist = [h.at for h in kommo.get_status_history(lead_id) if h.status_id == lead.status_id]
         except Exception:
-            doubts.append(f"{rows[0].client}: Kommo не отдал историю сделки — пропускаем")
+            doubts.append(f"{', '.join(c['clients'])}: Kommo не отдал историю сделки — пропускаем")
             continue
         entered = max(hist) if hist else lead.created_at
-        if last and entered and entered.date() > last + timedelta(days=3):
-            doubts.append(f"{rows[0].client}: сделка встала на «{lead.status_name}» позже последней строки таблицы — "
+        if c["last"] and entered and entered.date() > c["last"] + timedelta(days=3):
+            doubts.append(f"{', '.join(c['clients'])}: сделка встала на «{lead.status_name}» позже последней строки таблицы — "
                           "похоже, новая услуга ещё не внесена")
             continue
-        moves.append({"lead_id": lead.id, "client": rows[0].client, "from": lead.status_name, "pipeline_id": lead.pipeline_id})
+        moves.append({"lead_id": lead_id, "client": ", ".join(c["clients"]), "from": lead.status_name,
+                      "pipeline_id": lead.pipeline_id})
     return moves, doubts
 
 
