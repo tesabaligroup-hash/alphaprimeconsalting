@@ -21,13 +21,13 @@ export default function Documents() {
       <header className="top" style={{ gap: 14 }}>
         <h1 className="title">Документы</h1>
         <div className="seg" role="tablist" aria-label="Фильтр">
-          <button role="tab" aria-selected={tab === "ready"} onClick={() => setTab("ready")}>Готовые</button>
+          <button role="tab" aria-selected={tab === "ready"} onClick={() => setTab("ready")}>Активные</button>
           <button role="tab" aria-selected={tab === "archive"} onClick={() => setTab("archive")}>Архив</button>
         </div>
       </header>
       <main className="screen" style={{ gap: 22 }}>
         <LinkPhoneCard />
-        {groups.length === 0 && <div className="empty">{tab === "ready" ? "Готовых документов пока нет. Они появятся здесь, как только услуга будет выполнена." : "Архив пуст."}</div>}
+        {groups.length === 0 && <div className="empty">{tab === "ready" ? "Активных документов пока нет. Действующие визы и ITK появятся здесь, как только будут готовы." : "Архив пуст."}</div>}
         {groups.map((g) => (
           <section key={g.person} className="section" style={{ gap: 10 }}>
             <h2 className="kicker" style={{ color: "#5E5849", letterSpacing: ".08em", margin: 0 }}>{g.person}</h2>
