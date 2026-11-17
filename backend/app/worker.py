@@ -26,6 +26,7 @@ from .services.quality import weekly_report
 from .notify import notify_managers
 from .timeutil import utcnow
 from . import widgets
+from .services import intake as intake_svc
 from .models import UserVisa
 from .services import visas as visas_svc
 from aiogram.types import CallbackQuery
@@ -346,6 +347,7 @@ async def sync_loop(bot: Bot):
     kommo = get_kommo()
     last = utcnow() - timedelta(days=400)  # первый запуск — за всё время
     full_at = utcnow()
+    intake_since = utcnow() - timedelta(days=2)
     while True:
         started = utcnow()
         full_hour = started - full_at > timedelta(hours=1)
@@ -366,6 +368,12 @@ async def sync_loop(bot: Bot):
                         await bot.send_message(tg_id, text, reply_markup=app_keyboard())
                     except Exception:
                         log.warning("Не удалось отправить уведомление партнёру %s", partner_id)
+            if settings.intake_enabled:  # автозаявки в производство и готовые визы
+                with SessionLocal() as db:
+                    n = await asyncio.to_thread(intake_svc.tick, db, kommo, intake_since - timedelta(minutes=5))
+                intake_since = started
+                if n:
+                    log.info("Автозаявки: обработано сделок %s", n)
             last = started
             log.info("Синхронизация: %s уведомлений", len(notes))
             await weekly_check(bot, kommo)

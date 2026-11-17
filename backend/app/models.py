@@ -253,3 +253,16 @@ class ReminderSent(Base):
 
     key: Mapped[str] = mapped_column(String(160), primary_key=True)
     sent_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class IntakeRecord(Base):
+    """Автозаявка в производство по сделке (одна на сделку) и проверка готовых документов."""
+
+    __tablename__ = "intake_records"
+
+    lead_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    passport_name: Mapped[str | None] = mapped_column(String(200))
+    folder_url: Mapped[str | None] = mapped_column(String(500))
+    missing: Mapped[str | None] = mapped_column(Text)
+    checked_files: Mapped[list] = mapped_column(JSON, default=list)  # uuid файлов, которые ИИ уже смотрел на «Готово»

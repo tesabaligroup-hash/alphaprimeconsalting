@@ -31,6 +31,15 @@ class Settings(BaseSettings):
     mail_user: str = ""
     mail_password: str = ""
 
+    # ИИ (чтение паспортов и виз) — тот же ключ, что у детского приложения
+    anthropic_api_key: str = ""
+    ai_model: str = "claude-sonnet-5-5"
+
+    # Автозаявка в производство: Google-таблица + Google Диск через Apps Script (см. deploy/intake-apps-script.gs)
+    intake_enabled: bool = False  # пока False — работает только ручная проверка: python -m app.intake --lead ID
+    intake_script_url: str = ""
+    intake_script_secret: str = ""
+
     # Админка
     admin_password: str = "change-me"
 

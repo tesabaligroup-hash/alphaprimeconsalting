@@ -111,6 +111,21 @@ class MockKommo:
         self.partner_set[lead_id] = value
         return True
 
+    def user_name(self, user_id):
+        return "Оксана" if user_id else ""
+
+    def fetch_file(self, uuid):
+        return getattr(self, "file_bytes", {}).get(uuid)
+
+    def update_fields(self, entity, entity_id, values):
+        self.updated = getattr(self, "updated", [])
+        self.updated.append((entity, entity_id, dict(values)))
+        return [k for k, v in values.items() if v not in (None, "")]
+
+    def add_note(self, lead_id, text):
+        self.notes = getattr(self, "notes", [])
+        self.notes.append((lead_id, text))
+
     def create_lead(self, *, title, contact_name, phone=None, telegram=None, note=None, tags=None, contact_id=None, price=None):
         self.created.append({"title": title, "contact_name": contact_name, "phone": phone, "telegram": telegram, "note": note,
                              "tags": tags, "contact_id": contact_id, "price": price})

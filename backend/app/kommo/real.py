@@ -121,6 +121,7 @@ class RealKommo:
             created_at=_ts(raw.get("created_at")),
             updated_at=_ts(raw.get("updated_at")),
             closed_at=_ts(raw.get("closed_at")),
+            responsible_user_id=int(raw["responsible_user_id"]) if raw.get("responsible_user_id") else None,
         )
 
     def _contact(self, raw: dict) -> KommoContact:
@@ -273,6 +274,70 @@ class RealKommo:
             values = [{"value": value}]
         self._patch("/leads", [{"id": lead_id, "custom_fields_values": [{"field_id": field["id"], "values": values}]}])
         return True
+
+    def user_name(self, user_id: int | None) -> str:
+        if not user_id:
+            return ""
+        if not hasattr(self, "_users"):
+            self._users = {}
+            page = 1
+            while page <= 10:
+                data = self._get("/users", params={"limit": 250, "page": page})
+                items = (data.get("_embedded") or {}).get("users", [])
+                self._users.update({int(u["id"]): u.get("name") or "" for u in items})
+                if len(items) < 250:
+                    break
+                page += 1
+        return self._users.get(int(user_id), "")
+
+    def fetch_file(self, uuid: str) -> tuple[bytes, str] | None:
+        """Содержимое файла из «Файлов» Kommo: (байты, имя). None — не удалось."""
+        drive = self._drive()
+        if not drive:
+            return None
+        r = self._http.get(f"{drive}/v1.0/files/{uuid}")
+        if r.status_code != 200:
+            return None
+        info = r.json()
+        url = ((info.get("_links") or {}).get("download") or {}).get("href")
+        if not url:
+            return None
+        d = self._http.get(url, follow_redirects=True)
+        return (d.content, info.get("name") or uuid) if d.status_code == 200 else None
+
+    def update_fields(self, entity: str, entity_id: int, values: dict[str, object]) -> list[str]:
+        """Записывает поля сделки/контакта по названию. Даты — date, файлы — {"file_uuid","file_name"}.
+
+        Возвращает названия полей, которые записаны (поля, которых нет в Kommo, пропускаются)."""
+        from datetime import date as _date, datetime as _dt, time as _time, timedelta as _td
+        fields = {norm(f.get("name")): f for f in self.custom_fields(entity)}
+        out, done = [], []
+        for name, value in values.items():
+            f = fields.get(norm(name))
+            if not f or value in (None, ""):
+                continue
+            t = f.get("type")
+            if t in ("date", "birthday", "date_time"):
+                d = value if isinstance(value, _date) else _date.fromisoformat(str(value)[:10])
+                ts = int((_dt.combine(d, _time()) - _td(hours=8)).replace(tzinfo=timezone.utc).timestamp())
+                vals = [{"value": ts}]
+            elif t in ("select", "multiselect", "radiobutton"):
+                enum = next((e for e in f.get("enums") or [] if norm(e.get("value")) == norm(str(value))), None)
+                if not enum:
+                    continue
+                vals = [{"enum_id": enum["id"]}]
+            elif t == "file":
+                vals = [{"value": v} for v in (value if isinstance(value, list) else [value])]
+            else:
+                vals = [{"value": str(value)}]
+            out.append({"field_id": f["id"], "values": vals})
+            done.append(name)
+        if out:
+            self._patch(f"/{entity}", [{"id": entity_id, "custom_fields_values": out}])
+        return done
+
+    def add_note(self, lead_id: int, text: str) -> None:
+        self._post(f"/leads/{lead_id}/notes", [{"note_type": "common", "params": {"text": text}}])
 
     def create_lead(self, *, title: str, contact_name: str, phone: str | None = None,
                     telegram: str | None = None, note: str | None = None, tags: list[str] | None = None,
