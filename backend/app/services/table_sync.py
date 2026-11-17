@@ -381,7 +381,8 @@ def apply_kommo(kommo: KommoClient, plan: list[dict], moves: list[dict], move_st
     return len(by_contact), moved
 
 
-def run(db: Session, kommo: KommoClient, apply: bool, move_stages: bool, notify: bool = True) -> dict:
+def run(db: Session, kommo: KommoClient, apply: bool, move_stages: bool, notify: bool = True,
+        partners: bool = True) -> dict:
     """Полный проход: начисления, даты виз, этапы. apply=False — только отчёт."""
     table = fetch_table()
     contacts = kommo.all_contacts()
@@ -390,7 +391,10 @@ def run(db: Session, kommo: KommoClient, apply: bool, move_stages: bool, notify:
     out = {"table_rows": len(table.rows), "renewal_rows": len(table.renewals), "visa": vrep, "visa_plan": plan,
            "moves": moves, "doubts": doubts}
     if apply:
-        out["notes"], out["partners"] = sync_accruals(db, table, notify=notify)
+        if partners:
+            out["notes"], out["partners"] = sync_accruals(db, table, notify=notify)
+        else:
+            out["notes"], out["partners"] = [], _dry_partners(db, table)
         out["contacts_updated"], out["moved"] = apply_kommo(kommo, plan, moves, move_stages)
     else:
         out["notes"], out["partners"] = [], _dry_partners(db, table)

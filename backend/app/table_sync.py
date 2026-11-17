@@ -1,8 +1,9 @@
 """Таблица производства → приложение и Kommo.
 
     python -m app.table_sync            # отчёт: что будет сделано (ничего не меняет)
-    python -m app.table_sync --apply    # записать: начисления партнёрам + даты виз/ITK в Kommo
+    python -m app.table_sync --apply    # записать даты виз/ITK в Kommo
     python -m app.table_sync --apply --move   # + перевести выполненные сделки в «Услуга готова»
+    python -m app.table_sync --apply --partners   # + начисления партнёрам по таблице (заменяют начисления по Kommo)
 """
 import argparse
 
@@ -15,13 +16,14 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--move", action="store_true")
+    ap.add_argument("--partners", action="store_true")
     ap.add_argument("--all", action="store_true", help="показать списки полностью")
     a = ap.parse_args()
     init_db()
     kommo = get_kommo()
     with SessionLocal() as db:
         print("Читаю таблицу производства и контакты Kommo…")
-        r = ts.run(db, kommo, apply=a.apply, move_stages=a.move, notify=False)
+        r = ts.run(db, kommo, apply=a.apply, move_stages=a.move, notify=False, partners=a.partners)
     lim = None if a.all else 15
     print(f"\nСтрок в «Производстве»: {r['table_rows']} · строк с датами виз: {r['renewal_rows']}")
 
@@ -51,8 +53,9 @@ def main() -> None:
         print("  ⚠️ " + d)
 
     if a.apply:
-        print(f"\n✅ Записано: контактов с датами — {r['contacts_updated']}, начислений — {r['partners'].get('accruals')},"
-              f" сделок переведено — {r['moved']}")
+        acc = r["partners"].get("accruals")
+        print(f"\n✅ Записано: контактов с датами — {r['contacts_updated']}, сделок переведено — {r['moved']}"
+              + (f", начислений партнёрам — {acc}" if acc is not None else " (партнёры не трогались)"))
     else:
         print("\n(проверка — ничего не изменено; чтобы записать: --apply, и этапы: --apply --move)")
 
