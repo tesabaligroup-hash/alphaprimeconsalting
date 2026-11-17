@@ -9,7 +9,7 @@ from ..kommo.base import KommoClient, KommoContact, KommoLead
 from ..kommo.base import KommoFile
 from ..kommo.mapping import (CLIENT_FILE_PREFIXES, CLIENT_FILES_FIELD, CLIENT_PIPELINE_IDS, CLIENT_STEPS, CONTACT_FIELDS, LEAD_FIELDS, STATUS_LOST, STATUS_TO_STEP,
                              STATUS_WON, norm)
-from ..tariffs import find_tariff
+from ..tariffs import find_tariffs, find_tariff
 
 
 def field_value(fields: dict, name: str):
@@ -104,7 +104,10 @@ def build_card(lead: KommoLead, kommo: KommoClient, default_person: str, with_hi
 
     f = lead.fields
     raw_code = field_value(f, LEAD_FIELDS["service_type"])
-    tariff = find_tariff(str(raw_code) if raw_code else None)
+    # «Тип услуги» — мультисписок: KITAS + банковская карта в одной сделке. Главная — виза/KITAS, в заголовке — все.
+    all_tariffs = find_tariffs(str(raw_code) if raw_code else None)
+    all_tariffs.sort(key=lambda t: t.category not in ("kitas", "visa", "ext"))
+    tariff = all_tariffs[0] if all_tariffs else find_tariff(str(raw_code) if raw_code else None)
     paid = as_int(field_value(f, LEAD_FIELDS["paid_amount"]))
     debt = as_int(field_value(f, LEAD_FIELDS["debt"]))
     price = lead.price or (tariff.price if tariff else 0)
@@ -163,7 +166,9 @@ def build_card(lead: KommoLead, kommo: KommoClient, default_person: str, with_hi
     if not tariff or tariff.category not in ("kitas", "visa", "ext"):
         steps[1].title = "В работе"
     title = tariff.name if tariff else (str(raw_code) if raw_code else lead.name)
-    if tariff and tariff.category == "buh":
+    if len(all_tariffs) > 1:
+        title = " + ".join(t.name for t in all_tariffs)
+    elif tariff and tariff.category == "buh":
         title = f"Бухгалтерия: {tariff.name[:1].lower()}{tariff.name[1:]}"
     return ServiceCard(
         lead_id=lead.id, title=title, code=tariff.code if tariff else (str(raw_code) if raw_code else None),

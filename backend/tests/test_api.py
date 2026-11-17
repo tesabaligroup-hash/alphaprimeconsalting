@@ -278,3 +278,16 @@ def test_my_visas_add_list_delete_and_home(client):
     assert client.delete(f"/api/my-visas/{vid}", headers=DEV).json()["items"] == []
     past = (date.today() - timedelta(days=1)).isoformat()
     assert client.post("/api/my-visas", headers=DEV, json={"visa_type": "VOA", "expires_on": past}).status_code == 400
+
+
+def test_bank_card_request_once_a_week(client):
+    r = client.post("/api/partner/bank-card", headers=DEV)
+    if r.status_code == 403:  # тестовый пользователь ещё не партнёр в этом порядке тестов
+        return
+    assert r.json() == {"ok": True}
+    assert client.post("/api/partner/bank-card", headers=DEV).json().get("duplicate") is True
+
+
+def test_office_link_is_direct_place(client):
+    c = client.get("/api/me", headers=DEV).json()["company"]
+    assert "query_place_id=" in c["maps_url"]

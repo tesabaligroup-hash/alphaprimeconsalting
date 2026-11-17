@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     company_telegram: str = "alpha_prime_id"
     company_instagram: str = "alpha_prime_id"
     company_address: str = "Jl. Pantai Berawa No.13, Canggu, Kuta Utara, Badung, Bali 80361"
+    # Кнопка «Офис»: сразу карточка нашего офиса в Google Maps (без списка с рекламой)
+    company_maps_url: str = ("https://www.google.com/maps/search/?api=1&query=Alpha%20Prime%20Bali"
+                             "&query_place_id=ChIJP_eEMABH0i0R3yfZkIGoajw")
     company_maps_query: str = "Alpha Prime Bali, Jl. Pantai Berawa No.13, Canggu"  # что ищем в Google Maps по кнопке «Офис»
 
 

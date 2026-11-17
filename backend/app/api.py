@@ -18,7 +18,7 @@ from .db import get_db
 from .kommo import get_kommo
 from .kommo.base import KommoClient
 from .links import partner_links
-from .models import ClientDocument, News, Partner, PartnerCodeword, Referral, ServiceOrder, User, UserVisa
+from .models import ClientDocument, News, Partner, ReminderSent, PartnerCodeword, Referral, ServiceOrder, User, UserVisa
 from .qr import CHANNELS, partner_qr_png
 from .services import cabinet, partner as partner_svc
 from .services import visas as visas_svc
@@ -91,7 +91,7 @@ def me(user: User = Depends(current_user)):
         "notify_partner_offers": user.notify_partner_offers,
         "notify_company_offers": user.notify_company_offers,
         "company": {"whatsapp": s.company_whatsapp, "telegram": s.company_telegram, "instagram": s.company_instagram,
-                    "address": s.company_address, "maps_query": s.company_maps_query, "bot_username": s.bot_username},
+                    "address": s.company_address, "maps_query": s.company_maps_query, "maps_url": s.company_maps_url, "bot_username": s.bot_username},
     }
 
 
@@ -533,6 +533,33 @@ def partner_support(body: PartnerSupportIn, user: User = Depends(current_user), 
         f"Сообщение: {body.text.strip()}",
         f"Проверка на сервере: docker compose exec api python -m app.diag_partner {word}",
     ], 0)
+    return {"ok": True}
+
+
+@router.post("/partner/bank-card")
+def partner_bank_card(user: User = Depends(current_user), db: Session = Depends(get_db), kommo: KommoClient = Depends(kommo_dep)):
+    """Нет индонезийской карты для выплат → «Оформить карту у нас»: сделка в Kommo + сообщение менеджерам (раз в неделю)."""
+    p = _partner(user)
+    key = f"bank-card:{user.id}:{date.today().isocalendar()[1]}"
+    if db.get(ReminderSent, key):
+        return {"ok": True, "duplicate": True}
+    tg = f"@{user.telegram_username}" if user.telegram_username else None
+    name = p.display_name or user.first_name or "Партнёр"
+    t = BY_CODE.get("PERSONAL-COUNT")
+    lead_id = None
+    try:
+        lead_id = kommo.create_lead(title=f"Банковская карта для выплат — {name}", contact_name=name, phone=user.phone,
+                                    telegram=tg, contact_id=user.kommo_contact_id,
+                                    note="Партнёр нажал в приложении «Оформить карту у нас» — нет индонезийской карты для выплат.",
+                                    tags=["Приложение", "Карта для выплат"], price=t.price if t else None)
+    except Exception:
+        log.exception("Kommo: не создалась сделка «карта для выплат»")
+    notify_managers("💳 Партнёр хочет оформить банковскую карту", [
+        f"{name} · {tg or 'id ' + str(user.telegram_id)}" + (f" · {user.phone}" if user.phone else ""),
+        "Нет индонезийской карты для выплат — свяжитесь и оформите.",
+    ], lead_id or 0)
+    db.add(ReminderSent(key=key))
+    db.commit()
     return {"ok": True}
 
 

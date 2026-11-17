@@ -31,6 +31,26 @@ export default function Profile() {
   );
 }
 
+/** Нет индонезийской карты — оформим у нас: заявка сразу менеджерам (бот + Kommo). */
+export function BankCardOffer() {
+  const { toast } = useApp();
+  const [state, setState] = useState<"idle" | "busy" | "sent">("idle");
+  const send = async () => {
+    setState("busy");
+    try { await api.post("/api/partner/bank-card"); haptic(); setState("sent"); }
+    catch (e) { setState("idle"); toast((e as Error).message); }
+  };
+  return (
+    <div className="card cream" style={{ gap: 8 }}>
+      <span className="b">Нет индонезийской карты?</span>
+      <span className="small">Оформим банковскую карту у нас — на неё будут приходить выплаты.</span>
+      {state === "sent"
+        ? <span className="small" style={{ color: "#3D6B2E", fontWeight: 700 }}>Заявка отправлена — менеджер скоро напишет вам.</span>
+        : <button className="btn line" disabled={state === "busy"} onClick={send}>Оформить карту у нас</button>}
+    </div>
+  );
+}
+
 function PayoutDetails() {
   const { toast } = useApp();
   const { data } = useLoad<PartnerData>("/api/partner");
@@ -45,6 +65,7 @@ function PayoutDetails() {
       <textarea className="input" aria-label="Реквизиты для выплат" value={text ?? ""} onChange={(e) => setText(e.target.value)}
         placeholder={data?.has_payout_details ? "Реквизиты сохранены. Чтобы изменить — впишите новые." : "BCA · 1234567890 · ANNA DIKINA"} maxLength={2000} />
       <button className="btn" disabled={!text?.trim()} onClick={save}>Сохранить реквизиты</button>
+      <BankCardOffer />
     </section>
   );
 }

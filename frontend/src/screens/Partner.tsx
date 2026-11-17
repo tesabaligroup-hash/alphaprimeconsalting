@@ -1,3 +1,4 @@
+import { BankCardOffer } from "./Profile";
 import { useState } from "react";
 import { api, type PartnerData } from "../api";
 import { dateLong, money, plural } from "../format";
@@ -134,6 +135,7 @@ function Dashboard() {
             <span className="small">Без них мы не сможем перевести вознаграждение. Это можно сделать в профиле.</span>
           </button>
         )}
+        {!data.has_payout_details && <BankCardOffer />}
 
         <SupportCard />
       </main>
