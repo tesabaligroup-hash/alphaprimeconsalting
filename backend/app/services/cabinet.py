@@ -1,4 +1,5 @@
 """Личный кабинет клиента: собирает данные из Kommo в вид, который показывает приложение."""
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
@@ -274,6 +275,9 @@ def important_dates(cards: list[ServiceCard], people: list[KommoContact], today:
             d = as_date(field_value(c.fields, CONTACT_FIELDS[key]))
             visa_type = field_value(c.fields, CONTACT_FIELDS["current_visa"])
             if visa_type and key != "passport_until":
+                # в «ITK до» иногда стоит дата обычной визы (VOA, C1, D12) — тогда это «Окончание визы»
+                if key == "itk_until" and not re.match(r"\s*(E\d|KITAS|ITAS|ITK|FAMILY)", str(visa_type), re.I):
+                    title = "Окончание визы"
                 title = f"{title} {visa_type}"
             if d and 0 <= (d - today).days <= horizon:
                 out.append({"date": d.isoformat(), "title": title, "person": name, "lead_id": None, "kind": "expiry" if key != "passport_until" else "passport"})

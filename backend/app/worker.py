@@ -170,7 +170,9 @@ async def visa_reminders(bot: Bot, kommo) -> None:
                 notify_managers("⏰ Скоро заканчивается виза", [
                     f"{d.title}" + (f" · {d.person}" if d.person else "") + f" — до {d.expires_on:%d.%m.%Y} ({d.days_left} дн.)",
                     f"Человек: {u.first_name or '—'} · {tg}" + (f" · {u.phone}" if u.phone else ""),
-                    "Наш клиент (есть в Kommo)" if d.is_client else "НЕ наш клиент — вписал визу сам в приложении. Предложите продление!",
+                    ("Наш клиент — контакт в Kommo: " + f"{settings.kommo_base_url.rstrip('/')}/contacts/detail/{u.kommo_contact_id}")
+                    if d.is_client and u.kommo_contact_id and settings.kommo_base_url else
+                    ("Наш клиент (есть в Kommo)" if d.is_client else "НЕ наш клиент — вписал визу сам в приложении. Предложите продление!"),
                 ], 0)
                 visas_svc.mark_sent(db, f"{d.key}:mgr")
         if row:
