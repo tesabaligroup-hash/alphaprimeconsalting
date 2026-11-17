@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     kommo_token: str = ""
     kommo_mock: bool = True  # True — работать на тестовых данных вместо Kommo
 
+    # Почта (Яндекс 360, IMAP) — откуда берём готовые ITK/визы. Пароль — «пароль приложения», не основной.
+    mail_imap_host: str = "imap.yandex.ru"
+    mail_user: str = ""
+    mail_password: str = ""
+
     # Админка
     admin_password: str = "change-me"
 
