@@ -94,9 +94,21 @@ export default function Home() {
           <section className="section">
             <h2 className="h2">От наших партнёров</h2>
             <div className="hscroll">
-              {data.partner_news.map((n) => (
+              {data.partner_news.map((n) => n.image ? (
+                // Предложение партнёра с картинкой (1200×600) — крупно, как баннер, чтобы были видны логотип и оффер
+                <div key={n.id} style={{ width: data.partner_news.length > 1 ? "88%" : "100%", flex: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button className="banner" aria-label={`${n.partner_name || ""} ${n.title}`} onClick={() => openNews(n, go)}
+                    style={{ width: "100%", minHeight: 0, aspectRatio: "2 / 1", padding: 0, backgroundImage: `url(${n.image})`, backgroundSize: "cover" }} />
+                  {n.link && (
+                    <button className="btn block" onClick={() => openExternal(n.link!)}>
+                      Записаться{n.partner_name ? ` в ${n.partner_name}` : ""}
+                    </button>
+                  )}
+                  {!n.link && n.cta && <InterestButton id={n.id} />}
+                </div>
+              ) : (
                 <button key={n.id} className="pcard" onClick={() => openNews(n, go)}>
-                  <div className="img" style={{ backgroundImage: n.image ? `url(${n.image})` : undefined }}>{n.image ? "" : "ПАРТНЁР ALPHA PRIME"}</div>
+                  <div className="img">ПАРТНЁР ALPHA PRIME</div>
                   <div className="body"><span className="b">{n.partner_name}</span><span className="muted" style={{ lineHeight: 1.4 }}>{n.title}</span></div>
                 </button>
               ))}

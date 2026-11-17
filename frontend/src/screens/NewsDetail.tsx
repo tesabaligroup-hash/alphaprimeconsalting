@@ -10,9 +10,12 @@ export default function NewsDetail({ item }: { item: NewsItem }) {
       {item.image && (
         <img src={item.image} alt="" style={{ width: "100%", aspectRatio: "2 / 1", objectFit: "cover", borderRadius: 18, display: "block" }} />
       )}
+      {item.link && item.kind === "partner" && (
+        <button className="btn block" onClick={() => openExternal(item.link!)}>Записаться{item.partner_name ? ` в ${item.partner_name}` : ""}</button>
+      )}
       {item.cta && <InterestButton id={item.id} />}
       {item.body && <p style={{ whiteSpace: "pre-line", lineHeight: 1.55, margin: 0 }}>{item.body}</p>}
-      {item.link && <button className="btn line block" onClick={() => openExternal(item.link!)}>Открыть ссылку</button>}
+      {item.link && item.kind !== "partner" && <button className="btn line block" onClick={() => openExternal(item.link!)}>Открыть ссылку</button>}
     </main>
   );
 }

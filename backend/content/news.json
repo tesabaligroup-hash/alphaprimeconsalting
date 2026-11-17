@@ -15,13 +15,17 @@
   },
   {
     "key": "2026-11-topgym-offer",
+    "delete": true
+  },
+  {
+    "key": "2026-11-topgym-offer-v2",
     "kind": "partner",
     "partner_name": "TOPGYM",
     "is_banner": true,
     "cta_lead": true,
     "title": "TOPGYM: первое посещение бесплатно",
     "body": "Клиентам Alpha Prime — первое посещение TOPGYM & TOPSTRETCHING бесплатно и −15% на абонемент.\n\nДержателям годовых виз и KITAS — специальная цена (около −30%).\n\nСкидки не действуют на формат «подписка».\n\nJl. Pantai Batu Bolong No.12, Canggu.\n\nНажмите «Узнать подробнее» — менеджер расскажет, как получить.",
-    "image": "topgym-alpha-prime-banner.png",
+    "image": "topgym-alpha-prime-banner-v2.png",
     "sort_order": 1
   }
 ]
