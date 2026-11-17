@@ -59,8 +59,15 @@ class RealKommo:
 
     # ---------- низкий уровень ----------
     def _get(self, path: str, params=None) -> dict:
-        for attempt in range(3):
-            r = self._http.get(path, params=params)
+        for attempt in range(4):
+            try:
+                r = self._http.get(path, params=params)
+            except (httpx.RemoteProtocolError, httpx.ConnectError, httpx.ReadTimeout, httpx.ReadError):
+                # Kommo иногда рвёт соединение при большом числе запросов — ждём и пробуем снова
+                if attempt == 3:
+                    raise
+                time.sleep(2 + 2 * attempt)
+                continue
             if r.status_code == 429:  # лимит Kommo — 7 запросов в секунду
                 time.sleep(1 + attempt)
                 continue

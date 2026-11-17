@@ -300,16 +300,21 @@ def stage_moves(kommo: KommoClient, table: Table, contacts: list[KommoContact]) 
     for row in table.rows:
         by_client.setdefault(loose_key(row.client), []).append(row)
     moves, doubts = [], []
+    # сначала собираем клиентов, у которых все строки выполнены, и все их сделки — одним пакетом
+    done_clients = []
     for rows in by_client.values():
         if any(r.status not in DONE for r in rows):
             continue
-        last = max((r.start for r in rows if r.start), default=None)
         found = match_contacts(rows[0].client, contacts, idx)
         lead_ids = sorted({lid for c in found for lid in c.lead_ids})
-        if not lead_ids:
-            continue
-        leads = [l for l in kommo.get_leads(lead_ids) if l.pipeline_id in CLIENT_PIPELINE_IDS
-                 and l.status_id not in (STATUS_WON, STATUS_LOST)]
+        if lead_ids:
+            done_clients.append((rows, lead_ids))
+    all_ids = sorted({i for _, ids in done_clients for i in ids})
+    leads_by_id = {l.id: l for l in kommo.get_leads(all_ids)} if all_ids else {}
+    for rows, lead_ids in done_clients:
+        last = max((r.start for r in rows if r.start), default=None)
+        leads = [leads_by_id[i] for i in lead_ids if i in leads_by_id]
+        leads = [l for l in leads if l.pipeline_id in CLIENT_PIPELINE_IDS and l.status_id not in (STATUS_WON, STATUS_LOST)]
         early = [l for l in leads if STATUS_TO_STEP.get(norm(l.status_name), (2, ""))[0] < 2]
         if not early:
             continue
@@ -317,7 +322,11 @@ def stage_moves(kommo: KommoClient, table: Table, contacts: list[KommoContact]) 
             doubts.append(f"{rows[0].client}: несколько открытых сделок — не трогаем")
             continue
         lead = early[0]
-        hist = [h.at for h in kommo.get_status_history(lead.id) if h.status_id == lead.status_id]
+        try:
+            hist = [h.at for h in kommo.get_status_history(lead.id) if h.status_id == lead.status_id]
+        except Exception:
+            doubts.append(f"{rows[0].client}: Kommo не отдал историю сделки — пропускаем")
+            continue
         entered = max(hist) if hist else lead.created_at
         if last and entered and entered.date() > last + timedelta(days=3):
             doubts.append(f"{rows[0].client}: сделка встала на «{lead.status_name}» позже последней строки таблицы — "
