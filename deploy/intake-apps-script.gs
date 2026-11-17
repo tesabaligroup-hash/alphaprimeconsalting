@@ -8,13 +8,13 @@
  * документы клиента — в папку на Google Диске.
  */
 const SECRET = 'ВСТАВЬТЕ_СЕКРЕТ';          // тот же, что INTAKE_SCRIPT_SECRET на сервере
-const ROOT_FOLDER_ID = 'ВСТАВЬТЕ_ID_ПАПКИ'; // папка «Клиенты» на Диске: id — часть ссылки после /folders/
+const ROOT_FOLDER_ID = ''; // можно оставить пустым — скрипт сам создаст на Диске папку «Клиенты Alpha Prime»
 const SHEET_NAME = 'Заявки авто';
 
 function doPost(e) {
   const d = JSON.parse(e.postData.contents);
   if (d.secret !== SECRET) return out_({ ok: false, error: 'неверный секрет' });
-  const root = DriveApp.getFolderById(ROOT_FOLDER_ID);
+  const root = root_();
   const found = root.getFoldersByName(d.folder_name);
   const folder = found.hasNext() ? found.next() : root.createFolder(d.folder_name);
   (d.files || []).forEach(function (f) {
@@ -36,6 +36,12 @@ function doPost(e) {
   if (at > 0) sh.getRange(at + 1, 1, 1, row.length).setValues([row]);
   else sh.appendRow(row);
   return out_({ ok: true, folder_url: folder.getUrl() });
+}
+
+function root_() {
+  if (ROOT_FOLDER_ID) return DriveApp.getFolderById(ROOT_FOLDER_ID);
+  const it = DriveApp.getRootFolder().getFoldersByName('Клиенты Alpha Prime');
+  return it.hasNext() ? it.next() : DriveApp.getRootFolder().createFolder('Клиенты Alpha Prime');
 }
 
 function out_(obj) {
