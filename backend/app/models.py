@@ -266,3 +266,34 @@ class IntakeRecord(Base):
     folder_url: Mapped[str | None] = mapped_column(String(500))
     missing: Mapped[str | None] = mapped_column(Text)
     checked_files: Mapped[list] = mapped_column(JSON, default=list)  # uuid файлов, которые ИИ уже смотрел на «Готово»
+
+
+class DriveFileRead(Base):
+    """Что ИИ прочитал в файле с Google Диска (чтобы не читать один файл дважды, даже если он в папках двух людей)."""
+
+    __tablename__ = "drive_file_reads"
+
+    file_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    modified: Mapped[str] = mapped_column(String(40), default="")
+    name: Mapped[str] = mapped_column(String(255), default="")
+    result: Mapped[dict] = mapped_column(JSON, default=dict)
+    read_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class ClientDocument(Base):
+    """Виза/ITK клиента, взятые с Диска и сохранённые у нас (клиент видит в приложении: «Активные» / «Архив»)."""
+
+    __tablename__ = "client_documents"
+    __table_args__ = (UniqueConstraint("contact_id", "file_id", name="uq_client_doc"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    contact_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    file_id: Mapped[str] = mapped_column(String(128))
+    name: Mapped[str] = mapped_column(String(255))
+    doc_type: Mapped[str] = mapped_column(String(16))  # visa / itk
+    visa_type: Mapped[str | None] = mapped_column(String(64))
+    person_name: Mapped[str | None] = mapped_column(String(200))
+    expires_on: Mapped[date | None] = mapped_column(Date)
+    stored_path: Mapped[str] = mapped_column(String(500))
+    mime: Mapped[str] = mapped_column(String(64), default="application/pdf")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

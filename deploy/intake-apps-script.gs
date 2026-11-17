@@ -50,7 +50,21 @@ function out_(obj) {
 
 // ---------- чтение таблицы приложением (только нужные колонки) ----------
 function doGet(e) {
-  if ((e.parameter || {}).secret !== SECRET) return out_({ ok: false, error: 'неверный секрет' });
+  const p = e.parameter || {};
+  if (p.secret !== SECRET) return out_({ ok: false, error: 'неверный секрет' });
+  // Документы клиентов с Диска (папка из поля «Документы» в Kommo)
+  if (p.action === 'list') {
+    try { return out_({ ok: true, files: list_(DriveApp.getFolderById(p.folder), '', 0) }); }
+    catch (err) { return out_({ ok: false, error: 'нет доступа к папке: ' + err }); }
+  }
+  if (p.action === 'file') {
+    try {
+      const f = DriveApp.getFileById(p.id);
+      if (f.getSize() > 15 * 1024 * 1024) return out_({ ok: false, error: 'файл больше 15 МБ' });
+      return out_({ ok: true, name: f.getName(), mime: f.getMimeType(), modified: f.getLastUpdated().toISOString(),
+                    data: Utilities.base64Encode(f.getBlob().getBytes()) });
+    } catch (err) { return out_({ ok: false, error: 'нет доступа к файлу: ' + err }); }
+  }
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   return out_({
     ok: true,
@@ -61,6 +75,24 @@ function doGet(e) {
       .concat(cols_(ss.getSheetByName('Новые продления'), [1, 2, 6, 8], false)),
     partners: cols_(ss.getSheetByName('Список партнеров'), [1, 2], false),
   });
+}
+
+function list_(folder, path, depth) {
+  let res = [];
+  const files = folder.getFiles();
+  while (files.hasNext()) {
+    const f = files.next();
+    res.push({ id: f.getId(), name: f.getName(), mime: f.getMimeType(), size: f.getSize(),
+               modified: f.getLastUpdated().toISOString(), path: path });
+  }
+  if (depth < 2) {
+    const subs = folder.getFolders();
+    while (subs.hasNext()) {
+      const sub = subs.next();
+      res = res.concat(list_(sub, path + sub.getName() + '/', depth + 1));
+    }
+  }
+  return res;
 }
 
 function cols_(sh, cols, withRow) {

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     secret_key: str = "change-me"  # подпись cookie админки
     database_url: str = "sqlite:///./dev.db"
     uploads_dir: str = "./uploads"
+    docs_dir: str = "./docs"  # готовые визы/ITK клиентов — НЕ публичная папка, отдаются только по временной ссылке
     timezone: str = "Asia/Makassar"
 
     # Telegram
@@ -33,7 +34,9 @@ class Settings(BaseSettings):
 
     # ИИ (чтение паспортов и виз) — тот же ключ, что у детского приложения
     anthropic_api_key: str = ""
-    ai_model: str = "claude-sonnet-5-5"
+    ai_model: str = "claude-haiku-5-5"  # дешёвая — читает все документы
+    ai_model_strong: str = "claude-sonnet-5-5"  # если дешёвая не разобрала документ
+    drive_docs: bool = False  # раз в сутки забирать визы/ITK из папок Google Диска (поле контакта «Документы»)
 
     # Автозаявка в производство: Google-таблица + Google Диск через Apps Script (см. deploy/intake-apps-script.gs)
     intake_enabled: bool = False  # пока False — работает только ручная проверка: python -m app.intake --lead ID

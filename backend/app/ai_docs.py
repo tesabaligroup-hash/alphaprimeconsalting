@@ -22,7 +22,8 @@ PROMPT = """Это документ клиента визового агентс
  "visa_expiry": "YYYY-MM-DD — до какого числа действует виза/ITK, или null",
  "note": "одна короткая фраза по-русски, если что-то не так (плохо видно, обрезано), иначе null"}
 doc_type: passport — страница паспорта с фото; photo — фото человека на фоне (для визы); visa — e-Visa/виза;
-itk — ITK/ITAS/KITAS/KITAP (разрешение на пребывание); other — всё остальное (чеки, договоры, справки).
+itk — ITK/ITAS/KITAS/KITAP (разрешение на пребывание, обычно синий документ); visa — e-Visa/виза (обычно белая);
+other — всё остальное (чеки, договоры, справки, черновики анкет).
 Не выдумывай: чего не видно — null."""
 
 
@@ -42,6 +43,18 @@ def _parse(text: str) -> dict:
 
 
 def read_document(data: bytes, name: str) -> dict:
+    """Сначала дешёвая модель; если она не разобрала документ или имя — сильная."""
+    s = get_settings()
+    out = _read(data, name, s.ai_model)
+    weak = out.get("doc_type") == "unknown" or (out.get("doc_type") in ("passport", "visa", "itk") and not out.get("full_name"))
+    if weak and s.ai_model_strong and s.ai_model_strong != s.ai_model and not str(out.get("note", "")).startswith(("формат", "файл больше", "нет ключа")):
+        better = _read(data, name, s.ai_model_strong)
+        if better.get("doc_type") != "unknown":
+            return better
+    return out
+
+
+def _read(data: bytes, name: str, model: str) -> dict:
     """{"doc_type": …, …}. Если файл не читается (формат, размер, нет ключа) — {"doc_type": "unknown", "note": …}."""
     s = get_settings()
     mime = mime_for(name)
@@ -58,7 +71,7 @@ def read_document(data: bytes, name: str) -> dict:
         r = httpx.post("https://api.anthropic.com/v1/messages", timeout=90,
                        headers={"x-api-key": s.anthropic_api_key, "anthropic-version": "2023-06-01",
                                 "content-type": "application/json"},
-                       json={"model": s.ai_model, "max_tokens": 600,
+                       json={"model": model, "max_tokens": 600,
                              "messages": [{"role": "user", "content": [block, {"type": "text", "text": PROMPT}]}]})
         r.raise_for_status()
         text = "".join(c.get("text", "") for c in r.json().get("content", []) if c.get("type") == "text")

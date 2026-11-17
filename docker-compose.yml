@@ -21,8 +21,10 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://alphaprime:${POSTGRES_PASSWORD}@db:5432/alphaprime
       UPLOADS_DIR: /data/uploads
+      DOCS_DIR: /data/docs
     volumes:
       - uploads:/data/uploads
+      - client_docs:/data/docs
     depends_on:
       db:
         condition: service_healthy
@@ -35,6 +37,10 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://alphaprime:${POSTGRES_PASSWORD}@db:5432/alphaprime
       UPLOADS_DIR: /data/uploads
+      DOCS_DIR: /data/docs
+    volumes:
+      - uploads:/data/uploads
+      - client_docs:/data/docs
     depends_on:
       db:
         condition: service_healthy
@@ -88,6 +94,7 @@ services:
         condition: service_healthy
 
 volumes:
+  client_docs:
   kids_data:
   pgdata:
   uploads:

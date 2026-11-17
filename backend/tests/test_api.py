@@ -178,10 +178,31 @@ def test_admin_login_and_pages(client):
     assert any(n["title"] == "Тест" and n["image"] for n in client.get("/api/home", headers=DEV).json()["news"])
 
 
-def test_client_sees_only_marked_files(client):
+def test_documents_from_drive_family_only(client, tmp_path):
+    from app.db import SessionLocal
+    from app.models import ClientDocument
+    f = tmp_path / "itk.pdf"
+    f.write_bytes(b"%PDF-1.4 test")
+    with SessionLocal() as db:
+        own = ClientDocument(contact_id=502, file_id="x1", name="ITK.pdf", doc_type="itk", visa_type="E31",
+                             person_name="MIKHAIL DIKIN", expires_on=date.today() + timedelta(days=300), stored_path=str(f))
+        old = ClientDocument(contact_id=501, file_id="x2", name="visa.pdf", doc_type="visa", visa_type="C1",
+                             person_name="ANNA DIKINA", expires_on=date.today() - timedelta(days=30), stored_path=str(f))
+        alien = ClientDocument(contact_id=999, file_id="x3", name="alien.pdf", doc_type="itk", stored_path=str(f))
+        db.add_all([own, old, alien]); db.commit()
+        own_id, alien_id = own.id, alien.id
     groups = client.get("/api/documents", headers=DEV).json()["groups"]
-    names = sorted(f["name"] for g in groups for f in g["files"])
-    assert names == ["Family KITAS — Миша.pdf", "ITK — Миша.pdf", "Виза C1 e-Visa.pdf"]
+    files = {x["uuid"]: x for g in groups for x in g["files"]}
+    assert f"d{own_id}" in files and not files[f"d{own_id}"]["archived"]  # Миша — в семейной сделке
+    assert any(x["archived"] for x in files.values())  # старая виза — в «Архиве»
+    assert f"d{alien_id}" not in files
+    assert client.post(f"/api/documents/0/d{alien_id}/link", headers=DEV).status_code == 404
+    link = client.post(f"/api/documents/0/d{own_id}/link", headers=DEV).json()["url"]
+    r = client.get("/api/files/" + link.rsplit("/", 1)[1])
+    assert r.status_code == 200 and r.content.startswith(b"%PDF")
+
+
+def test_client_sees_only_marked_files(client):
     detail = client.get("/api/services/1002", headers=DEV).json()
     assert {f["uuid"] for f in detail["files"]} == {"f-kitas-m", "f-itk-m"}
     # чужой файл нельзя скачать даже по прямому запросу

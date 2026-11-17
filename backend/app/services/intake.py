@@ -220,21 +220,11 @@ def process_ready(db: Session, kommo: KommoClient, lead: KommoLead, apply: bool 
     if not apply:
         return report
     rec.checked_files = sorted(checked)
-    if report["shown"]:
-        done = kommo.update_fields("leads", lead.id, {CLIENT_FILES_FIELD: marked})
-        if not done:
-            report["skipped"].append(f"в Kommo нет поля «{CLIENT_FILES_FIELD}» (тип «Файл») — документ не показан клиенту")
+    # Клиенту документы показываются из папки на Google Диске (services/drive_docs.py) — здесь только даты
     if contact and report["dates"]:
         kommo.update_fields("contacts", contact.id, report["dates"])
     if report["wrong_name"]:
         notify_managers("⚠️ В сделке документ на другое имя", report["wrong_name"] + ["Клиенту не показан — проверьте."], lead.id)
-    if report["skipped"]:
-        notify_managers("⚠️ Готовая виза не попала в приложение", report["skipped"], lead.id)
-    elif report["shown"]:
-        users = db.scalars(select(User).where(User.kommo_contact_id.in_(lead.contact_ids or [0])))
-        for u in users:
-            notify_user(u.telegram_id, "🎉 Ваш документ готов и уже лежит в приложении Alpha Prime — раздел «Документы». "
-                                       "Его можно открыть и показать офицеру.")
     db.commit()
     return report
 

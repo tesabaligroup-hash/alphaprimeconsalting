@@ -28,6 +28,7 @@ from .timeutil import utcnow
 from . import widgets
 from .services import intake as intake_svc
 from .services import table_sync as table_svc
+from .services import drive_docs as drive_docs_svc
 from .models import UserVisa
 from .services import visas as visas_svc
 from aiogram.types import CallbackQuery
@@ -350,6 +351,7 @@ async def sync_loop(bot: Bot):
     full_at = utcnow()
     intake_since = utcnow() - timedelta(days=2)
     last_table_day = ""
+    last_docs_day = ""
     while True:
         started = utcnow()
         full_hour = started - full_at > timedelta(hours=1)
@@ -399,6 +401,14 @@ async def sync_loop(bot: Bot):
                              r["partners"].get("accruals"), r.get("contacts_updated"), r.get("moved"))
                 except Exception:
                     log.exception("Таблица производства не прочиталась")
+            if settings.drive_docs and bali_now.hour >= 4 and table_day != last_docs_day:  # визы/ITK с Диска — раз в сутки
+                last_docs_day = table_day
+                try:
+                    with SessionLocal() as db:
+                        r = await asyncio.to_thread(drive_docs_svc.sync_all, db, kommo, True)
+                    log.info("Документы с Диска: людей %s, новых виз/ITK %s, ошибок %s", r["contacts"], r["new_docs"], r["errors"])
+                except Exception:
+                    log.exception("Документы с Диска не обновились")
             if full_hour:  # виджеты — раз в час (визы, мероприятия, партнёрка)
                 with SessionLocal() as db:
                     n = await widgets.refresh_all(db, kommo)

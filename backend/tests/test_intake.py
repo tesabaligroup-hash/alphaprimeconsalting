@@ -59,7 +59,7 @@ def test_ready_marks_matching_itk_and_rejects_other_name(env, monkeypatch):
     monkeypatch.setattr(k, "get_lead_files", lambda lead_id: [KommoFile("v", "ITK.pdf", None), KommoFile("x", "ITK other.pdf", None)])
     rep = intake.process_ready(db, k, k.get_leads([1001])[0])
     assert rep["shown"] == ["ITK.pdf"] and rep["wrong_name"] and rep["dates"]["ITK до"] == date(2027, 11, 20)
-    assert any(e == "leads" and "Документы клиенту" in v for e, _, v in k.updated)
+    assert any(e == "contacts" and "ITK до" in v for e, _, v in k.updated)
     assert notes and "другое имя" in notes[0][0]
     again = intake.process_ready(db, k, k.get_leads([1001])[0])
     assert not again["shown"] and not again["wrong_name"]  # уже проверенные файлы не читаем повторно

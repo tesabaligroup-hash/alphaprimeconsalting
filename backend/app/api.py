@@ -18,10 +18,13 @@ from .db import get_db
 from .kommo import get_kommo
 from .kommo.base import KommoClient
 from .links import partner_links
-from .models import News, Partner, PartnerCodeword, Referral, ServiceOrder, User, UserVisa
+from .models import ClientDocument, News, Partner, PartnerCodeword, Referral, ServiceOrder, User, UserVisa
 from .qr import CHANNELS, partner_qr_png
 from .services import cabinet, partner as partner_svc
 from .services import visas as visas_svc
+from .services import drive_docs
+from .kommo.mapping import CLIENT_PIPELINE_IDS
+from pathlib import Path
 from .services.interest import register_interest
 from .services.linking import link_user
 from .notify import notify_managers
@@ -249,11 +252,39 @@ def news_interest(news_id: int, user: User = Depends(current_user), db: Session 
 
 # ---------- Документы ----------
 
+def _family_contacts(user: User, kommo: KommoClient) -> list:
+    """Контакты, чьи документы видит пользователь: он сам (и его дубли) + люди в его сделках (семья)."""
+    contact, originals = cabinet.merged_contact(kommo, user.contact_ids)
+    if not contact:
+        return []
+    ids = {c.id for c in originals} | {contact.id}
+    for lead in kommo.get_leads(contact.lead_ids):
+        if lead.pipeline_id in CLIENT_PIPELINE_IDS:
+            ids.update(lead.contact_ids[:8])
+    found = {c.id: c for c in kommo.get_contacts(sorted(ids))}
+    return [found[i] for i in sorted(ids, key=lambda x: (x not in user.contact_ids, x)) if i in found]
+
+
 @router.get("/documents")
-def documents(user: User = Depends(current_user), kommo: KommoClient = Depends(kommo_dep)):
+def documents(user: User = Depends(current_user), kommo: KommoClient = Depends(kommo_dep), db: Session = Depends(get_db)):
+    """Визы и ITK из папок на Диске (хранятся у нас — открываются быстро). «Архив» — срок прошёл."""
     if not user.kommo_contact_id:
         return {"groups": []}
-    return {"groups": cabinet.load_documents(kommo, user.contact_ids)}
+    people = _family_contacts(user, kommo)
+    docs = drive_docs.docs_for(db, [c.id for c in people])
+    today = date.today()
+    groups = []
+    for c in people:
+        own = [d for d in docs if d.contact_id == c.id]
+        if not own:
+            continue
+        label = "Вы" if c.id in user.contact_ids else (cabinet.contact_person(c) or "Член семьи")
+        groups.append({"person": label, "files": [
+            {"uuid": f"d{d.id}", "name": f"{'ITK' if d.doc_type == 'itk' else 'Виза'}{(' ' + d.visa_type) if d.visa_type else ''}",
+             "created_at": None, "service": d.person_name or "", "lead_id": 0,
+             "archived": bool(d.expires_on and d.expires_on < today),
+             "valid_until": d.expires_on.isoformat() if d.expires_on else None} for d in own]})
+    return {"groups": groups}
 
 
 def _file_token(lead_id: int, uuid: str, exp: int) -> str:
@@ -263,8 +294,16 @@ def _file_token(lead_id: int, uuid: str, exp: int) -> str:
 
 
 @router.post("/documents/{lead_id}/{uuid}/link")
-def download_link(lead_id: int, uuid: str, user: User = Depends(current_user), kommo: KommoClient = Depends(kommo_dep)):
+def download_link(lead_id: int, uuid: str, user: User = Depends(current_user), kommo: KommoClient = Depends(kommo_dep),
+                  db: Session = Depends(get_db)):
     """Одноразовая ссылка на файл (10 минут): Telegram скачивает файл без заголовков авторизации."""
+    if lead_id == 0 and uuid.startswith("d") and uuid[1:].isdigit():  # документ с Диска, хранится у нас
+        doc = db.get(ClientDocument, int(uuid[1:]))
+        allowed = {c.id for c in _family_contacts(user, kommo)}
+        if not doc or doc.contact_id not in allowed:
+            raise HTTPException(404)
+        exp = int(time.time()) + 600
+        return {"url": f"{get_settings().public_url.rstrip('/')}/api/files/{_file_token(0, uuid, exp)}", "name": doc.name}
     _, lead = _owned_lead(user, kommo, lead_id)
     files = {f.uuid: f for f in cabinet.client_files(kommo, lead)}
     if uuid not in files:
@@ -274,7 +313,7 @@ def download_link(lead_id: int, uuid: str, user: User = Depends(current_user), k
 
 
 @router.get("/files/{token}")
-def download_file(token: str, kommo: KommoClient = Depends(kommo_dep)):
+def download_file(token: str, kommo: KommoClient = Depends(kommo_dep), db: Session = Depends(get_db)):
     try:
         raw = base64.urlsafe_b64decode(token + "=" * (-len(token) % 4)).decode()
         lead_s, uuid, exp_s, _sig = raw.split(":")
@@ -283,6 +322,12 @@ def download_file(token: str, kommo: KommoClient = Depends(kommo_dep)):
         raise HTTPException(404)
     if not hmac.compare_digest(_file_token(lead_id, uuid, exp), token) or exp < time.time():
         raise HTTPException(403, "Ссылка устарела — откройте документ в приложении ещё раз")
+    if lead_id == 0 and uuid.startswith("d") and uuid[1:].isdigit():
+        doc = db.get(ClientDocument, int(uuid[1:]))
+        if not doc or not doc.stored_path or not Path(doc.stored_path).exists():
+            raise HTTPException(404, "Файл пока недоступен")
+        return Response(Path(doc.stored_path).read_bytes(), media_type=doc.mime or "application/octet-stream",
+                        headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(doc.name)}"})
     url = kommo.get_file_download_url(uuid)
     if not url:
         raise HTTPException(404, "Файл пока недоступен")
