@@ -83,6 +83,7 @@ class Row:
     paid: int
     debt: int
     partner_share: int
+    lead_id: int | None = None  # колонка AA «ID сделки» (ставит автозаявка)
 
     @property
     def status(self) -> str:
@@ -124,12 +125,12 @@ def fetch_table() -> Table:
 def parse_table(data: dict) -> Table:
     t = Table()
     for x in data.get("production") or []:
-        n, start, manager, partner, service, contacts, status, client, price, paid, debt, share = (list(x) + [""] * 12)[:12]
+        n, start, manager, partner, service, contacts, status, client, price, paid, debt, share, lead = (list(x) + [""] * 13)[:13]
         if not str(client).strip() or not str(service).strip():
             continue
         t.rows.append(Row(int(n or 0), parse_date(start), str(manager).strip(), str(partner).strip(), str(service).strip(),
                           str(contacts).strip(), str(status).strip(), str(client).strip(), money(price), money(paid),
-                          money(debt), money(share)))
+                          money(debt), money(share), money(lead) or None))
     for x in data.get("renewals") or []:
         visa, client, status, until = (list(x) + [""] * 4)[:4]
         if str(client).strip():
@@ -230,8 +231,17 @@ def sync_accruals(db: Session, table: Table, notify: bool = True) -> tuple[list[
     for acc in db.scalars(select(Accrual).where(Accrual.kommo_lead_id == 0, Accrual.period.like("t:%"))):
         if (acc.partner_id, acc.level, acc.period) not in seen and acc.status != "paid":
             db.delete(acc)
-    # начисления, посчитанные раньше по сделкам Kommo, — больше не используются (источник — таблица)
-    db.execute(delete(Accrual).where(Accrual.period == ""))
+    # Начисления по сделкам Kommo («ожидается» до продажи) убираем, когда эта услуга появилась в таблице:
+    # по ID сделки или по тому же другу у того же партнёра
+    table_leads = {r.lead_id for r in table.rows if r.lead_id}
+    covered: set[tuple[int, str]] = set()
+    for row in table.rows:
+        p = cache.get(row.partner) if row.partner else None
+        if p:
+            covered.add((p.id, short_name(row.client).lower()))
+    for acc in db.scalars(select(Accrual).where(Accrual.period == "")):
+        if acc.kommo_lead_id in table_leads or (acc.partner_id, (acc.client_display or "").lower()) in covered:
+            db.delete(acc)
     db.commit()
     return notes, report
 

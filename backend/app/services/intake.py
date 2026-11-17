@@ -16,13 +16,14 @@ from sqlalchemy.orm import Session
 
 from ..ai_docs import mime_for, read_document
 from ..kommo.base import KommoClient, KommoLead
-from ..kommo.mapping import CLIENT_FILES_FIELD, CLIENT_PIPELINE_IDS, CONTACT_FIELDS, LEAD_FIELDS, norm
+from ..kommo.mapping import CLIENT_FILES_FIELD, CLIENT_PIPELINE_IDS, CONTACT_FIELDS, LEAD_FIELDS, NO_PARTNER_VALUES, norm
 from ..models import IntakeRecord, ProgramSetting, ReminderSent, User
+from ..tariffs import find_tariffs
 from ..notify import kommo_lead_url, notify_managers, notify_user
 from ..sheets import send_intake
 from ..timeutil import utcnow
-from .cabinet import as_date, field_value
-from .partner import loose_key
+from .cabinet import as_date, as_int, field_value
+from .partner import find_partner_for_lead, loose_key
 
 log = logging.getLogger(__name__)
 
@@ -114,26 +115,98 @@ def _read_files(kommo: KommoClient, lead_id: int, skip: set[str] = frozenset()) 
     return out
 
 
+# Как услуги пишутся на листе «Производство» (обратно к table_sync.SERVICE_CODES)
+TABLE_LABEL = {"PERSONAL-COUNT": "Bank Card", "BRIDGE": "Bridge", "VOA": "VOA", "VOA-EXT": "VOA - ext", "C1": "C1",
+               "C1-EXT": "C1 - ext", "E33G": "E33G", "E33G-EXT": "E33G - ext", "DRIVER": "Driver's license",
+               "E31B/E-1": "Family", "E31B/E-2": "Family", "E31-EXT-1": "Family - ext", "E31-EXT-2": "Family - ext",
+               "D12-1": "D12 - 1", "D12-2": "D12 - 2", "D12-EXT": "D12 - ext", "PMA-1": "PT PMA", "E28A-1-P": "E28A",
+               "E28A-2-P": "E28A", "EPO": "EPO", "ETK-OUT": "ETK", "C18": "C18"}
+MONTHS = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
+
+
+def _people(kommo: KommoClient, lead: KommoLead, passports: list[dict]) -> list[tuple]:
+    """Люди сделки (семья — каждый своей строкой): (контакт, имя как в паспорте, паспорт)."""
+    contacts = kommo.get_contacts(lead.contact_ids[:8]) if lead.contact_ids else []
+    out, used = [], set()
+    for c in contacts:
+        names = [str(field_value(c.fields, CONTACT_FIELDS["full_name"]) or ""), c.name]
+        pp = next((p for i, p in enumerate(passports) if i not in used and name_matches(p.get("full_name"), names)), None)
+        if pp is None and len(contacts) == 1 and passports:
+            pp = passports[0]
+        if pp is not None:
+            used.add(passports.index(pp))
+        out.append((c, (pp or {}).get("full_name") or names[0] or c.name, pp or {}))
+    for i, p in enumerate(passports):  # паспорт есть, а контакта в сделке нет — тоже строка, менеджер добавит контакт
+        if i not in used and p.get("full_name"):
+            out.append((None, p["full_name"], p))
+    return out or [(None, lead.name, {})]
+
+
+AGREED_FIELD = "Закрепили"  # поле сделки (если создадут) — договорённости для производства
+
+
+def agreed_text(kommo: KommoClient, lead: KommoLead) -> str:
+    """Что менеджер «закрепил» с клиентом (должность, компания, детали визы): поле «Закрепили» или
+    последнее примечание сделки со словом «закреп…» (менеджер пишет его последним сообщением)."""
+    v = field_value(lead.fields, AGREED_FIELD)
+    if v:
+        return str(v).strip()
+    notes = [t for _, t in kommo.get_lead_notes(lead.id) if re.search(r"закреп", t, re.I)]
+    return notes[-1].strip()[:1500] if notes else ""
+
+
+def _contact_extra(c) -> dict:
+    if not c:
+        return {}
+    emails = c.fields.get("code:EMAIL") or []
+    folder = re.search(r"https://drive\.google\.com/[^\s,]+", " ".join(str(x) for x in (c.fields.get("raw:Документы") or [])))
+    return {"email": str(emails[0]) if emails else "", "address": str(field_value(c.fields, "Адрес в инд.") or ""),
+            "instagram": str(field_value(c.fields, "Instagram") or ""), "folder": folder.group(0) if folder else ""}
+
+
 def process_paid(db: Session, kommo: KommoClient, lead: KommoLead, apply: bool = True) -> dict | None:
-    """Заявка в производство. Возвращает отчёт (что сделано или было бы сделано при apply=False)."""
+    """Заявка в производство: строка на каждого человека и каждую услугу. Возвращает отчёт."""
     if db.get(IntakeRecord, lead.id):
         return None
-    contact = kommo.get_contact(lead.contact_ids[0]) if lead.contact_ids else None
     read = _read_files(kommo, lead.id)
     docs = [info for _, _, info in read]
-    passport = next((d for d in docs if d.get("doc_type") == "passport"), {})
+    passports = [d for d in docs if d.get("doc_type") == "passport"]
     service = service_of(lead)
     today = date.today()
     missing = check_missing(docs, service, today)
-    client = passport.get("full_name") or (contact and (field_value(contact.fields, CONTACT_FIELDS["full_name"]) or contact.name)) or lead.name
-    paid = field_value(lead.fields, LEAD_FIELDS["paid_amount"])
-    phone = contact.phones[0] if contact and contact.phones else ""
+    people = _people(kommo, lead, passports)
+    tariffs = find_tariffs(service)
+    partner = find_partner_for_lead(db, lead)
+    raw_partner = field_value(lead.fields, LEAD_FIELDS["partner"])
+    partner_word = (partner.codeword if partner and partner.codeword else
+                    (str(raw_partner) if raw_partner and norm(str(raw_partner)) not in NO_PARTNER_VALUES else ""))
+    paid = as_int(field_value(lead.fields, LEAD_FIELDS["paid_amount"]))
+    debt = as_int(field_value(lead.fields, LEAD_FIELDS["debt"]))
+    deadline = as_date(field_value(lead.fields, LEAD_FIELDS["deadline"]))
+    manager = kommo.user_name(lead.responsible_user_id)
     docs_text = "; ".join(f"{DOC_RU.get(d.get('doc_type'), d.get('doc_type'))} — {d.get('file')}" for d in docs) or "в сделке нет файлов"
-    row = [lead.id, today.strftime("%d.%m.%Y"), client, passport.get("nationality") or "", passport.get("passport_number") or "",
-           _fmt(passport.get("passport_expiry")), _fmt(passport.get("birth_date")), service, kommo.user_name(lead.responsible_user_id),
-           lead.price or "", paid or "", phone, "{folder}", docs_text, "; ".join(missing) or "всё на месте",
-           kommo_lead_url(lead.id) or "", "Новая — проверить данные ИИ"]
-    report = {"lead_id": lead.id, "client": client, "service": service, "docs": docs, "missing": missing, "row": row}
+    agreed = agreed_text(kommo, lead)
+    services = tariffs or [None]
+    n_rows = len(people) * len(services)
+    rows, first = [], True
+    for c, pname, pp in people:
+        phone = c.phones[0] if c and c.phones else ""
+        ex = _contact_extra(c)
+        contacts_cell = ", ".join(x for x in (phone, ex.get("email"), ex.get("instagram")) if x)
+        comment = "; ".join(x for x in ((f"Закрепили: {agreed}" if agreed else ""), (f"Адрес: {ex['address']}" if ex.get("address") else ""),
+                                        "; ".join(missing)) if x)
+        for t in services:
+            price = (t.price if t and n_rows > 1 else lead.price) or ""
+            rows.append([today.year, MONTHS[today.month - 1], today.strftime("%d.%m.%Y"), manager, partner_word, "",
+                         TABLE_LABEL.get(t.code, t.code) if t else service, "Kommo", contacts_cell, docs_text, ex.get("folder") or "{folder}",
+                         deadline.strftime("%d.%m.%Y") if deadline else "", "", "1. Подать документы", pname, "", "",
+                         comment, "", price, "", (paid if first and paid is not None else ""),
+                         (debt if first and debt is not None else ""), ((t.l1 or "") if t and partner_word else ""), "", "",
+                         lead.id, "Новая — проверить данные ИИ", kommo_lead_url(lead.id) or ""])
+            first = False
+    client = people[0][1]
+    report = {"lead_id": lead.id, "client": client, "service": service, "docs": docs, "missing": missing, "rows": rows,
+              "people": [p[1] for p in people], "agreed": agreed}
     if not apply:
         return report
 
@@ -146,7 +219,9 @@ def process_paid(db: Session, kommo: KommoClient, lead: KommoLead, apply: bool =
             upload.append(f)
             total += size
     folder = f"{client} — {service} — {lead.id}"[:150]
-    res = send_intake(folder, row, upload)
+    client_folder = next((_contact_extra(c).get("folder") for c, _, _ in people if _contact_extra(c).get("folder")), "")
+    m = re.search(r"/folders/([A-Za-z0-9_-]{10,})", client_folder or "")
+    res = send_intake(folder, rows, upload, folder_id=m.group(1) if m else None)
     if not res.get("ok"):
         key = f"intake-fail:{lead.id}"
         if not db.get(ReminderSent, key):
@@ -156,24 +231,38 @@ def process_paid(db: Session, kommo: KommoClient, lead: KommoLead, apply: bool =
         report["error"] = res.get("error")
         return report
 
-    if contact and passport:
+    filled = []
+    for c, _, pp in people:  # пустые поля контакта — из паспорта этого человека
+        if not c or not pp:
+            continue
         values = {}
-        for key, val in (("full_name", passport.get("full_name")), ("citizenship", passport.get("nationality")),
-                         ("passport_until", _d(passport.get("passport_expiry")))):
-            if val and not field_value(contact.fields, CONTACT_FIELDS[key]):
+        for key, val in (("full_name", pp.get("full_name")), ("citizenship", pp.get("nationality")),
+                         ("passport_until", _d(pp.get("passport_expiry")))):
+            if val and not field_value(c.fields, CONTACT_FIELDS[key]):
                 values[CONTACT_FIELDS[key]] = val
         if values:
-            report["kommo_filled"] = kommo.update_fields("contacts", contact.id, values)
+            filled += kommo.update_fields("contacts", c.id, values)
+    report["kommo_filled"] = filled
     url = res.get("folder_url") or ""
     try:
-        kommo.add_note(lead.id, "📋 Заявка в производство создана автоматически.\n"
+        kommo.add_note(lead.id, "📋 Заявка в производство создана автоматически (лист «Заявки авто»).\n"
                                 f"Папка: {url}\nНе хватает / проверить: {'; '.join(missing) or 'всё на месте'}")
     except Exception:
         log.warning("Не удалось добавить примечание в сделку %s", lead.id)
-    notify_managers("📋 Заявка в производство", [f"{client} — {service}",
-                                                   ("❗ " + "; ".join(missing)) if missing else "✅ Документы на месте",
-                                                   f"Папка: {url}" if url else ""], lead.id)
-    db.add(IntakeRecord(lead_id=lead.id, passport_name=passport.get("full_name"), folder_url=url,
+    c0 = people[0][0]
+    ex0 = _contact_extra(c0)
+    notify_managers("====New Client====", [
+        f"ФИО: {', '.join(p[1] for p in people)}",
+        f"КОНТАКТ: {', '.join(x for x in ((c0.phones[0] if c0 and c0.phones else ''), ex0.get('email'), ex0.get('instagram')) if x) or '—'}",
+        f"УСЛУГА: {service}",
+        f"ЦЕНА: {lead.price:,} · ОПЛАТА: {paid if paid is not None else '—'} · ДОЛГ: {debt if debt is not None else '—'}".replace(",", " "),
+        f"ДОКУМЕНТЫ: {url or ex0.get('folder') or '—'}",
+        f"АДРЕС: {ex0['address']}" if ex0.get("address") else "",
+        f"ПАРТНЕР: {partner_word or '—'}",
+        f"ЗАКРЕПИЛИ: {agreed}" if agreed else "ЗАКРЕПИЛИ: — (менеджер, допишите примечанием «Закрепляем: …»)",
+        ("❗ " + "; ".join(missing)) if missing else "✅ Документы на месте",
+    ], lead.id)
+    db.add(IntakeRecord(lead_id=lead.id, passport_name=client, folder_url=url,
                         missing="; ".join(missing), checked_files=[]))
     db.commit()
     report["folder_url"] = url

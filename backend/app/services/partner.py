@@ -278,9 +278,16 @@ def sync_all(db: Session, kommo: KommoClient, since: datetime) -> list[tuple[int
     for lead in kommo.get_leads_updated_since(since):
         try:
             autofill_partner(db, kommo, lead)
+            accs = sync_lead(db, kommo, lead)
             if table_mode:
-                continue
-            for acc in sync_lead(db, kommo, lead):
+                # Kommo — только «ожидается» (друг закреплён, услуга в работе); к выплате и выплачено — по таблице
+                for acc in accs:
+                    if acc.status in ("confirmed", "to_payout", "paid"):
+                        acc.status, acc.hold_until = "in_work", None
+                    ev = [e for e in acc.__dict__.pop("_events", []) if e[1] in ("awaiting_payment", "in_work")]
+                    if ev:
+                        acc.__dict__["_events"] = ev[-1:]
+            for acc in accs:
                 for old, new in acc.__dict__.pop("_events", []):
                     if new == "review" or (old is None and new not in ("awaiting_payment", "in_work")):
                         continue  # при первой синхронизации старых сделок не засыпаем партнёра сообщениями

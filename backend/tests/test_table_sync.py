@@ -59,11 +59,14 @@ def test_accruals_from_table(db):
     assert len(list(db.scalars(select(Accrual)))) == 2  # Ольга (выплачено) остаётся, строка Анны — одна
 
 
-def test_old_kommo_accruals_removed(db):
-    db.add(Accrual(partner_id=1, level=1, kommo_lead_id=555, period="", client_display="X", amount=1))
+def test_kommo_expected_replaced_only_when_in_table(db):
+    # «ожидается» по Kommo: Ольга уже есть в таблице у этого партнёра → убираем; Пётр ещё нет → остаётся
+    db.add(Accrual(partner_id=1, level=1, kommo_lead_id=555, period="", client_display="Kyzlasova O.", amount=1, status="in_work"))
+    db.add(Accrual(partner_id=1, level=1, kommo_lead_id=556, period="", client_display="Petr P.", amount=1, status="in_work"))
     db.commit()
     ts.sync_accruals(db, ts.parse_table(DATA))
     assert not db.scalar(select(Accrual).where(Accrual.kommo_lead_id == 555))
+    assert db.scalar(select(Accrual).where(Accrual.kommo_lead_id == 556))
 
 
 def test_visa_updates_latest_date_and_field():

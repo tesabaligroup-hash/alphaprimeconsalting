@@ -132,6 +132,9 @@ class MockKommo:
         self.updated.append((entity, entity_id, dict(values)))
         return [k for k, v in values.items() if v not in (None, "")]
 
+    def get_lead_notes(self, lead_id):
+        return getattr(self, "lead_notes", {}).get(lead_id, [])
+
     def add_note(self, lead_id, text):
         self.notes = getattr(self, "notes", [])
         self.notes.append((lead_id, text))

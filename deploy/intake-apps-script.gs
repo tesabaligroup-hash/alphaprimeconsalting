@@ -14,9 +14,13 @@ const SHEET_NAME = 'Заявки авто';
 function doPost(e) {
   const d = JSON.parse(e.postData.contents);
   if (d.secret !== SECRET) return out_({ ok: false, error: 'неверный секрет' });
-  const root = root_();
-  const found = root.getFoldersByName(d.folder_name);
-  const folder = found.hasNext() ? found.next() : root.createFolder(d.folder_name);
+  let folder = null;
+  if (d.folder_id) { try { folder = DriveApp.getFolderById(d.folder_id); } catch (err) { folder = null; } }  // папка клиента из Kommo
+  if (!folder) {
+    const root = root_();
+    const found = root.getFoldersByName(d.folder_name);
+    folder = found.hasNext() ? found.next() : root.createFolder(d.folder_name);
+  }
   (d.files || []).forEach(function (f) {
     if (!folder.getFilesByName(f.name).hasNext()) {
       folder.createFile(Utilities.newBlob(Utilities.base64Decode(f.data), f.mime, f.name));
@@ -26,15 +30,21 @@ function doPost(e) {
   let sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) {
     sh = ss.insertSheet(SHEET_NAME);
-    sh.appendRow(d.header);
     sh.setFrozenRows(1);
-    sh.getRange(1, 1, 1, d.header.length).setFontWeight('bold').setBackground('#FBF7EC');
   }
-  const row = d.row.map(function (v) { return v === '{folder}' ? folder.getUrl() : v; });
-  const ids = sh.getRange(1, 1, Math.max(sh.getLastRow(), 1), 1).getValues().map(function (r) { return String(r[0]); });
-  const at = ids.indexOf(String(row[0]));
-  if (at > 0) sh.getRange(at + 1, 1, 1, row.length).setValues([row]);
-  else sh.appendRow(row);
+  // Колонки — как на листе «Производство» (строку можно скопировать туда целиком) + «ID сделки» + «Проверить»
+  sh.getRange(1, 1, 1, d.header.length).setValues([d.header]).setFontWeight('bold').setBackground('#FBF7EC');
+  const idCol = d.header.indexOf('ID сделки');
+  const nameCol = d.header.indexOf('Клиент');
+  const last = Math.max(sh.getLastRow(), 1);
+  const have = sh.getRange(1, 1, last, d.header.length).getValues()
+    .map(function (r) { return String(r[idCol]) + '|' + String(r[nameCol]); });
+  (d.rows || [d.row]).forEach(function (r) {
+    const row = r.map(function (v) { return v === '{folder}' ? folder.getUrl() : v; });
+    const at = have.indexOf(String(row[idCol]) + '|' + String(row[nameCol]));
+    if (at > 0) sh.getRange(at + 1, 1, 1, row.length).setValues([row]);
+    else { sh.appendRow(row); have.push(String(row[idCol]) + '|' + String(row[nameCol])); }
+  });
   return out_({ ok: true, folder_url: folder.getUrl() });
 }
 
@@ -68,8 +78,8 @@ function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   return out_({
     ok: true,
-    // Производство: №строки, C начало, D менеджер, E партнёр, G услуга, I контакты, N статус, O клиент, T цена, V оплатил, W долг, X доля партнёров
-    production: cols_(ss.getSheetByName('Производство'), [3, 4, 5, 7, 9, 14, 15, 20, 22, 23, 24], true),
+    // Производство: №строки, C начало, D менеджер, E партнёр, G услуга, I контакты, N статус, O клиент, T цена, V оплатил, W долг, X доля партнёров, AA ID сделки
+    production: cols_(ss.getSheetByName('Производство'), [3, 4, 5, 7, 9, 14, 15, 20, 22, 23, 24, 27], true),
     // Продления: A виза, B клиент, F статус, H дата окончания (колонки с логинами/паролями не читаются)
     renewals: cols_(ss.getSheetByName('Продления и доступы'), [1, 2, 6, 8], false)
       .concat(cols_(ss.getSheetByName('Новые продления'), [1, 2, 6, 8], false)),

@@ -366,6 +366,19 @@ class RealKommo:
             self._patch(f"/{entity}", [{"id": entity_id, "custom_fields_values": out}])
         return done
 
+    def get_lead_notes(self, lead_id: int) -> list[tuple[datetime | None, str]]:
+        """Текстовые примечания сделки (новые — последними): здесь менеджер пишет «Закрепляем: …»."""
+        try:
+            data = self._get(f"/leads/{lead_id}/notes", params={"limit": 100})
+        except Exception:
+            return []
+        out = []
+        for n in (data.get("_embedded") or {}).get("notes", []):
+            text = (n.get("params") or {}).get("text")
+            if text:
+                out.append((_ts(n.get("created_at")), str(text)))
+        return sorted(out, key=lambda x: x[0] or datetime.min)
+
     def add_note(self, lead_id: int, text: str) -> None:
         self._post(f"/leads/{lead_id}/notes", [{"note_type": "common", "params": {"text": text}}])
 

@@ -19,7 +19,7 @@ def env(monkeypatch):
     k = MockKommo()
     k.file_bytes = {"p": (b"pdf", "passport.pdf"), "ph": (b"jpg", "photo.jpg"), "v": (b"pdf", "ITK.pdf"), "x": (b"pdf", "ITK other.pdf")}
     sent, notes = [], []
-    monkeypatch.setattr(intake, "send_intake", lambda folder, row, files: sent.append((folder, row, files)) or {"ok": True, "folder_url": "https://drive/f"})
+    monkeypatch.setattr(intake, "send_intake", lambda folder, row, files, folder_id=None: sent.append((folder, row, files)) or {"ok": True, "folder_url": "https://drive/f"})
     monkeypatch.setattr(intake, "notify_managers", lambda title, lines, lead_id=None: notes.append((title, lines)))
     monkeypatch.setattr(intake, "notify_user", lambda tg, text: True)
     return db, k, sent, notes
@@ -39,9 +39,14 @@ def test_paid_creates_intake_and_fills_contact(env, monkeypatch):
     dry = intake.process_paid(db, k, lead, apply=False)
     assert not sent and "для KITAS проверить срок" in "; ".join(dry["missing"])
     rep = intake.process_paid(db, k, lead)
-    assert sent and sent[0][1][2] == "ANNA DIKINA" and len(sent[0][2]) == 2
+    rows = sent[0][1]
+    from app.sheets import HEADER
+    col = {h: i for i, h in enumerate(HEADER)}
+    assert len(rows) == 1 and rows[0][col["Клиент"]] == "ANNA DIKINA" and rows[0][col["Услуга"]] == "E33G"
+    assert rows[0][col["ID сделки"]] == 1001 and rows[0][col["Куда пришли деньги 2"]] == "1. Подать документы"
+    assert len(rows[0]) == len(HEADER) and len(sent[0][2]) == 2
     assert db.get(IntakeRecord, 1001).folder_url == "https://drive/f"
-    assert notes[-1][0] == "📋 Заявка в производство"
+    assert notes[-1][0] == "====New Client====" and any("ЗАКРЕПИЛИ" in x for x in notes[-1][1])
     assert intake.process_paid(db, k, lead) is None  # второй раз — не дублируем
 
 
@@ -69,3 +74,24 @@ def test_name_matches():
     assert intake.name_matches("DIKINA ANNA", ["ANNA DIKINA"])
     assert intake.name_matches("ANNA DIKINA", [None, "Анна Дикина"])
     assert not intake.name_matches("IVAN PETROV", ["ANNA DIKINA"])
+
+
+def test_family_deal_row_per_person(env, monkeypatch):
+    db, k, sent, notes = env
+    _docs(monkeypatch, {"p1.pdf": {"doc_type": "passport", "full_name": "ANNA DIKINA"},
+                        "p2.pdf": {"doc_type": "passport", "full_name": "MIKHAIL DIKIN"}})
+    k.file_bytes.update({"a": (b"x", "p1.pdf"), "b": (b"x", "p2.pdf")})
+    monkeypatch.setattr(k, "get_lead_files", lambda lead_id: [KommoFile("a", "p1.pdf", None), KommoFile("b", "p2.pdf", None)])
+    lead = k.get_leads([1001])[0]
+    lead.contact_ids = [501, 502]
+    rep = intake.process_paid(db, k, lead, apply=False)
+    assert rep["people"] == ["ANNA DIKINA", "MIKHAIL DIKIN"] and len(rep["rows"]) == 2
+
+
+def test_agreed_from_last_note(env, monkeypatch):
+    db, k, sent, notes = env
+    monkeypatch.setattr(k, "get_lead_files", lambda lead_id: [])
+    k.lead_notes = {1001: [(None, "позвонить завтра"), (None, "Закрепляем: должность Marketing Manager в PT ABC, E33G")]}
+    rep = intake.process_paid(db, k, k.get_leads([1001])[0], apply=False)
+    from app.sheets import HEADER
+    assert rep["agreed"].startswith("Закрепляем: должность") and "Закрепили:" in rep["rows"][0][HEADER.index("Комментарии")]
