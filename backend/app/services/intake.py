@@ -210,7 +210,7 @@ def process_paid(db: Session, kommo: KommoClient, lead: KommoLead, apply: bool =
     if not apply:
         return report
 
-    files = [{"name": info["file"], "mime": mime_for(info["file"]) or "application/octet-stream",
+    files = [{"name": info["file"], "mime": mime_for(info["file"], data) or "application/octet-stream",
               "data": base64.b64encode(data).decode()} for _, data, info in read if data]
     total, upload = 0, []
     for f in files:

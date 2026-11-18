@@ -12,6 +12,10 @@ const ROOT_FOLDER_ID = ''; // можно оставить пустым — ск�
 const SHEET_NAME = 'Заявки авто';
 
 function doPost(e) {
+  try { return post_(e); } catch (err) { return out_({ ok: false, error: String(err) }); }  // всегда отвечаем JSON
+}
+
+function post_(e) {
   const d = JSON.parse(e.postData.contents);
   if (d.secret !== SECRET) return out_({ ok: false, error: 'неверный секрет' });
   let folder = null;
@@ -33,6 +37,7 @@ function doPost(e) {
     sh.setFrozenRows(1);
   }
   // Колонки — как на листе «Производство» (строку можно скопировать туда целиком) + «ID сделки» + «Проверить»
+  if (sh.getMaxColumns() < d.header.length) sh.insertColumnsAfter(sh.getMaxColumns(), d.header.length - sh.getMaxColumns());
   sh.getRange(1, 1, 1, d.header.length).setValues([d.header]).setFontWeight('bold').setBackground('#FBF7EC');
   const idCol = d.header.indexOf('ID сделки');
   const nameCol = d.header.indexOf('Клиент');
@@ -40,7 +45,8 @@ function doPost(e) {
   const have = sh.getRange(1, 1, last, d.header.length).getValues()
     .map(function (r) { return String(r[idCol]) + '|' + String(r[nameCol]); });
   (d.rows || [d.row]).forEach(function (r) {
-    const row = r.map(function (v) { return v === '{folder}' ? folder.getUrl() : v; });
+    // текст, похожий на формулу (+7…, =…), пишем как текст
+    const row = r.map(function (v) { v = v === '{folder}' ? folder.getUrl() : v; return (typeof v === 'string' && /^[=+\-@]/.test(v)) ? "'" + v : v; });
     const at = have.indexOf(String(row[idCol]) + '|' + String(row[nameCol]));
     if (at > 0) sh.getRange(at + 1, 1, 1, row.length).setValues([row]);
     else { sh.appendRow(row); have.push(String(row[idCol]) + '|' + String(row[nameCol])); }

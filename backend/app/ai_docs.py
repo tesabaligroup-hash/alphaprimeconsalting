@@ -27,7 +27,27 @@ other — всё остальное (чеки, договоры, справки,
 Не выдумывай: чего не видно — null."""
 
 
-def mime_for(name: str) -> str | None:
+def sniff(data: bytes) -> str | None:
+    """Тип файла по содержимому (в Kommo у файлов часто нет расширения: «personal», «file», «Паспорт загран»)."""
+    head = data[:16]
+    if head.startswith(b"%PDF"):
+        return "application/pdf"
+    if head.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if head.startswith(b"\x89PNG"):
+        return "image/png"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    if head[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    return None
+
+
+def mime_for(name: str, data: bytes | None = None) -> str | None:
+    if data:
+        m = sniff(data)
+        if m:
+            return m
     n = (name or "").lower()
     if n.endswith(".pdf"):
         return "application/pdf"
@@ -57,9 +77,9 @@ def read_document(data: bytes, name: str) -> dict:
 def _read(data: bytes, name: str, model: str) -> dict:
     """{"doc_type": …, …}. Если файл не читается (формат, размер, нет ключа) — {"doc_type": "unknown", "note": …}."""
     s = get_settings()
-    mime = mime_for(name)
+    mime = mime_for(name, data)
     if not mime:
-        return {"doc_type": "unknown", "note": "формат файла не читается (нужен PDF/JPG/PNG)"}
+        return {"doc_type": "unknown", "note": "формат файла не читается (нужен PDF/JPG/PNG; фото HEIC — пересохранить в JPG)"}
     if len(data) > MAX_BYTES:
         return {"doc_type": "unknown", "note": "файл больше 10 МБ"}
     if not s.anthropic_api_key:

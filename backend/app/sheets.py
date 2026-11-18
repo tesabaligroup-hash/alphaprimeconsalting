@@ -24,7 +24,13 @@ def send_intake(folder_name: str, rows: list[list], files: list[dict], folder_id
         r = httpx.post(s.intake_script_url, timeout=120, follow_redirects=True,
                        json={"secret": s.intake_script_secret, "folder_name": folder_name, "header": HEADER,
                              "rows": rows, "files": files, "folder_id": folder_id})
-        data = r.json()
+        try:
+            data = r.json()
+        except ValueError:  # Google вернул страницу с ошибкой вместо ответа скрипта
+            import re as _re
+            text = _re.sub(r"<[^>]+>", " ", r.text)
+            text = _re.sub(r"\s+", " ", text).strip()
+            return {"ok": False, "error": f"скрипт таблицы ответил ошибкой (HTTP {r.status_code}): {text[:300]}"}
     except Exception as exc:
         log.warning("Таблица производства недоступна: %s", exc)
         return {"ok": False, "error": str(exc)}
