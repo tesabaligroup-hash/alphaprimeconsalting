@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 PAID_STATUSES = {"оплата получена"}
 READY_STATUSES = {"услуга готова"}
 MAX_FILES = 15
-MAX_UPLOAD = 30 * 1024 * 1024
+MAX_UPLOAD = 15 * 1024 * 1024
 DOC_RU = {"passport": "паспорт", "photo": "фото", "visa": "виза", "itk": "ITK", "other": "другое", "unknown": "не прочитан"}
 
 
@@ -211,7 +211,8 @@ def process_paid(db: Session, kommo: KommoClient, lead: KommoLead, apply: bool =
         return report
 
     files = [{"name": info["file"], "mime": mime_for(info["file"], data) or "application/octet-stream",
-              "data": base64.b64encode(data).decode()} for _, data, info in read if data]
+              "data": base64.b64encode(data).decode()} for _, data, info in read
+             if data and info.get("doc_type") in ("passport", "photo", "visa", "itk")]  # чеки/скриншоты в папку не кладём
     total, upload = 0, []
     for f in files:
         size = len(f["data"]) * 3 // 4

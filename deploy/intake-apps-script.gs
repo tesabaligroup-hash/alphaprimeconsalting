@@ -10,6 +10,7 @@
 const SECRET = 'ВСТАВЬТЕ_СЕКРЕТ';          // тот же, что INTAKE_SCRIPT_SECRET на сервере
 const ROOT_FOLDER_ID = ''; // можно оставить пустым — скрипт сам создаст на Диске папку «Клиенты Alpha Prime»
 const SHEET_NAME = 'Заявки авто';
+const VERSION = 5;  // проверка в браузере: ссылка …/exec?secret=…&action=version
 
 function doPost(e) {
   try { return post_(e); } catch (err) { return out_({ ok: false, error: String(err) }); }  // всегда отвечаем JSON
@@ -68,6 +69,7 @@ function out_(obj) {
 function doGet(e) {
   const p = e.parameter || {};
   if (p.secret !== SECRET) return out_({ ok: false, error: 'неверный секрет' });
+  if (p.action === 'version') return out_({ ok: true, version: VERSION });
   // Документы клиентов с Диска (папка из поля «Документы» в Kommo)
   if (p.action === 'list') {
     try { return out_({ ok: true, files: list_(DriveApp.getFolderById(p.folder), '', 0) }); }
