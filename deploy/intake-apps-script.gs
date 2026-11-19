@@ -10,7 +10,7 @@
 const SECRET = 'ВСТАВЬТЕ_СЕКРЕТ';          // тот же, что INTAKE_SCRIPT_SECRET на сервере
 const ROOT_FOLDER_ID = ''; // можно оставить пустым — скрипт сам создаст на Диске папку «Клиенты Alpha Prime»
 const SHEET_NAME = 'Заявки авто';
-const VERSION = 5;  // проверка в браузере: ссылка …/exec?secret=…&action=version
+const VERSION = 6;  // проверка в браузере: ссылка …/exec?secret=…&action=version
 
 function doPost(e) {
   try { return post_(e); } catch (err) { return out_({ ok: false, error: String(err) }); }  // всегда отвечаем JSON
@@ -26,11 +26,6 @@ function post_(e) {
     const found = root.getFoldersByName(d.folder_name);
     folder = found.hasNext() ? found.next() : root.createFolder(d.folder_name);
   }
-  (d.files || []).forEach(function (f) {
-    if (!folder.getFilesByName(f.name).hasNext()) {
-      folder.createFile(Utilities.newBlob(Utilities.base64Decode(f.data), f.mime, f.name));
-    }
-  });
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) {
@@ -52,7 +47,24 @@ function post_(e) {
     if (at > 0) sh.getRange(at + 1, 1, 1, row.length).setValues([row]);
     else { sh.appendRow(row); have.push(String(row[idCol]) + '|' + String(row[nameCol])); }
   });
-  return out_({ ok: true, folder_url: folder.getUrl() });
+  // файлы — в конце и по одному: если в папку клиента нельзя писать (доступ «только просмотр»), кладём в «Клиенты Alpha Prime»
+  const fileErrors = [];
+  (d.files || []).forEach(function (f) {
+    try {
+      if (!folder.getFilesByName(f.name).hasNext()) {
+        folder.createFile(Utilities.newBlob(Utilities.base64Decode(f.data), f.mime, f.name));
+      }
+    } catch (err) {
+      try {
+        const root = root_();
+        const found = root.getFoldersByName(d.folder_name);
+        const spare = found.hasNext() ? found.next() : root.createFolder(d.folder_name);
+        spare.createFile(Utilities.newBlob(Utilities.base64Decode(f.data), f.mime, f.name));
+        fileErrors.push(f.name + ': нет доступа к папке клиента — положили в «Клиенты Alpha Prime»');
+      } catch (err2) { fileErrors.push(f.name + ': ' + err2); }
+    }
+  });
+  return out_({ ok: true, folder_url: folder.getUrl(), file_errors: fileErrors, version: VERSION });
 }
 
 function root_() {
