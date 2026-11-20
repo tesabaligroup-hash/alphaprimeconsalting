@@ -392,7 +392,6 @@ const STEPS=[
   {k:'terms',t:'Учебник: прочитать и выписать термины',ic:'✍️',photo:true,note:'Сфотографируй тетрадь с терминами'},
   {k:'tasks',t:'Задания в тетради',ic:'📝',photo:true,note:'Устно — только если так написано в учебнике'},
   {k:'test',t:'Тест (нужно 80% и больше)',ic:'✅',test:true},
-  {k:'fb',t:'Обратная связь',ic:'💬'},
 ];
 /* ===== Программа «Онлайн-школа №1», 3 класс, I–II четверть ===== */
 // Q — номер урока, с которого начинается II четверть
@@ -597,6 +596,7 @@ function load(){try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
   if(!S.schedWD.find(x=>x.id==='neuro')){const i=S.schedWD.findIndex(x=>x.id==='bagpack');S.schedWD.splice(i<0?S.schedWD.length:i,0,{id:'neuro',part:'d',at:'17:00',by:'19:00',e:'🎾',nm:'Нейро-мячики, 10 минут',cr:3})}
   if(!S.schedWE.find(x=>x.id==='neuro')){const i=S.schedWE.findIndex(x=>x.part==='e');S.schedWE.splice(i<0?S.schedWE.length:i,0,{id:'neuro',part:'d',at:'10:00',by:'13:00',e:'🎾',nm:'Нейро-мячики, 10 минут',cr:3})}
   if(!S.books)S.books=[];if(!S.neuro)S.neuro={};
+  if(!S.fbFix&&S.prog){S.fbFix=1;S.pendL=S.pendL||[];S.log=S.log||[];for(const sb in S.prog)for(const n in S.prog[sb]){const x=S.prog[sb][n];if(['prog','fix','returned'].includes(x.st)&&(x.step||0)>=5&&x.test>=80){x.st='review';const k=sb+':'+n;if(!S.pendL.find(p=>p.k===k))S.pendL.push({k,date:(S.day&&S.day.date)||'',test:x.test,photos:x.photos||{}});S.log.push({date:(S.day&&S.day.date)||'',k,act:'done',test:x.test})}}}
   if((S.schedV||0)<2){S.schedWE=JSON.parse(JSON.stringify(SCHED_WE));S.schedV=2}
   const sw=S.schedWE.find(x=>x.id==='sleep');if(sw&&sw.at==='21:00'&&!S.sleepFix){sw.at='21:30';sw.by='22:00';S.sleepFix=1}
 }
@@ -956,7 +956,7 @@ $('#fileIn').onchange=e=>{const file=e.target.files[0];if(!file||!photoCtx)retur
     const l=lstart(photoCtx.k);l.photos=l.photos||{};l.photos[photoCtx.step]=c.toDataURL('image/jpeg',.6);l.step++;earn({xp:10,pxp:12},photoCtx.btn);renderStudy()};im.src=r.result};r.readAsDataURL(file)};
 function submitTest(k,btn){const{s,n}=LP(k);const v=parseInt($(`#t_${s}_${n}`).value);if(isNaN(v)||v<0||v>100){toast('Введи результат теста от 0 до 100');return}
   const l=lstart(k);l.test=v;S.day.tests.push(v);
-  if(v>=80){l.step++;l.st='prog';earn({xp:20,pxp:30},btn);toast(`✅ Тест ${v}%! Остался последний шаг — обратная связь`)}
+  if(v>=80){l.step++;l.st='prog';earn({xp:20,pxp:30},btn);finishLesson(k,btn)}
   else{l.st='fix';earn({xp:3,count:false},btn);toast(`${v}% — ошибки помогают учиться! Разбери их и попробуй ещё раз 💪`)}
   renderStudy()}
 function finishLesson(k,btn){const{s,n}=LP(k),l=lget(k);l.st='review';if(!S.day.did.includes(k))S.day.did.push(k);
@@ -1169,7 +1169,7 @@ function renderParent(){const wk=weekStats();
     const rcs=Object.entries(S.roomChecks||{}).sort().reverse().slice(0,3);if(rcs.length)h+=`<div class="card"><h3>🧹 Комната перед сном</h3>${rcs.map(([d,rc])=>`<div class="prow"><span class="tx">${d}<small>${rc.st==='ok'?(rc.doubt?'⚠️ ИИ сомневается — посмотри фото':'засчитано по фото'):rc.st==='fail'?'не убралась — штраф':'мама не засчитала'}</small></span>${rc.st==='ok'?`<button class="btn small ghost" onclick="act({t:'rejRoom',d:'${d}'})">Не засчитать −5💎</button>`:''}<div style="width:100%;display:grid;grid-template-columns:repeat(4,1fr);gap:6px">${Object.values(rc.ph).map(src=>`<img src="${src}" style="width:100%;border-radius:10px">`).join('')}</div></div>`).join('')}</div>`;
     h+=`<div class="card"><h3>📊 Неделя</h3><div class="kpis"><div class="kpi"><b>${wk.lessons}/${wk.total}</b><span>уроков сдано</span></div><div class="kpi"><b>${wk.avg??'—'}${wk.avg!=null?'%':''}</b><span>средний тест</span></div><div class="kpi"><b>${wk.ontime}/${wk.sched}</b><span>режим вовремя</span></div><div class="kpi"><b>${wk.miss}</b><span>пропущено дел</span></div><div class="kpi"><b>${weekPages()}</b><span>страниц прочитано</span></div><div class="kpi"><b>${neuroDaysThisWeek()}/5</b><span>нейро-мячики</span></div><div class="kpi"><b>🔥 ${S.streak||0}</b><span>дней подряд (рекорд ${S.best||0})</span></div><div class="kpi"><b>${(S.badges||[]).length}</b><span>значков</span></div></div>
       <div class="muted" style="font-size:13px">Тесты: ${wk.tests.length?wk.tests.join('%, ')+'%':'пока нет'}. Сводка приходит в Telegram по воскресеньям.</div><button class="btn small gold" style="margin-top:10px" onclick="act({t:'bonus'})">Выдать бонус недели +20 ⭐</button></div>`;
-    h+=`<div class="card"><h3>📝 Уроки на проверке (${S.pendL.length})</h3>`;if(!S.pendL.length)h+=`<div class="muted">Пока нечего проверять</div>`;
+    h+=`<div class="card"><h3>📝 Уроки на проверке (${S.pendL.length})</h3>${S.pendL.length>1?`<button class="btn mint" style="width:100%;margin-bottom:8px" onclick="act({t:'appAll'})">✅ Принять все уроки (${S.pendL.length})</button>`:''}`;if(!S.pendL.length)h+=`<div class="muted">Пока нечего проверять</div>`;
     S.pendL.forEach((p,k)=>{const{s,n}=LP(p.k);h+=`<div class="prow"><span class="tx">${SUBJ[s].e} ${SUBJ[s].nm}, урок ${n}<small>${ltitle(s,n)} · ${p.date} · тест ${p.test}%</small></span><button class="btn small" onclick="act({t:'appL',k:'${p.k}'})">✓ Принять</button><button class="btn small ghost" onclick="act({t:'retL',k:'${p.k}'})">↩︎ Вернуть</button><div style="width:100%">${Object.entries(p.photos).map(([k,src])=>`<div class="muted" style="font-size:12px">${(STEPS.find(s=>s.k===k)||{t:k}).t}</div><img class="photo-big" src="${src}">`).join('')||'<small>Без фото</small>'}</div></div>`});
     h+=`</div><div class="card"><h3>✍️ Диктанты на проверке (${(S.pendD||[]).length})</h3>`;if(!(S.pendD||[]).length)h+=`<div class="muted">Пока нечего проверять</div>`;
     (S.pendD||[]).forEach(p=>{const ds=((S.dict||{})[p.wk]||{})[p.tp];if(!ds)return;const id=p.wk+p.tp;const words=(ds.items||[]).join(' ').split(/\s+/).map(w=>w.replace(/[.,!?«»:;—]/g,'')).filter(Boolean);
@@ -1367,6 +1367,7 @@ function applyCmd(c){
   else if(c.t==='retL'){const i=S.pendL.findIndex(p=>p.k===c.k);if(i<0)return;const p=S.pendL.splice(i,1)[0];const x=lget(p.k);if(x){x.st='returned';x.step=2;x.photos={}}if(!S.day.lessons.includes(p.k))S.day.lessons.push(p.k)}
   else if(c.t==='okR'){const r=S.pendR.find(r=>r.id===c.id&&r.date===c.date&&r.st==='wait');if(r)r.st='ok'}
   else if(c.t==='noR'){const r=S.pendR.find(r=>r.id===c.id&&r.date===c.date&&r.st==='wait');if(r){r.st='no';S.stars+=REWARDS.find(x=>x.id===r.id).price}}
+  else if(c.t==='appAll'){let n=0,st=0;for(const p of S.pendL.splice(0)){const x=lget(p.k);if(x)x.st='done';const add=5+(p.test>=95?2:0);S.stars+=add;st+=add;n++}if(!MAMA&&n){chime([523,659,784,1047]);toast(`⭐ Мама проверила все уроки! +${st}`)}}
   else if(c.t==='bonus'){S.stars+=20;if(!MAMA)toast('⭐ Бонус недели от мамы: +20!')}
   else if(c.t==='rejRoom'){const rc=(S.roomChecks||{})[c.d];if(!rc||rc.st!=='ok')return;rc.st='rejected';S.crystals=Math.max(0,S.crystals-5);const b=S.mess.length;addMess(['toy','book','paper','candy','stain']);addMess(['sock','shirt']);S.newMess=S.mess.length-b}
   else if(c.t==='appD'){const ds=(S.dict||{})[c.wk];if(!ds||!ds[c.tp]||ds[c.tp].st!=='review')return;const e=c.errs||[];ds[c.tp].st='done';ds[c.tp].errs=e;S.pendD=(S.pendD||[]).filter(p=>!(p.wk===c.wk&&p.tp===c.tp));
