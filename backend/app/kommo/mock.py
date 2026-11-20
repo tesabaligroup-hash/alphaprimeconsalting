@@ -111,6 +111,11 @@ class MockKommo:
         self.partner_set[lead_id] = value
         return True
 
+    def search_contacts(self, q, limit=15):
+        q = (q or "").lower()
+        return [c for c in CONTACTS.values() if q and (q in c.name.lower() or any(q in str(v).lower() for v in c.fields.values())
+                or any(q.strip("+") in p for p in c.phones))][:limit]
+
     def all_contacts(self):
         return list(CONTACTS.values())
 

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type Me } from "./api";
+import { api, setViewAs, type Me } from "./api";
 import { tg } from "./tg";
-import { AppCtx, Nav, type Route } from "./ui";
+import { AppCtx, Nav, ViewAsBar, type Route } from "./ui";
+import Admin from "./screens/Admin";
 import Home from "./screens/Home";
 import Services from "./screens/Services";
 import ServiceDetail from "./screens/ServiceDetail";
@@ -23,12 +24,19 @@ export default function App() {
   useEffect(reloadMe, [reloadMe]);
 
   const go = useCallback((r: Route) => {
-    const tabRoots = ["home", "services", "documents", "partner", "profile"];
+    const tabRoots = ["home", "services", "documents", "partner", "profile", "admin"];
     setStack((s) => (tabRoots.includes(r.name) ? [r] : [...s, r]));
     window.scrollTo(0, 0);
   }, []);
   const back = useCallback(() => { setStack((s) => (s.length > 1 ? s.slice(0, -1) : [{ name: "home" }])); window.scrollTo(0, 0); }, []);
   const toast = useCallback((t: string) => { setToastText(t); setTimeout(() => setToastText(null), 2400); }, []);
+  const [viewNonce, setViewNonce] = useState(0);
+  const startViewAs = useCallback((key: string, name: string) => {
+    setViewAs({ key, name }); setStack([{ name: "home" }]); setViewNonce((n) => n + 1); reloadMe(); window.scrollTo(0, 0);
+  }, [reloadMe]);
+  const stopViewAs = useCallback(() => {
+    setViewAs(null); setStack([{ name: "admin" }]); setViewNonce((n) => n + 1); reloadMe(); window.scrollTo(0, 0);
+  }, [reloadMe]);
 
   // Системная кнопка «Назад» Telegram
   useEffect(() => {
@@ -50,12 +58,14 @@ export default function App() {
     case "referrals": screen = <Referrals />; break;
     case "share": screen = <Share />; break;
     case "profile": screen = <Profile />; break;
+    case "admin": screen = <Admin />; break;
   }
 
   return (
-    <AppCtx.Provider value={{ route, go, back, me, reloadMe, toast }}>
+    <AppCtx.Provider value={{ route, go, back, me, reloadMe, toast, startViewAs, stopViewAs }}>
       <div className="app">
-        {screen}
+        <ViewAsBar />
+        <div key={viewNonce} style={{ display: "contents" }}>{screen}</div>
         <Nav />
         {toastText && <div className="toast" role="status">{toastText}</div>}
       </div>

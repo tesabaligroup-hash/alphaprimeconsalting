@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     table_move_stages: bool = False
     table_sync_partners: bool = False  # начисления партнёрам по таблице (включить, когда имена партнёров выверены)  # двигать сделку в «Услуга готова», когда в таблице услуга выполнена
 
+    # Сотрудники с режимом «Смотреть как клиент» в приложении (ники Telegram через запятую)
+    staff_usernames: str = "aplebedev,souzemlivod"
+
     # Админка
     admin_password: str = "change-me"
 

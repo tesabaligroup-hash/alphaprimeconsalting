@@ -291,3 +291,23 @@ def test_bank_card_request_once_a_week(client):
 def test_office_link_is_direct_place(client):
     c = client.get("/api/me", headers=DEV).json()["company"]
     assert "query_place_id=" in c["maps_url"]
+
+
+def test_view_as_staff_only_and_read_only(client, monkeypatch):
+    from app.config import get_settings
+    # обычный пользователь не может смотреть чужие кабинеты
+    assert client.get("/api/admin/search?q=Dikin", headers=DEV).status_code == 403
+    assert client.get("/api/me", headers={**DEV, "X-View-As": "c502"}).status_code == 403
+    monkeypatch.setattr(get_settings(), "staff_usernames", "anna_demo, somebody")
+    me = client.get("/api/me", headers=DEV).json()
+    assert me["is_staff"] is True and me["view_as"] is None
+    res = client.get("/api/admin/search?q=Dikin", headers=DEV).json()["results"]
+    key = next(r["key"] for r in res if r["key"] == "c502")
+    assert client.post("/api/admin/view", headers=DEV, json={"key": key}).json()["name"]
+    va = {**DEV, "X-View-As": key}
+    me2 = client.get("/api/me", headers=va).json()
+    assert me2["view_as"] == key and me2["linked"] is True
+    assert client.get("/api/home", headers=va).status_code == 200
+    # менять за клиента нельзя
+    r = client.put("/api/partner/payout-details", headers=va, json={"text": "x"})
+    assert r.status_code == 403 and "Режим просмотра" in r.json()["detail"]

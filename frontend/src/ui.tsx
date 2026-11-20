@@ -1,13 +1,34 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { api, ApiError, type Me, type NewsItem } from "./api";
+import { api, ApiError, getViewAs, type Me, type NewsItem } from "./api";
 import { IBack, IBag, IDoc, IHome, IPeople, IUser } from "./icons";
+
+const IShield = ({ color = "#6B6556" }: { color?: string }) => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z" /><path d="M9.5 12l1.8 1.8L15 10" />
+  </svg>
+);
+
+/** Золотая полоса сверху в режиме «Смотреть как клиент». */
+export function ViewAsBar() {
+  const { me, stopViewAs } = useApp();
+  const va = getViewAs();
+  if (!me?.view_as || !va) return null;
+  return (
+    <div style={{ position: "sticky", top: 0, zIndex: 50, background: "#C9A24B", color: "#1C1A16", padding: "8px 14px",
+                  display: "flex", alignItems: "center", gap: 10, fontSize: 13, fontWeight: 700 }}>
+      <span style={{ flex: 1 }}>👁 Вы смотрите как: {va.name} · только просмотр</span>
+      <button className="btn line" style={{ padding: "6px 12px", fontSize: 12, background: "#fff" }} onClick={stopViewAs}>Выйти</button>
+    </div>
+  );
+}
 
 // ---------- Навигация ----------
 export type Route =
   | { name: "home" } | { name: "services"; tab?: "mine" | "all" } | { name: "service"; id: number }
-  | { name: "news"; item: NewsItem } | { name: "documents" } | { name: "partner" } | { name: "referrals" } | { name: "share" } | { name: "profile" } | { name: "visas" };
+  | { name: "news"; item: NewsItem } | { name: "documents" } | { name: "partner" } | { name: "referrals" } | { name: "share" } | { name: "profile" } | { name: "visas" } | { name: "admin" };
 
-type Ctx = { route: Route; go: (r: Route) => void; back: () => void; me: Me | null; reloadMe: () => void; toast: (t: string) => void };
+type Ctx = { route: Route; go: (r: Route) => void; back: () => void; me: Me | null; reloadMe: () => void; toast: (t: string) => void;
+  startViewAs: (key: string, name: string) => void; stopViewAs: () => void };
 export const AppCtx = createContext<Ctx>(null as unknown as Ctx);
 export const useApp = () => useContext(AppCtx);
 
@@ -28,13 +49,14 @@ export function useLoad<T>(path: string | null, deps: unknown[] = []) {
 }
 
 export function Nav() {
-  const { route, go } = useApp();
+  const { route, go, me } = useApp();
   const tabs = [
     { key: "home", label: "Главная", icon: IHome, r: { name: "home" } as Route, match: ["home", "news", "visas"] },
     { key: "services", label: "Услуги", icon: IBag, r: { name: "services" } as Route, match: ["services", "service"] },
     { key: "documents", label: "Документы", icon: IDoc, r: { name: "documents" } as Route, match: ["documents"] },
     { key: "partner", label: "Партнёрка", icon: IPeople, r: { name: "partner" } as Route, match: ["partner", "referrals", "share"] },
     { key: "profile", label: "Профиль", icon: IUser, r: { name: "profile" } as Route, match: ["profile"] },
+    ...(me?.is_staff && !me.view_as ? [{ key: "admin", label: "Админ", icon: IShield, r: { name: "admin" } as Route, match: ["admin"] }] : []),
   ];
   return (
     <nav className="nav" aria-label="Основное меню">

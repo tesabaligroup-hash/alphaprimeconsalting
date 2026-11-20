@@ -7,10 +7,10 @@ import time
 from urllib.parse import quote
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .config import get_settings
@@ -18,7 +18,7 @@ from .db import get_db
 from .kommo import get_kommo
 from .kommo.base import KommoClient
 from .links import partner_links
-from .models import ClientDocument, News, Partner, ReminderSent, PartnerCodeword, Referral, ServiceOrder, User, UserVisa
+from .models import AuditLog, ClientDocument, News, Partner, ReminderSent, PartnerCodeword, Referral, ServiceOrder, User, UserVisa
 from .qr import CHANNELS, partner_qr_png
 from .services import cabinet, partner as partner_svc
 from .services import visas as visas_svc
@@ -39,11 +39,56 @@ DEV_TELEGRAM_ID = 1  # тестовый пользователь в режиме
 _LINK_TRIES: dict[int, float] = {}
 
 
+def is_staff(user: User | None) -> bool:
+    names = {n.strip().lstrip("@").lower() for n in get_settings().staff_usernames.split(",") if n.strip()}
+    return bool(user and user.telegram_username and user.telegram_username.lower() in names)
+
+
+VIEW_AS_WRITES = ("/api/partner/qr-link",)  # в режиме просмотра можно только это (+ открыть документ)
+
+
 def current_user(
+    request: Request,
     db: Session = Depends(get_db),
     x_telegram_init_data: str | None = Header(default=None),
     x_dev_user: str | None = Header(default=None),
+    x_view_as: str | None = Header(default=None),
 ) -> User:
+    real = real_user(db, x_telegram_init_data, x_dev_user)
+    request.state.real_user = real
+    request.state.view_as = None
+    if not x_view_as:
+        return real
+    if not is_staff(real):
+        raise HTTPException(403, "Режим просмотра доступен только сотрудникам")
+    target = view_as_target(db, get_kommo(), x_view_as)
+    if not target:
+        raise HTTPException(404, "Клиент для просмотра не найден")
+    path = request.url.path
+    if request.method != "GET" and path not in VIEW_AS_WRITES and not (path.startswith("/api/documents/") and path.endswith("/link")):
+        raise HTTPException(403, "Режим просмотра: менять что-то за клиента нельзя")
+    request.state.view_as = x_view_as
+    return target
+
+
+def view_as_target(db: Session, kommo: KommoClient, key: str) -> User | None:
+    """«u123» — пользователь бота; «c456» — контакт Kommo без аккаунта (временный, в базу не сохраняется)."""
+    if key.startswith("u") and key[1:].isdigit():
+        return db.get(User, int(key[1:]))
+    if key.startswith("c") and key[1:].isdigit():
+        cid = int(key[1:])
+        existing = db.scalar(select(User).where(User.kommo_contact_id == cid))
+        if existing:
+            return existing
+        c = kommo.get_contact(cid)
+        if not c:
+            return None
+        return User(id=0, telegram_id=0, first_name=c.name, kommo_contact_id=cid, kommo_extra_contact_ids=[],
+                    language="ru", notify_partner_offers=True, notify_company_offers=True)
+    return None
+
+
+def real_user(db: Session, x_telegram_init_data: str | None, x_dev_user: str | None) -> User:
     s = get_settings()
     if s.dev_mode and x_dev_user and not x_telegram_init_data:
         tg = {"id": DEV_TELEGRAM_ID, "first_name": "Анна", "username": "anna_demo"}
@@ -80,9 +125,11 @@ def kommo_dep() -> KommoClient:
 # ---------- Общее ----------
 
 @router.get("/me")
-def me(user: User = Depends(current_user)):
+def me(request: Request, user: User = Depends(current_user)):
     s = get_settings()
     return {
+        "is_staff": is_staff(getattr(request.state, "real_user", None)),
+        "view_as": getattr(request.state, "view_as", None),
         "first_name": user.first_name,
         "linked": bool(user.kommo_contact_id),
         "has_phone": bool(user.phone),
@@ -561,6 +608,56 @@ def partner_bank_card(user: User = Depends(current_user), db: Session = Depends(
     db.add(ReminderSent(key=key))
     db.commit()
     return {"ok": True}
+
+
+# ---------- Админ: смотреть как клиент ----------
+def staff_user(db: Session = Depends(get_db), x_telegram_init_data: str | None = Header(default=None),
+               x_dev_user: str | None = Header(default=None)) -> User:
+    u = real_user(db, x_telegram_init_data, x_dev_user)
+    if not is_staff(u):
+        raise HTTPException(403, "Только для сотрудников")
+    return u
+
+
+@router.get("/admin/search")
+def admin_search(q: str, staff: User = Depends(staff_user), db: Session = Depends(get_db),
+                 kommo: KommoClient = Depends(kommo_dep)):
+    """Поиск клиента по телефону, @нику или имени: пользователи бота + контакты Kommo."""
+    q = q.strip()
+    if len(q) < 3:
+        return {"results": []}
+    like = f"%{q.lstrip('@')}%"
+    digits_q = "".join(ch for ch in q if ch.isdigit())
+    users = list(db.scalars(select(User).where(or_(User.telegram_username.ilike(like), User.first_name.ilike(like),
+                                                   *( [User.phone.ilike(f"%{digits_q[-9:]}%")] if len(digits_q) >= 6 else []))).limit(15)))
+    results, seen_contacts = [], set()
+    for u in users:
+        results.append({"key": f"u{u.id}", "name": u.first_name or "—", "nick": u.telegram_username, "phone": u.phone,
+                        "in_bot": True, "linked": bool(u.kommo_contact_id), "partner": bool(u.partner)})
+        if u.kommo_contact_id:
+            seen_contacts.add(u.kommo_contact_id)
+    try:
+        for c in kommo.search_contacts(q):
+            if c.id in seen_contacts:
+                continue
+            results.append({"key": f"c{c.id}", "name": c.name, "nick": None, "phone": c.phones[0] if c.phones else None,
+                            "in_bot": False, "linked": True, "partner": False})
+    except Exception:
+        log.warning("Kommo: поиск для админ-просмотра не удался")
+    return {"results": results[:25]}
+
+
+@router.post("/admin/view")
+def admin_view(payload: dict, staff: User = Depends(staff_user), db: Session = Depends(get_db),
+               kommo: KommoClient = Depends(kommo_dep)):
+    key = str(payload.get("key") or "")
+    target = view_as_target(db, kommo, key)
+    if not target:
+        raise HTTPException(404, "Клиент не найден")
+    label = target.first_name or "клиент"
+    db.add(AuditLog(actor=f"@{staff.telegram_username}", action="view_as", details={"target": key, "name": label}))
+    db.commit()
+    return {"key": key, "name": label}
 
 
 @router.get("/health", include_in_schema=False)

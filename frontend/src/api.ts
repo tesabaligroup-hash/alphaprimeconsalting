@@ -8,8 +8,19 @@ export class ApiError extends Error {
   }
 }
 
+// ---------- Режим «Смотреть как клиент» (только сотрудники; сервер проверяет сам) ----------
+const VIEW_KEY = "ap_view_as";
+export function getViewAs(): { key: string; name: string } | null {
+  try { const v = sessionStorage.getItem(VIEW_KEY); return v ? JSON.parse(v) : null; } catch { return null; }
+}
+export function setViewAs(v: { key: string; name: string } | null) {
+  try { if (v) sessionStorage.setItem(VIEW_KEY, JSON.stringify(v)); else sessionStorage.removeItem(VIEW_KEY); } catch { /* пусто */ }
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const va = getViewAs();
+  if (va && !path.startsWith("/api/admin/")) headers["X-View-As"] = va.key;
   if (tg?.initData) headers["X-Telegram-Init-Data"] = tg.initData;
   else headers["X-Dev-User"] = "1"; // работает только когда сервер в режиме разработки
   const res = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
@@ -67,7 +78,9 @@ export type Service = {
 export type MyVisas = { types: string[]; reminders: number[]; items: { id: number; visa_type: string; person: string | null; expires_on: string; days_left: number }[] };
 export type ImportantDate = { date: string; title: string; person: string; lead_id: number | null; days_left: number; kind: string };
 export type NewsItem = { id: number; kind: string; is_banner: boolean; title: string; body: string | null; partner_name: string | null; image: string | null; link: string | null; cta: boolean; date: string | null };
+export type AdminResult = { key: string; name: string; nick: string | null; phone: string | null; in_bot: boolean; linked: boolean; partner: boolean };
 export type Me = {
+  is_staff?: boolean; view_as?: string | null;
   first_name: string | null; linked: boolean; has_phone: boolean; is_partner: boolean; language: string;
   notify_partner_offers: boolean; notify_company_offers: boolean;
   company: { whatsapp: string; telegram: string; instagram: string; address: string; maps_query: string; maps_url?: string; bot_username: string };

@@ -161,6 +161,14 @@ class RealKommo:
                 break
         return result
 
+    def search_contacts(self, q: str, limit: int = 15) -> list[KommoContact]:
+        """Поиск контактов по имени/телефону/почте (для админ-просмотра)."""
+        q = (q or "").strip()
+        if len(q) < 3:
+            return []
+        data = self._get("/contacts", params={"query": q, "limit": limit})
+        return [self._contact(c) for c in (data.get("_embedded") or {}).get("contacts", [])]
+
     def find_contact_ids_by_telegram(self, username: str) -> list[int]:
         """Ищет контакт по нику Telegram (поля «Логин», «Профиль», «TG» — заполняются интеграцией)."""
         u = (username or "").lstrip("@").lower()
