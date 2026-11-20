@@ -2,7 +2,7 @@ import { useState } from "react";
 import { api, type PartnerData } from "../api";
 import { haptic, openExternal } from "../tg";
 import { useApp, useLoad } from "../ui";
-import { LinkPhoneCard } from "./common";
+import { BetaFeedback, LinkPhoneCard } from "./common";
 
 export default function Profile() {
   const { me, reloadMe, toast } = useApp();
@@ -26,6 +26,7 @@ export default function Profile() {
           <button className="btn line" onClick={() => openExternal(`https://wa.me/${me.company.whatsapp}`)}>Написать в WhatsApp</button>
           <span className="small">{me.company.address}</span>
         </section>
+        <BetaFeedback screen="profile" />
       </main>
     </>
   );

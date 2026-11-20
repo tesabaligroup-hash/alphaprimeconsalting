@@ -7,7 +7,7 @@ import time
 from urllib.parse import quote
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
@@ -18,7 +18,7 @@ from .db import get_db
 from .kommo import get_kommo
 from .kommo.base import KommoClient
 from .links import partner_links
-from .models import AuditLog, ClientDocument, News, Partner, ReminderSent, PartnerCodeword, Referral, ServiceOrder, User, UserVisa
+from .models import AuditLog, ClientDocument, News, Partner, ReminderSent, UserFile, PartnerCodeword, Referral, ServiceOrder, User, UserVisa
 from .qr import CHANNELS, partner_qr_png
 from .services import cabinet, partner as partner_svc
 from .services import visas as visas_svc
@@ -359,6 +359,96 @@ def download_link(lead_id: int, uuid: str, user: User = Depends(current_user), k
     return {"url": f"{get_settings().public_url.rstrip('/')}/api/files/{_file_token(lead_id, uuid, exp)}", "name": files[uuid].name}
 
 
+# ---------- Мои документы: клиент сам загружает паспорт, права и т.п. ----------
+MY_FILE_TYPES = {"application/pdf": ".pdf", "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
+                 "image/heic": ".heic", "image/heif": ".heif"}
+MY_FILE_CATEGORIES = {"passport": "Паспорт", "license": "Водительские права", "insurance": "Страховка",
+                      "rent": "Договор аренды", "bank": "Банк", "other": "Другое"}
+MY_FILE_MAX = 10 * 1024 * 1024
+MY_FILES_LIMIT = 40
+
+
+def _my_file_view(f: UserFile) -> dict:
+    return {"id": f.id, "title": f.title, "category": f.category, "category_label": MY_FILE_CATEGORIES.get(f.category, "Другое"),
+            "valid_until": f.valid_until.isoformat() if f.valid_until else None, "size": f.size,
+            "created_at": f.created_at.date().isoformat() if f.created_at else None}
+
+
+@router.get("/my-files")
+def my_files(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    if not user.id:
+        return {"files": [], "categories": MY_FILE_CATEGORIES}
+    files = db.scalars(select(UserFile).where(UserFile.user_id == user.id).order_by(UserFile.created_at.desc()))
+    return {"files": [_my_file_view(f) for f in files], "categories": MY_FILE_CATEGORIES}
+
+
+@router.post("/my-files")
+async def upload_my_file(file: UploadFile = File(...), title: str = Form(""), category: str = Form("other"),
+                         valid_until: str = Form(""), user: User = Depends(current_user), db: Session = Depends(get_db)):
+    data = await file.read(MY_FILE_MAX + 1)
+    if len(data) > MY_FILE_MAX:
+        raise HTTPException(413, "Файл больше 10 МБ — сфотографируйте поменьше или сожмите PDF")
+    from .ai_docs import sniff
+    mime = sniff(data) or (file.content_type or "")
+    if mime not in MY_FILE_TYPES:
+        raise HTTPException(415, "Можно загрузить фото (JPG, PNG, HEIC) или PDF")
+    if db.scalar(select(func.count(UserFile.id)).where(UserFile.user_id == user.id)) >= MY_FILES_LIMIT:
+        raise HTTPException(400, f"Можно хранить до {MY_FILES_LIMIT} файлов — удалите ненужные")
+    cat = category if category in MY_FILE_CATEGORIES else "other"
+    try:
+        until = date.fromisoformat(valid_until) if valid_until else None
+    except ValueError:
+        until = None
+    f = UserFile(user_id=user.id, title=(title.strip() or MY_FILE_CATEGORIES[cat])[:120], category=cat, valid_until=until,
+                 name=(file.filename or "file")[:200], mime=mime, size=len(data), stored_path="")
+    db.add(f)
+    db.flush()
+    folder = Path(get_settings().docs_dir) / "users" / str(user.id)
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{f.id}{MY_FILE_TYPES[mime]}"
+    path.write_bytes(data)
+    f.stored_path = str(path)
+    db.commit()
+    return _my_file_view(f)
+
+
+@router.delete("/my-files/{file_id}")
+def delete_my_file(file_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    f = db.get(UserFile, file_id)
+    if not f or f.user_id != user.id:
+        raise HTTPException(404)
+    try:
+        Path(f.stored_path).unlink(missing_ok=True)
+    except OSError:
+        pass
+    db.delete(f)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/my-files/{file_id}/link")
+def my_file_link(file_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    f = db.get(UserFile, file_id)
+    if not f or f.user_id != user.id:
+        raise HTTPException(404)
+    exp = int(time.time()) + 600
+    return {"url": f"{get_settings().public_url.rstrip('/')}/api/files/{_file_token(0, f'f{f.id}', exp)}",
+            "name": f.title + MY_FILE_TYPES.get(f.mime, "")}
+
+
+# ---------- Тестовый режим: «Нашли ошибку?» ----------
+@router.post("/feedback")
+def feedback(payload: dict, user: User = Depends(current_user)):
+    text = str(payload.get("text") or "").strip()[:2000]
+    if len(text) < 3:
+        raise HTTPException(400, "Напишите пару слов, что не так")
+    screen = str(payload.get("screen") or "")[:40]
+    who = f"{user.first_name or 'Пользователь'}" + (f" · @{user.telegram_username}" if user.telegram_username else "") + \
+          (f" · {user.phone}" if user.phone else "")
+    notify_managers("🐞 Сообщение об ошибке в приложении", [who, f"Экран: {screen}" if screen else "", text], 0)
+    return {"ok": True}
+
+
 @router.get("/files/{token}")
 def download_file(token: str, kommo: KommoClient = Depends(kommo_dep), db: Session = Depends(get_db)):
     try:
@@ -369,6 +459,12 @@ def download_file(token: str, kommo: KommoClient = Depends(kommo_dep), db: Sessi
         raise HTTPException(404)
     if not hmac.compare_digest(_file_token(lead_id, uuid, exp), token) or exp < time.time():
         raise HTTPException(403, "Ссылка устарела — откройте документ в приложении ещё раз")
+    if lead_id == 0 and uuid.startswith("f") and uuid[1:].isdigit():
+        f = db.get(UserFile, int(uuid[1:]))
+        if not f or not Path(f.stored_path).exists():
+            raise HTTPException(404, "Файл не найден")
+        return Response(Path(f.stored_path).read_bytes(), media_type=f.mime,
+                        headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(f.title + MY_FILE_TYPES.get(f.mime, ''))}"})
     if lead_id == 0 and uuid.startswith("d") and uuid[1:].isdigit():
         doc = db.get(ClientDocument, int(uuid[1:]))
         if not doc or not doc.stored_path or not Path(doc.stored_path).exists():

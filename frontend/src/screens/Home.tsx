@@ -3,7 +3,7 @@ import { dayMonth, dateLong, inDays } from "../format";
 import { ICal } from "../icons";
 import { openExternal } from "../tg";
 import { ErrorBox, Loading, useApp, useLoad } from "../ui";
-import { InterestButton, LinkPhoneCard, ServiceCardView, openNews } from "./common";
+import { BetaFeedback, InterestButton, LinkPhoneCard, ServiceCardView, openNews } from "./common";
 
 export default function Home() {
   const { me, go } = useApp();
@@ -134,6 +134,7 @@ export default function Home() {
             </div>
           </section>
         )}
+        <BetaFeedback screen="home" />
       </main>
     </>
   );

@@ -311,3 +311,25 @@ def test_view_as_staff_only_and_read_only(client, monkeypatch):
     # менять за клиента нельзя
     r = client.put("/api/partner/payout-details", headers=va, json={"text": "x"})
     assert r.status_code == 403 and "Режим просмотра" in r.json()["detail"]
+
+
+def test_my_files_upload_open_delete(client, monkeypatch, tmp_path):
+    from app.config import get_settings
+    monkeypatch.setattr(get_settings(), "docs_dir", str(tmp_path))
+    r = client.post("/api/my-files", headers=DEV, data={"category": "passport", "valid_until": "2030-01-31"},
+                    files={"file": ("scan", b"%PDF-1.4 passport", "application/octet-stream")})
+    assert r.status_code == 200 and r.json()["title"] == "Паспорт" and r.json()["valid_until"] == "2030-01-31"
+    fid = r.json()["id"]
+    bad = client.post("/api/my-files", headers=DEV, files={"file": ("x.exe", b"MZ\x90\x00", "application/octet-stream")})
+    assert bad.status_code == 415
+    files = client.get("/api/my-files", headers=DEV).json()["files"]
+    assert [f["id"] for f in files] == [fid]
+    link = client.post(f"/api/my-files/{fid}/link", headers=DEV).json()["url"]
+    assert client.get("/api/files/" + link.rsplit("/", 1)[1]).content.startswith(b"%PDF")
+    assert client.delete(f"/api/my-files/{fid}", headers=DEV).json() == {"ok": True}
+    assert client.get("/api/my-files", headers=DEV).json()["files"] == []
+
+
+def test_feedback(client):
+    assert client.post("/api/feedback", headers=DEV, json={"text": "Не открывается виза", "screen": "home"}).json() == {"ok": True}
+    assert client.post("/api/feedback", headers=DEV, json={"text": ""}).status_code == 400

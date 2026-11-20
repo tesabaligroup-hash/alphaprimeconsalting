@@ -297,3 +297,20 @@ class ClientDocument(Base):
     stored_path: Mapped[str] = mapped_column(String(500))
     mime: Mapped[str] = mapped_column(String(64), default="application/pdf")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class UserFile(Base):
+    """Личные документы клиента, которые он сам загрузил в приложение (паспорт, права, страховка…). Видит только он."""
+
+    __tablename__ = "user_files"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(120))
+    category: Mapped[str] = mapped_column(String(32), default="other")
+    valid_until: Mapped[date | None] = mapped_column(Date)
+    name: Mapped[str] = mapped_column(String(255))
+    mime: Mapped[str] = mapped_column(String(64))
+    size: Mapped[int] = mapped_column(Integer, default=0)
+    stored_path: Mapped[str] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

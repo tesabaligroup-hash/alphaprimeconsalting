@@ -37,6 +37,33 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return res.json();
 }
 
+/** Загрузка файла (multipart) — для «Моих документов». */
+export async function uploadFile<T>(path: string, form: FormData): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (tg?.initData) headers["X-Telegram-Init-Data"] = tg.initData;
+  else headers["X-Dev-User"] = "1";
+  const va = getViewAs();
+  if (va) headers["X-View-As"] = va.key;
+  const res = await fetch(path, { method: "POST", headers, body: form });
+  if (!res.ok) {
+    let msg = "Не получилось загрузить файл. Попробуйте ещё раз.";
+    try { const d = await res.json(); if (typeof d.detail === "string") msg = d.detail; } catch { /* пусто */ }
+    throw new ApiError(res.status, msg);
+  }
+  return res.json();
+}
+
+/** Открыть свой загруженный файл. */
+export async function openMyFile(id: number) {
+  const { url, name } = await request<{ url: string; name: string }>("POST", `/api/my-files/${id}/link`);
+  const w = tg as unknown as { downloadFile?: (p: { url: string; file_name: string }) => void } | undefined;
+  if (w?.downloadFile) w.downloadFile({ url, file_name: name });
+  else if (tg) tg.openLink(url);
+  else window.open(url, "_blank", "noopener");
+}
+
+export type MyFile = { id: number; title: string; category: string; category_label: string; valid_until: string | null; size: number; created_at: string | null };
+
 export const api = {
   get: <T,>(p: string) => request<T>("GET", p),
   post: <T,>(p: string, b?: unknown) => request<T>("POST", p, b),

@@ -87,3 +87,30 @@ export function InterestButton({ id }: { id: number }) {
     </button>
   );
 }
+
+
+/** Тестовый режим (временно): «Нашли ошибку?» — сообщение уходит менеджерам Alpha Prime. */
+export function BetaFeedback({ screen }: { screen: string }) {
+  const { toast } = useApp();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const send = async () => {
+    setBusy(true);
+    try { await api.post("/api/feedback", { text, screen }); setOpen(false); setText(""); toast("Спасибо! Мы уже разбираемся"); }
+    catch (e) { toast((e as Error).message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <section className="card" style={{ gap: 8, border: "1px dashed #C9A24B", background: "#FFFDF7" }}>
+      <span className="small" style={{ fontWeight: 700, color: "#7A5C17", letterSpacing: ".06em" }}>🧪 ТЕСТОВЫЙ РЕЖИМ · ВРЕМЕННО</span>
+      <span className="small">Приложение только запустилось. Если что-то работает не так или неудобно — напишите, мы быстро поправим.</span>
+      {!open ? <button className="btn line" onClick={() => setOpen(true)}>Нашли ошибку? Написать нам</button> : (
+        <>
+          <textarea className="input" placeholder="Что случилось? На каком экране?" value={text} onChange={(e) => setText(e.target.value)} />
+          <button className="btn" disabled={busy || text.trim().length < 3} onClick={send}>{busy ? "Отправляем…" : "Отправить"}</button>
+        </>
+      )}
+    </section>
+  );
+}
