@@ -3,6 +3,7 @@ import base64
 import logging
 import hashlib
 import hmac
+import threading
 import time
 from urllib.parse import quote
 from datetime import date, datetime, timedelta
@@ -14,7 +15,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .config import get_settings
-from .db import get_db
+from .db import SessionLocal, get_db
 from .kommo import get_kommo
 from .kommo.base import KommoClient
 from .links import partner_links
@@ -299,17 +300,52 @@ def news_interest(news_id: int, user: User = Depends(current_user), db: Session 
 
 # ---------- Документы ----------
 
-def _family_contacts(user: User, kommo: KommoClient) -> list:
-    """Контакты, чьи документы видит пользователь: он сам (и его дубли) + люди в его сделках (семья)."""
+FAMILY_TTL = timedelta(hours=12)
+
+
+def _compute_family(user: User, kommo: KommoClient) -> list[list]:
+    """[[contact_id, подпись], …]: он сам (и его дубли) + люди в его клиентских сделках (семья). Не больше 30 сделок/людей."""
     contact, originals = cabinet.merged_contact(kommo, user.contact_ids)
     if not contact:
         return []
     ids = {c.id for c in originals} | {contact.id}
-    for lead in kommo.get_leads(contact.lead_ids):
+    for lead in kommo.get_leads(sorted(contact.lead_ids, reverse=True)[:30]):
         if lead.pipeline_id in CLIENT_PIPELINE_IDS:
             ids.update(lead.contact_ids[:8])
-    found = {c.id: c for c in kommo.get_contacts(sorted(ids))}
-    return [found[i] for i in sorted(ids, key=lambda x: (x not in user.contact_ids, x)) if i in found]
+    ids = sorted(ids, key=lambda x: (x not in user.contact_ids, x))[:30]
+    found = {c.id: c for c in kommo.get_contacts(ids)}
+    return [[i, "Вы" if i in user.contact_ids else (cabinet.contact_person(found[i]) or "Член семьи")] for i in ids if i in found]
+
+
+def _refresh_family_bg(user_id: int) -> None:
+    db = SessionLocal()
+    try:
+        u = db.get(User, user_id)
+        if u:
+            u.family_cache = {"at": utcnow().isoformat(), "people": _compute_family(u, get_kommo())}
+            db.commit()
+    except Exception:
+        log.warning("Не обновился список семьи для документов (%s)", user_id)
+    finally:
+        db.close()
+
+
+def _family(user: User, kommo: KommoClient, db: Session) -> list[list]:
+    """Быстро: из кэша (обновляется в фоне раз в 12 ч). Первый раз — считаем сразу."""
+    cache = user.family_cache or {}
+    if cache.get("people") is not None:
+        try:
+            stale = utcnow() - datetime.fromisoformat(cache["at"]) > FAMILY_TTL
+        except (KeyError, ValueError):
+            stale = True
+        if stale and user.id:
+            threading.Thread(target=_refresh_family_bg, args=(user.id,), daemon=True).start()
+        return cache["people"]
+    people = _compute_family(user, kommo)
+    if user.id:
+        user.family_cache = {"at": utcnow().isoformat(), "people": people}
+        db.commit()
+    return people
 
 
 @router.get("/documents")
@@ -317,15 +353,14 @@ def documents(user: User = Depends(current_user), kommo: KommoClient = Depends(k
     """Визы и ITK из папок на Диске (хранятся у нас — открываются быстро). «Архив» — срок прошёл."""
     if not user.kommo_contact_id:
         return {"groups": []}
-    people = _family_contacts(user, kommo)
-    docs = drive_docs.docs_for(db, [c.id for c in people])
+    people = _family(user, kommo, db)
+    docs = drive_docs.docs_for(db, [cid for cid, _ in people])
     today = date.today()
     groups = []
-    for c in people:
-        own = [d for d in docs if d.contact_id == c.id]
+    for cid, label in people:
+        own = [d for d in docs if d.contact_id == cid]
         if not own:
             continue
-        label = "Вы" if c.id in user.contact_ids else (cabinet.contact_person(c) or "Член семьи")
         groups.append({"person": label, "files": [
             {"uuid": f"d{d.id}", "name": f"{'ITK' if d.doc_type == 'itk' else 'Виза'}{(' ' + d.visa_type) if d.visa_type else ''}",
              "created_at": None, "service": d.person_name or "", "lead_id": 0,
@@ -346,7 +381,7 @@ def download_link(lead_id: int, uuid: str, user: User = Depends(current_user), k
     """Одноразовая ссылка на файл (10 минут): Telegram скачивает файл без заголовков авторизации."""
     if lead_id == 0 and uuid.startswith("d") and uuid[1:].isdigit():  # документ с Диска, хранится у нас
         doc = db.get(ClientDocument, int(uuid[1:]))
-        allowed = {c.id for c in _family_contacts(user, kommo)}
+        allowed = {cid for cid, _ in _family(user, kommo, db)}
         if not doc or doc.contact_id not in allowed:
             raise HTTPException(404)
         exp = int(time.time()) + 600

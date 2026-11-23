@@ -57,6 +57,21 @@ export default function Home() {
           </section>
         )}
 
+        {data.partner_news.length > 0 && (
+          <section className="section">
+            <h2 className="h2">От наших партнёров</h2>
+            <div className="hscroll">
+              {data.partner_news.map((n) => n.image ? (
+                // Предложение партнёра с картинкой (1200×600) — крупно, как баннер, чтобы были видны логотип и оффер
+                <div key={n.id} style={{ width: data.partner_news.length > 1 ? "88%" : "100%", flex: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button className="banner" aria-label={`${n.partner_name || ""} ${n.title}`} onClick={() => openNews(n, go)}
+                    style={{ width: "100%", minHeight: 0, aspectRatio: "2 / 1", padding: 0, backgroundImage: `url(${n.image})`, backgroundSize: "cover" }} />
+                  {n.link && (
+                    <button className="btn block" onClick={() => openExternal(n.link!)}>
+                      Записаться{n.partner_name ? ` в ${n.partner_name}` : ""}
+                    </button>
+                  )}
+
         <section className="section">
           <h2 className="h2">Новости Alpha Prime</h2>
           {data.banners.length > 0 && (
@@ -89,21 +104,6 @@ export default function Home() {
           ))}
           {data.banners.length + data.news.length === 0 && <p className="muted">Скоро здесь появятся новости.</p>}
         </section>
-
-        {data.partner_news.length > 0 && (
-          <section className="section">
-            <h2 className="h2">От наших партнёров</h2>
-            <div className="hscroll">
-              {data.partner_news.map((n) => n.image ? (
-                // Предложение партнёра с картинкой (1200×600) — крупно, как баннер, чтобы были видны логотип и оффер
-                <div key={n.id} style={{ width: data.partner_news.length > 1 ? "88%" : "100%", flex: "none", display: "flex", flexDirection: "column", gap: 8 }}>
-                  <button className="banner" aria-label={`${n.partner_name || ""} ${n.title}`} onClick={() => openNews(n, go)}
-                    style={{ width: "100%", minHeight: 0, aspectRatio: "2 / 1", padding: 0, backgroundImage: `url(${n.image})`, backgroundSize: "cover" }} />
-                  {n.link && (
-                    <button className="btn block" onClick={() => openExternal(n.link!)}>
-                      Записаться{n.partner_name ? ` в ${n.partner_name}` : ""}
-                    </button>
-                  )}
                   {!n.link && n.cta && <InterestButton id={n.id} />}
                 </div>
               ) : (

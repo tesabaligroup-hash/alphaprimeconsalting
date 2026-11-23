@@ -11,9 +11,7 @@ export default function Documents() {
   const { toast } = useApp();
   const { data, error, reload } = useLoad<{ groups: Group[] }>("/api/documents");
   const [tab, setTab] = useState<"ready" | "archive" | "mine">("ready");
-  if (error) return <ErrorBox error={error} onRetry={reload} />;
-  if (!data) return <Loading rows={3} />;
-  const groups = data.groups
+  const groups = (data?.groups ?? [])
     .map((g) => ({ ...g, files: g.files.filter((f) => (tab === "archive" ? f.archived : !f.archived)) }))
     .filter((g) => g.files.length);
   return (
@@ -29,7 +27,9 @@ export default function Documents() {
       {tab === "mine" ? <main className="screen" style={{ gap: 16 }}><MyFiles /></main> : (
       <main className="screen" style={{ gap: 22 }}>
         <LinkPhoneCard />
-        {groups.length === 0 && <div className="empty">{tab === "ready" ? "Активных документов пока нет. Действующие визы и ITK появятся здесь, как только будут готовы." : "Архив пуст."}</div>}
+        {error && <ErrorBox error={error} onRetry={reload} />}
+        {!data && !error && <Loading rows={3} />}
+        {data && groups.length === 0 && <div className="empty">{tab === "ready" ? "Активных документов пока нет. Действующие визы и ITK появятся здесь, как только будут готовы." : "Архив пуст."}</div>}
         {groups.map((g) => (
           <section key={g.person} className="section" style={{ gap: 10 }}>
             <h2 className="kicker" style={{ color: "#5E5849", letterSpacing: ".08em", margin: 0 }}>{g.person}</h2>

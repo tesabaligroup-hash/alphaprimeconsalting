@@ -25,6 +25,7 @@ class User(Base):
     kommo_contact_id: Mapped[int | None] = mapped_column(BigInteger, index=True)
     # Дубли того же человека в Kommo (тот же телефон / Telegram): данные из них тоже показываем
     kommo_extra_contact_ids: Mapped[list | None] = mapped_column(JSON)
+    family_cache: Mapped[dict | None] = mapped_column(JSON)  # чьи документы видит (он + семья), кэш на 12 ч
     language: Mapped[str] = mapped_column(String(2), default="ru")
     notify_partner_offers: Mapped[bool] = mapped_column(Boolean, default=True)
     notify_company_offers: Mapped[bool] = mapped_column(Boolean, default=True)

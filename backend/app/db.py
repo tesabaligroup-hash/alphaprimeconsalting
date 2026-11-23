@@ -39,6 +39,7 @@ def init_db() -> None:
             conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS cta_lead BOOLEAN DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE accruals ADD COLUMN IF NOT EXISTS manual_code VARCHAR(32)"))
             conn.execute(text("ALTER TABLE accruals ADD COLUMN IF NOT EXISTS decision VARCHAR(16)"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS family_cache JSON"))
 
 
 def _backfill_codewords() -> None:
