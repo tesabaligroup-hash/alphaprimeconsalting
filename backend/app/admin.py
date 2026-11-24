@@ -219,6 +219,35 @@ def referral_decide(ref_id: int, request: Request, csrf: str = Form(""), action:
 
 # ---------- Партнёры ----------
 
+# ---------- Список партнёров: дозаполнить из Kommo и приложения ----------
+
+@router.get("/partner-book", response_class=HTMLResponse)
+def partner_book_page(request: Request, admin: str = Depends(require_admin)):
+    return render(request, "partner_book.html")
+
+
+@router.post("/partner-book")
+def partner_book_run(request: Request, csrf: str = Form(""), file: UploadFile = File(...),
+                     db: Session = Depends(get_db), admin: str = Depends(require_admin)):
+    from fastapi.responses import Response
+
+    from .services.partner_book import enrich
+
+    check_csrf(request, csrf)
+    data = file.file.read(15 * 1024 * 1024 + 1)
+    if len(data) > 15 * 1024 * 1024:
+        raise HTTPException(400, "Файл больше 15 МБ")
+    try:
+        out, stats = enrich(db, get_kommo(), data)
+    except Exception as e:
+        return render(request, "partner_book.html", error=str(e))
+    audit(db, admin, "partner_book", **stats)
+    db.commit()
+    name = "Partners_filled.xlsx"
+    return Response(out, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
 @router.get("/partners", response_class=HTMLResponse)
 def partners(request: Request, db: Session = Depends(get_db), admin: str = Depends(require_admin)):
     items = list(db.scalars(select(Partner).order_by(Partner.created_at.desc())))
