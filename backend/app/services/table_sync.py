@@ -122,6 +122,12 @@ def fetch_table() -> Table:
     return parse_table(data)
 
 
+def lead_id_of(v) -> int | None:
+    """ID сделки Kommo из колонки AA: только целое из 8–10 цифр без пробелов и знаков (суммы вида «2 500 000» не подходят)."""
+    s = str(v or "").strip()
+    return int(s) if re.fullmatch(r"\d{8,10}", s) else None
+
+
 def parse_table(data: dict) -> Table:
     t = Table()
     for x in data.get("production") or []:
@@ -130,15 +136,17 @@ def parse_table(data: dict) -> Table:
             continue
         t.rows.append(Row(int(n or 0), parse_date(start), str(manager).strip(), str(partner).strip(), str(service).strip(),
                           str(contacts).strip(), str(status).strip(), str(client).strip(), money(price), money(paid),
-                          money(debt), money(share), money(lead) or None))
+                          money(debt), money(share), lead_id_of(lead)))
     for x in data.get("renewals") or []:
         visa, client, status, until = (list(x) + [""] * 4)[:4]
         if str(client).strip():
             t.renewals.append(Renewal(str(visa).strip(), str(client).strip(), str(status).strip(), parse_date(until)))
     for x in data.get("partners") or []:
-        name, contact = (list(x) + ["", ""])[:2]
-        if str(name).strip():
-            t.partner_contacts[norm(str(name))] = str(contact).strip()
+        name, contact, keyword = (list(x) + ["", "", ""])[:3]
+        contact = str(contact).strip()
+        for key in (name, keyword):
+            if str(key).strip() and contact:
+                t.partner_contacts.setdefault(norm(str(key)), contact)
     return t
 
 

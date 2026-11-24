@@ -96,3 +96,14 @@ def test_stage_moves_skip_waiting_for_money():
     t = ts.parse_table({"production": [DATA["production"][0][:7] + ["KYZLASOVA OLGA"] + DATA["production"][0][8:]]})
     moves, doubts = ts.stage_moves(k, t, contacts)
     assert not moves and "проверьте оплату" in doubts[0]
+
+
+def test_partner_list_contact_and_keyword_and_lead_guard():
+    from app.services.table_sync import lead_id_of, parse_table
+    t = parse_table({"production": [], "renewals": [],
+                     "partners": [["EVGENIIA CHURKINA", "t.me/Kissunets", "Kissunets"], ["Без контакта", "", ""]]})
+    assert t.partner_contacts["evgeniia churkina"] == "t.me/Kissunets"
+    assert t.partner_contacts["kissunets"] == "t.me/Kissunets"
+    assert "без контакта" not in t.partner_contacts
+    assert lead_id_of("25887677") == 25887677
+    assert lead_id_of("2500000") is None and lead_id_of("2 500 000") is None and lead_id_of("-5500000") is None

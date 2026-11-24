@@ -10,7 +10,7 @@
 const SECRET = 'ВСТАВЬТЕ_СЕКРЕТ';          // тот же, что INTAKE_SCRIPT_SECRET на сервере
 const ROOT_FOLDER_ID = ''; // можно оставить пустым — скрипт сам создаст на Диске папку «Клиенты Alpha Prime»
 const SHEET_NAME = 'Заявки авто';
-const VERSION = 6;  // проверка в браузере: ссылка …/exec?secret=…&action=version
+const VERSION = 7;  // проверка в браузере: ссылка …/exec?secret=…&action=version
 
 function doPost(e) {
   try { return post_(e); } catch (err) { return out_({ ok: false, error: String(err) }); }  // всегда отвечаем JSON
@@ -96,14 +96,20 @@ function doGet(e) {
     } catch (err) { return out_({ ok: false, error: 'нет доступа к файлу: ' + err }); }
   }
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const prod = ss.getSheetByName('Производство');
+  const production = cols_(prod, [3, 4, 5, 7, 9, 14, 15, 20, 22, 23, 24, 27], true);
+  // AA отдаём как «ID сделки», только если так подписан заголовок (иначе там могут быть ваши суммы)
+  const aaIsLead = prod && prod.getLastColumn() >= 27 && String(prod.getRange(1, 27).getDisplayValue()).trim() === 'ID сделки';
+  if (!aaIsLead) production.forEach(function (r) { r[r.length - 1] = ''; });
   return out_({
     ok: true,
     // Производство: №строки, C начало, D менеджер, E партнёр, G услуга, I контакты, N статус, O клиент, T цена, V оплатил, W долг, X доля партнёров, AA ID сделки
-    production: cols_(ss.getSheetByName('Производство'), [3, 4, 5, 7, 9, 14, 15, 20, 22, 23, 24, 27], true),
+    production: production,
     // Продления: A виза, B клиент, F статус, H дата окончания (колонки с логинами/паролями не читаются)
     renewals: cols_(ss.getSheetByName('Продления и доступы'), [1, 2, 6, 8], false)
       .concat(cols_(ss.getSheetByName('Новые продления'), [1, 2, 6, 8], false)),
-    partners: cols_(ss.getSheetByName('Список партнеров'), [1, 2], false),
+    // Список партнеров: A имя, C контакт (t.me/ник или телефон), E ключевое слово (банковские колонки не читаются)
+    partners: cols_(ss.getSheetByName('Список партнеров'), [1, 3, 5], false),
   });
 }
 
