@@ -179,7 +179,7 @@ def process_paid(db: Session, kommo: KommoClient, lead: KommoLead, apply: bool =
     partner = find_partner_for_lead(db, lead)
     raw_partner = field_value(lead.fields, LEAD_FIELDS["partner"])
     partner_word = (partner.codeword if partner and partner.codeword else
-                    (str(raw_partner) if raw_partner and norm(str(raw_partner)) not in NO_PARTNER_VALUES else ""))
+                    (str(raw_partner) if raw_partner and norm(str(raw_partner)) not in NO_PARTNER_VALUES else "")).strip().upper()
     paid = as_int(field_value(lead.fields, LEAD_FIELDS["paid_amount"]))
     debt = as_int(field_value(lead.fields, LEAD_FIELDS["debt"]))
     deadline = as_date(field_value(lead.fields, LEAD_FIELDS["deadline"]))
@@ -190,6 +190,7 @@ def process_paid(db: Session, kommo: KommoClient, lead: KommoLead, apply: bool =
     n_rows = len(people) * len(services)
     rows, first = [], True
     for c, pname, pp in people:
+        pname = (pname or "").strip().upper()  # в таблице производства имена — большими буквами
         phone = c.phones[0] if c and c.phones else ""
         ex = _contact_extra(c)
         contacts_cell = ", ".join(x for x in (phone, ex.get("email"), ex.get("instagram")) if x)
@@ -204,9 +205,9 @@ def process_paid(db: Session, kommo: KommoClient, lead: KommoLead, apply: bool =
                          (debt if first and debt is not None else ""), ((t.l1 or "") if t and partner_word else ""), "", "",
                          lead.id, "Новая — проверить данные ИИ", kommo_lead_url(lead.id) or ""])
             first = False
-    client = people[0][1]
+    client = (people[0][1] or "").strip().upper()
     report = {"lead_id": lead.id, "client": client, "service": service, "docs": docs, "missing": missing, "rows": rows,
-              "people": [p[1] for p in people], "agreed": agreed}
+              "people": [(p[1] or "").strip().upper() for p in people], "agreed": agreed}
     if not apply:
         return report
 
